@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Custom Properties ─────────────────────────────────────── */
+:root {
+  --bg: #0f0f0f;
+  --card: #1a1a1a;
+  --card2: #222;
+  --border: #2a2a2a;
+  --accent: #e8ff47;
+  --accent2: #47c4ff;
+  --red: #ff4747;
+  --green: #47ff8a;
+  --text: #f0f0f0;
+  --muted: #888;
+  --radius: 12px;
+}
+
+/* ─── Base resets ────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* ─── Input: prevent iOS auto-zoom ──────────────────────────────── */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* ─── Scrollbar hide utility ─────────────────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+
+/* ─── SlideUp animation ──────────────────────────────────────────── */
+@keyframes slideUp {
+  from {
+    transform: translateY(60px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-slide-up {
+  animation: slideUp 0.25s ease;
+}
+
+/* ─── Number input: hide spin buttons ───────────────────────────── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* ─── Canvas for progress charts ────────────────────────────────── */
+canvas {
+  width: 100% !important;
+  max-width: 100%;
+}
