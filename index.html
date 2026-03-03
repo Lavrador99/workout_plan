@@ -1372,7 +1372,12 @@
       <div class="profiles-title">Quem está a treinar?</div>
       <div class="profiles-sub">Seleciona o teu perfil para continuar</div>
       <div class="profiles-grid" id="profiles-grid"></div>
-      <button class="profile-manage-link" onclick="showManageProfiles()">⚙ Gerir perfis</button>
+      <button class="profile-manage-link" onclick="showManageProfiles()">&#9881; Gerir perfis</button>
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:18px;width:100%;text-align:center">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Já tens dados guardados num ficheiro?</p>
+        <button class="swap-session-btn" style="max-width:280px;margin:0 auto" onclick="document.getElementById('import-input-profiles').click()">⬆ Importar backup (.json)</button>
+        <input type="file" id="import-input-profiles" accept=".json" style="display:none" onchange="importData(this)">
+      </div>
     </div>
 
     <!-- WIZARD SCREEN -->
@@ -3764,7 +3769,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `treino-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `treino_autosave.json`;
         a.click();
         URL.revokeObjectURL(url);
       }
@@ -3786,7 +3791,19 @@
               if (k !== "__saved_at") localStorage.setItem(k, v);
             });
             localStorage.setItem("treino_autosave", JSON.stringify(snapshot));
-            renderToday();
+
+            // After import, boot with the loaded data
+            const impProfiles = getProfiles();
+            const impActiveId = getActiveProfileId();
+            hideProfilesScreen();
+            if (impProfiles.length > 0) {
+              const toActivate = impActiveId && impProfiles.find(p => p.id === impActiveId)
+                ? impActiveId : impProfiles[0].id;
+              activateProfile(toActivate);
+              renderToday();
+            } else {
+              showProfilesScreen();
+            }
             await autoSave(); // also write to linked file if any
             const ind = document.getElementById("save-indicator");
             if (ind) {
@@ -5509,31 +5526,77 @@
         if (e.key === "Enter")  { e.preventDefault(); saveEditModal(); }
       });
 
-      (function bootApp() {
+      (async function bootApp() {
         const profiles = getProfiles();
         const activeId = getActiveProfileId();
 
-        if (profiles.length === 0) {
-          // Check for legacy (unprefixed) data to migrate
-          const hasLegacy = APP_PREFIXES.some(p => {
-            for (let i = 0; i < localStorage.length; i++)
-              if (localStorage.key(i).startsWith(p)) return true;
-            return false;
-          });
-          if (hasLegacy) {
-            _migrateExistingData();
+        if (profiles.length > 0) {
+          if (activeId && profiles.find(p => p.id === activeId)) {
+            activateProfile(activeId);
             renderToday();
           } else {
             showProfilesScreen();
           }
-        } else if (activeId && profiles.find(p => p.id === activeId)) {
-          activateProfile(activeId);
-          renderToday();
-        } else {
-          // Profiles exist but none active — show selection screen
-          showProfilesScreen();
+          initFileHandle();
+          return;
         }
 
+        // Check for legacy (unprefixed) data to migrate
+        const hasLegacy = APP_PREFIXES.some(p => {
+          for (let i = 0; i < localStorage.length; i++)
+            if (localStorage.key(i).startsWith(p)) return true;
+          return false;
+        });
+        if (hasLegacy) {
+          _migrateExistingData();
+          renderToday();
+          initFileHandle();
+          return;
+        }
+
+        // No local data — try auto-loading treino_autosave.json from the server
+        const psEl = document.getElementById('profiles-screen');
+        const gridEl = document.getElementById('profiles-grid');
+        psEl.classList.add('active');
+        gridEl.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:24px 0">&#x1F504; A procurar dados guardados…</p>';
+
+        try {
+          const res = await fetch('./treino_autosave.json', { cache: 'no-cache' });
+          if (res.ok) {
+            const snapshot = await res.json();
+            if (snapshot && snapshot.treino_profiles) {
+              // Import snapshot into localStorage
+              const toRemove = [];
+              for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (APP_PREFIXES.some(p => k.startsWith(p))) toRemove.push(k);
+              }
+              toRemove.forEach(k => localStorage.removeItem(k));
+              Object.entries(snapshot).forEach(([k, v]) => {
+                if (k !== '__saved_at') localStorage.setItem(k, v);
+              });
+              localStorage.setItem('treino_autosave', JSON.stringify(snapshot));
+
+              // Boot with newly loaded profiles
+              const loadedProfiles  = getProfiles();
+              const loadedActiveId  = getActiveProfileId();
+              if (loadedProfiles.length > 0) {
+                psEl.classList.remove('active');
+                if (loadedActiveId && loadedProfiles.find(p => p.id === loadedActiveId)) {
+                  activateProfile(loadedActiveId);
+                  renderToday();
+                } else {
+                  showProfilesScreen();
+                }
+                initFileHandle();
+                return;
+              }
+            }
+          }
+        } catch (_) { /* network error or empty file — fall through */ }
+
+        // Nothing found — show empty profiles screen so user can create or import
+        renderProfilesGrid();
         initFileHandle();
       })();
     </script>
