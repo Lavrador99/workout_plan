@@ -3717,10 +3717,23 @@
 
       function buildSnapshot() {
         const snapshot = {};
-        const pfxList = APP_PREFIXES.map(p => PROFILE_PREFIX ? PROFILE_PREFIX + '_' + p : p);
+        // Always include profile registry and active profile
+        const profilesRaw = localStorage.getItem('treino_profiles');
+        const activeRaw   = localStorage.getItem('treino_active_profile');
+        if (profilesRaw) snapshot['treino_profiles']        = profilesRaw;
+        if (activeRaw)   snapshot['treino_active_profile']  = activeRaw;
+        // Include training data for ALL profiles (all prefixed keys)
+        const profiles = [];
+        try { profiles.push(...(JSON.parse(profilesRaw) || [])); } catch(_) {}
+        const prefixesToSave = [];
+        profiles.forEach(p => {
+          APP_PREFIXES.forEach(ap => prefixesToSave.push(p.id + '_' + ap));
+        });
+        // Also include any legacy unprefixed keys
+        APP_PREFIXES.forEach(ap => prefixesToSave.push(ap));
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (pfxList.some((p) => k.startsWith(p)))
+          if (prefixesToSave.some(p => k.startsWith(p)))
             snapshot[k] = localStorage.getItem(k);
         }
         snapshot.__saved_at = new Date().toISOString();
@@ -3781,7 +3794,7 @@
         reader.onload = async (e) => {
           try {
             const snapshot = JSON.parse(e.target.result);
-            const toRemove = [];
+            const toRemove = ['treino_profiles', 'treino_active_profile', 'treino_autosave'];
             for (let i = 0; i < localStorage.length; i++) {
               const k = localStorage.key(i);
               if (APP_PREFIXES.some((p) => k.startsWith(p))) toRemove.push(k);
@@ -5566,7 +5579,7 @@
             const snapshot = await res.json();
             if (snapshot && snapshot.treino_profiles) {
               // Import snapshot into localStorage
-              const toRemove = [];
+              const toRemove = ['treino_profiles', 'treino_active_profile', 'treino_autosave'];
               for (let i = 0; i < localStorage.length; i++) {
                 const k = localStorage.key(i);
                 if (APP_PREFIXES.some(p => k.startsWith(p))) toRemove.push(k);
