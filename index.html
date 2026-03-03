@@ -2,7 +2,7 @@
 <html lang="pt">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f0f0f" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -34,6 +34,8 @@
         color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         min-height: 100vh;
+        min-height: -webkit-fill-available;
+        -webkit-tap-highlight-color: transparent;
       }
 
       /* NAV */
@@ -45,6 +47,7 @@
         position: sticky;
         top: 0;
         z-index: 100;
+        padding-top: env(safe-area-inset-top);
       }
       nav button {
         flex: 1;
@@ -68,6 +71,7 @@
       .page {
         display: none;
         padding: 20px 16px;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
         max-width: 700px;
         margin: 0 auto;
       }
@@ -170,13 +174,15 @@
         gap: 6px;
         flex-wrap: wrap;
       }
+      /* ── SET BUTTON: bigger touch target ── */
       .set-btn {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        width: 52px;
-        height: 52px;
+        min-width: 56px;
+        width: 56px;
+        height: 56px;
         border-radius: 8px;
         border: 1.5px solid var(--border);
         background: var(--card);
@@ -239,7 +245,7 @@
       #timer-overlay {
         display: none;
         position: fixed;
-        bottom: 80px;
+        bottom: calc(80px + env(safe-area-inset-bottom));
         right: 16px;
         background: var(--card);
         border: 1px solid var(--border);
@@ -584,7 +590,7 @@
       .swap-bottom-sheet {
         background: var(--card);
         border-radius: 16px 16px 0 0;
-        padding: 16px 16px 36px;
+        padding: 16px 16px max(36px, env(safe-area-inset-bottom));
         width: 100%;
         max-width: 480px;
         max-height: 80vh;
@@ -710,7 +716,7 @@
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: var(--radius) var(--radius) 0 0;
-        padding: 24px 20px 32px;
+        padding: 24px 20px max(32px, env(safe-area-inset-bottom));
         width: 100%;
         max-width: 500px;
         box-shadow: 0 -8px 40px #0009;
@@ -828,7 +834,7 @@
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: var(--radius) var(--radius) 0 0;
-        padding: 24px 20px 36px;
+        padding: 24px 20px max(36px, env(safe-area-inset-bottom));
         width: 100%;
         max-width: 500px;
         box-shadow: 0 -8px 40px #0009;
@@ -914,7 +920,7 @@
         font-weight: 700;
         cursor: pointer;
       }
-      /* DATA TOOLBAR */
+      /* ── DATA TOOLBAR ── */
       .data-toolbar {
         display: flex;
         align-items: center;
@@ -923,7 +929,11 @@
         padding: 6px 16px;
         background: var(--bg);
         border-bottom: 1px solid var(--border);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
       }
+      .data-toolbar::-webkit-scrollbar { display: none; }
       .data-toolbar button {
         font-size: 11px;
         font-weight: 600;
@@ -1018,8 +1028,9 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        width: 52px;
-        height: 52px;
+        min-width: 56px;
+        width: 56px;
+        height: 56px;
         border-radius: 8px;
         border: 1.5px solid var(--border);
         background: var(--card);
@@ -1044,8 +1055,10 @@
         z-index: 1000;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
+        justify-content: flex-start;
+        overflow-y: auto;
+        padding: calc(env(safe-area-inset-top) + 48px) 20px
+                 calc(env(safe-area-inset-bottom) + 40px);
         text-align: center;
       }
       .profiles-screen.active { display: flex; }
@@ -1113,14 +1126,14 @@
         background: var(--bg);
         z-index: 1001;
         overflow-y: auto;
-        padding-bottom: 40px;
+        padding-bottom: calc(40px + env(safe-area-inset-bottom));
       }
       .wizard-overlay.active { display: block; }
       .wizard-topbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16px 20px 12px;
+        padding: calc(env(safe-area-inset-top) + 12px) 20px 12px;
         border-bottom: 1px solid var(--border);
         position: sticky;
         top: 0;
@@ -1363,6 +1376,116 @@
       /* Goal/Exp label classes used in JS templates */
       .goal-label { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
       .exp-label  { font-size: 15px; font-weight: 700; }
+      /* ─── MOBILE OVERRIDES (@media max-width: 640px) ─── */
+      @media (max-width: 640px) {
+        /* Prevent iOS auto-zoom on input focus */
+        input, select, textarea { font-size: max(16px, 1em) !important; }
+
+        /* Nav: larger tap targets */
+        nav button {
+          padding: 12px 4px;
+          font-size: 11px;
+          letter-spacing: 0.3px;
+        }
+
+        /* data-toolbar: compact + scrollable */
+        .data-toolbar {
+          padding: 5px 12px;
+          gap: 6px;
+          justify-content: flex-start;
+        }
+        .data-toolbar button {
+          white-space: nowrap;
+          font-size: 11px;
+          padding: 5px 10px;
+          flex-shrink: 0;
+        }
+        #btn-link-file { display: none; } /* File System API is desktop-only anyway */
+        .file-status  { display: none; }
+
+        /* Today page */
+        .today-day { font-size: 22px; }
+        .session-title { font-size: 18px; }
+        .session-sub { font-size: 12px; margin-bottom: 12px; }
+
+        /* Exercise rows: slightly tighter */
+        .ex-row { padding: 12px; }
+        .ex-name { font-size: 14px; }
+        .ex-detail { font-size: 11px; }
+        .sets-row { gap: 5px; }
+
+        /* Set buttons: full touch-friendly */
+        .set-btn, .acc-set-btn {
+          min-width: 52px;
+          width: 52px;
+          height: 52px;
+        }
+        .set-val  { font-size: 14px; }
+        .set-num  { font-size: 10px; }
+
+        /* Timer: full-width bottom bar on mobile */
+        #timer-overlay {
+          bottom: calc(4px + env(safe-area-inset-bottom));
+          right: 0; left: 0;
+          margin: 0 12px;
+          border-radius: var(--radius);
+          min-width: unset;
+        }
+
+        /* Bottom sheets: full-width */
+        #edit-modal, #demo-modal, .swap-bottom-sheet {
+          border-radius: 20px 20px 0 0;
+        }
+        .edit-modal-fields { gap: 8px; }
+        .edit-modal-field input { font-size: 22px !important; }
+
+        /* Info box */
+        .info-box { font-size: 12px; padding: 10px; }
+
+        /* Progress chart */
+        canvas { height: 140px; }
+
+        /* History */
+        .hist-row { font-size: 13px; }
+
+        /* Profiles screen */
+        .profiles-screen {
+          justify-content: flex-start;
+          padding-top: calc(env(safe-area-inset-top) + 40px);
+        }
+        .profiles-title { font-size: 20px; }
+        .profiles-logo  { font-size: 34px; margin-bottom: 10px; }
+        .profiles-sub   { margin-bottom: 28px; }
+        .profiles-grid  { gap: 18px; }
+        .profile-avatar { width: 70px; height: 70px; font-size: 30px; }
+
+        /* Wizard */
+        .wizard-inner { padding: 20px 16px 0; }
+        .wizard-title { font-size: 19px; }
+        .wizard-next-btn { padding: 14px; font-size: 15px; margin-top: 18px; }
+        .goal-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+        .goal-card { padding: 12px 10px; }
+        .goal-icon { font-size: 22px; margin-bottom: 4px; }
+        .emoji-opt { width: 44px; height: 44px; font-size: 22px; }
+        .dur-chip, .weeks-chip { font-size: 13px; padding: 10px 4px; }
+        .day-chip { padding: 8px 4px; font-size: 11px; }
+
+        /* Collapsibles */
+        .acc-toggle-btn { padding: 10px 12px; font-size: 12px; }
+
+        /* Swap modal */
+        .swap-option { padding: 10px 12px; }
+        .swap-icon { font-size: 18px; }
+        .swap-label { font-size: 13px; }
+
+        /* Complete button */
+        .complete-btn-wrap { margin-top: 16px; }
+        .btn { padding: 14px 20px; font-size: 15px; }
+
+        /* Skill page */
+        .skill-log-row input { padding: 10px; }
+        .skill-log-row button { padding: 10px 14px; }
+      }
     </style>
   </head>
   <body>
