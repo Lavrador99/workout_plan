@@ -1,7 +1,8 @@
 {
   "files": [],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./apps/treino-web/tsconfig.app.json" },
+    { "path": "./apps/treino-web/tsconfig.node.json" },
+    { "path": "./apps/treino-api/tsconfig.app.json" }
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "treino-web",
+  "projectType": "application",
+  "sourceRoot": "apps/treino-web/src",
+  "targets": {
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "options": {
+        "buildTarget": "treino-web:build"
+      }
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "options": {
+        "outputPath": "dist/apps/treino-web"
+      }
+    }
+  },
+  "tags": ["scope:web", "type:app"]
+}

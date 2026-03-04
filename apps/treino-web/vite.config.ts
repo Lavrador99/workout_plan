@@ -10,6 +10,13 @@ export default defineConfig({
       "@": resolve(__dirname, "src"),
     },
   },
+  server: {
+    proxy: {
+      // Proxy /snapshot (and any /api/**) to the NestJS API in dev
+      "/snapshot": "http://localhost:3334",
+      "/api": "http://localhost:3334",
+    },
+  },
   plugins: [
     react(),
     VitePWA({

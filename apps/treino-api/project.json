@@ -1,0 +1,26 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "treino-api",
+  "projectType": "application",
+  "sourceRoot": "apps/treino-api/src",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/treino-api",
+        "tsConfig": "apps/treino-api/tsconfig.app.json",
+        "main": "apps/treino-api/src/main.ts",
+        "assets": []
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "options": {
+        "buildTarget": "treino-api:build",
+        "runBuildTargetDependencies": false
+      }
+    }
+  },
+  "tags": ["scope:api", "type:app"]
+}

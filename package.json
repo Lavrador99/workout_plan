@@ -4,24 +4,47 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "nx run treino-web:serve",
+    "build": "nx run treino-web:build",
+    "build:api": "nx run treino-api:build",
+    "build:all": "nx run-many -t build",
+    "serve:api": "nx run treino-api:serve",
+    "preview": "nx run treino-web:preview",
+    "docker:up": "docker compose up --build",
+    "docker:dev": "docker compose watch"
   },
   "dependencies": {
+    "@nestjs/common": "^11.1.15",
+    "@nestjs/core": "^11.1.15",
+    "@nestjs/platform-express": "^11.1.15",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.16",
+    "@nestjs/schematics": "^11.0.9",
+    "@nx/nest": "^22.5.3",
+    "@nx/vite": "22.5.3",
+    "@nx/web": "22.5.3",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.3.3",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
+    "@vitest/ui": "^4.0.0",
     "autoprefixer": "^10.4.21",
+    "jiti": "2.4.2",
+    "nx": "22.5.3",
     "postcss": "^8.5.4",
     "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
-    "vite-plugin-pwa": "^1.0.0"
-  }
+    "vite-plugin-pwa": "^1.0.0",
+    "vitest": "^4.0.0"
+  },
+  "nx": {}
 }

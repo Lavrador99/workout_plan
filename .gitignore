@@ -21,3 +21,9 @@ yarn-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+
+
+.nx/cache
+.nx/workspace-data
+vite.config.*.timestamp*
