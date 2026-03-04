@@ -1,5 +1,6 @@
 import { GOAL_SCHEDULES } from "@/consts";
 import type { PlanConfig, Profile } from "@/types";
+import { scheduleWrite } from "@/utils/fileAutosave";
 import {
   createContext,
   useCallback,
@@ -44,6 +45,7 @@ function loadProfiles(): Profile[] {
 
 function saveProfiles(profiles: Profile[]): void {
   localStorage.setItem("treino_profiles", JSON.stringify(profiles));
+  scheduleWrite();
 }
 
 function profilePrefix(id: string): string {
@@ -116,6 +118,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const activateProfile = useCallback((id: string) => {
     localStorage.setItem("treino_active_profile", id);
+    scheduleWrite();
     setActiveId(id);
     setShowProfilesScreen(false);
   }, []);

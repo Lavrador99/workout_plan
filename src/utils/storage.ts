@@ -1,6 +1,7 @@
 import { APP_PREFIXES } from "@/consts";
 import type { SetLog } from "@/types";
 import { dateKey } from "./date";
+import { scheduleWrite } from "./fileAutosave";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE KEY HELPERS
@@ -42,6 +43,7 @@ export function saveLog(
     pKey(profilePrefix, `log_${dateKey(date)}_${exKey}_${setIdx}`),
     JSON.stringify(log),
   );
+  scheduleWrite();
 }
 
 export function removeLog(
@@ -53,6 +55,7 @@ export function removeLog(
   localStorage.removeItem(
     pKey(profilePrefix, `log_${dateKey(date)}_${exKey}_${setIdx}`),
   );
+  scheduleWrite();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,6 +85,7 @@ export function markDone(
   const k = pKey(profilePrefix, `done_${dateKey(date)}_${exKey}_${setIdx}`);
   if (done) localStorage.setItem(k, "1");
   else localStorage.removeItem(k);
+  scheduleWrite();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,6 +105,7 @@ export function markSessionComplete(profilePrefix: string, date: Date): void {
     pKey(profilePrefix, `session_complete_${dateKey(date)}`),
     "1",
   );
+  scheduleWrite();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,12 +130,14 @@ export function setSessionOverride(
     pKey(profilePrefix, `session_override_${dateKey(date)}`),
     type,
   );
+  scheduleWrite();
 }
 
 export function removeSessionOverride(profilePrefix: string, date: Date): void {
   localStorage.removeItem(
     pKey(profilePrefix, `session_override_${dateKey(date)}`),
   );
+  scheduleWrite();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,6 +157,7 @@ export function saveLastWeight(
     pKey(profilePrefix, `lastweight_${exKey}`),
     String(weight),
   );
+  scheduleWrite();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -291,6 +299,7 @@ export function saveSkillEntry(
     pKey(profilePrefix, `skill_${skillKey}`),
     JSON.stringify(entries),
   );
+  scheduleWrite();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -365,6 +374,7 @@ export function restoreSnapshot(data: Record<string, string>): void {
 
   // Restore
   Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, v));
+  scheduleWrite();
 }
 
 export function exportJSON(): void {
