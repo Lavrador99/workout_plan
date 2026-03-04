@@ -170,8 +170,102 @@ export function getStreak(profilePrefix: string): number {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SKILL STORAGE
+// ANALYTICS
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Count how many distinct days had a session_complete flag in a date range */
+export function getTotalSessions(
+  profilePrefix: string,
+  startDate: Date,
+  totalDays: number,
+): number {
+  let count = 0;
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    if (isSessionComplete(profilePrefix, d)) count++;
+  }
+  return count;
+}
+
+/** Return all dates (as Date objects) that have a session_complete flag */
+export function getCompletedDates(
+  profilePrefix: string,
+  startDate: Date,
+  totalDays: number,
+): Date[] {
+  const dates: Date[] = [];
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    if (isSessionComplete(profilePrefix, d)) dates.push(new Date(d));
+  }
+  return dates;
+}
+
+/**
+ * Compute total training volume (sets × reps × weight) per week.
+ * Returns an array of length `weeks`, indexed 0..weeks-1.
+ */
+export function getWeeklyVolumes(
+  profilePrefix: string,
+  startDate: Date,
+  weeks: number,
+): number[] {
+  const result = new Array<number>(weeks).fill(0);
+  for (let w = 0; w < weeks; w++) {
+    for (let dow = 0; dow < 7; dow++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + w * 7 + dow);
+      const logs = getLogsForDate(profilePrefix, d);
+      for (const log of Object.values(logs)) {
+        if (log.weight && log.reps) {
+          result[w] += log.weight * log.reps;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+/** Total volume (kg×reps) over the entire programme */
+export function getTotalVolume(
+  profilePrefix: string,
+  startDate: Date,
+  totalDays: number,
+): number {
+  let total = 0;
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const logs = getLogsForDate(profilePrefix, d);
+    for (const log of Object.values(logs)) {
+      if (log.weight && log.reps) {
+        total += log.weight * log.reps;
+      }
+    }
+  }
+  return total;
+}
+
+/** Max reps ever logged for a given exercise (no weight required — for bodyweight PRs) */
+export function getRepsPR(
+  profilePrefix: string,
+  exKey: string,
+  startDate: Date,
+  totalDays: number,
+): number {
+  let pr = 0;
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    for (let s = 0; s < 6; s++) {
+      const log = getLog(profilePrefix, d, exKey, s);
+      if (log?.reps) pr = Math.max(pr, log.reps);
+    }
+  }
+  return pr;
+}
 
 export function getSkillEntries(
   profilePrefix: string,

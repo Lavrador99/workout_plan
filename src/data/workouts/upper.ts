@@ -10,6 +10,9 @@ export function buildUpper(week: number, b: number, dl: boolean): Session {
   const pct = wavePct(week);
   const v = upperVersion(week);
 
+  // Accessory rotation (3 cycles) independent of version/block
+  const acc = ((week - 1) % 3) + 1; // 1 | 2 | 3
+
   const vLabels: Record<string, string> = {
     A: "FORÇA MÁXIMA",
     B: "RESISTÊNCIA",
@@ -59,21 +62,43 @@ export function buildUpper(week: number, b: number, dl: boolean): Session {
         tip: "Pés em caixa 60cm.",
       },
       {
-        name: "Rear Delt Raises",
-        detail: "3x15 — descanso 60s",
+        name:
+          acc === 1
+            ? "Rear Delt Raises"
+            : acc === 2
+              ? "Face Pulls (banda/cabo)"
+              : "Band Pull-apart",
+        detail: acc === 2 ? "3x20 — descanso 45s" : "3x15 — descanso 60s",
         sets: 3,
-        reps: 15,
-        rest: 60,
+        reps: acc === 2 ? 20 : 15,
+        rest: acc === 2 ? 45 : 60,
         key: "rear_delt",
+        tip:
+          acc === 2
+            ? "Puxar para rosto. Rotação externa máxima."
+            : acc === 3
+              ? "Braços retos. Esticar banda ao peito."
+              : undefined,
       },
       {
-        name: "Hollow Body Hold",
-        detail: "3x30s — descanso 30s",
+        name:
+          acc === 1
+            ? "Hollow Body Hold"
+            : acc === 2
+              ? "L-sit Hold (parallettes)"
+              : "Tuck L-sit Hold",
+        detail: acc === 1 ? "3x30s — descanso 30s" : "3x20s — descanso 45s",
         sets: 3,
-        reps: 30,
+        reps: acc === 1 ? 30 : 20,
         isHold: true,
-        rest: 30,
-        key: "hollow_body",
+        rest: acc === 1 ? 30 : 45,
+        key: acc === 1 ? "hollow_body" : "lsit_hold",
+        tip:
+          acc === 2
+            ? "Pernas retas. Quadril elevado. Respiração rítmica."
+            : acc === 3
+              ? "Joelhos no peito. Mãos empurram para baixo."
+              : undefined,
       },
     ],
     B: [
@@ -132,13 +157,24 @@ export function buildUpper(week: number, b: number, dl: boolean): Session {
         key: "pike_pushup",
       },
       {
-        name: "Dead hang",
+        name:
+          acc === 1
+            ? "Dead hang"
+            : acc === 2
+              ? "Active hang (scapular pull)"
+              : "Arch hang",
         detail: "3x30-45s — descanso 60s",
         sets: 3,
         reps: 40,
         isHold: true,
         rest: 60,
         key: "dead_hang",
+        tip:
+          acc === 2
+            ? "Retrair e deprimir escápulas. Puxar para baixo."
+            : acc === 3
+              ? "Arqueamento activo. Ombros junto às orelhas."
+              : undefined,
       },
     ],
     C: [
@@ -191,21 +227,44 @@ export function buildUpper(week: number, b: number, dl: boolean): Session {
         key: "shoulder_press_var",
       },
       {
-        name: "Rear Delt Raises",
+        name:
+          acc === 1
+            ? "Rear Delt Raises"
+            : acc === 2
+              ? "Face Pulls (banda)"
+              : "Band Pull-apart",
         detail: "3x15 — descanso 60s",
         sets: 3,
         reps: 15,
         rest: 60,
         key: "rear_delt",
+        tip:
+          acc === 2
+            ? "Puxar para orelhas. Rotação externa ombros."
+            : acc === 3
+              ? "Braços retos. Esticar banda ao longo do peito."
+              : undefined,
       },
       {
-        name: "L-sit Hold",
-        detail: "3x15-25s — descanso 60s",
+        name:
+          acc === 1
+            ? "L-sit Hold"
+            : acc === 2
+              ? "V-sit Hold"
+              : "Tuck L-sit Hold",
+        detail:
+          acc === 2 ? "3x10-15s — descanso 60s" : "3x15-25s — descanso 60s",
         sets: 3,
-        reps: 20,
+        reps: acc === 2 ? 12 : 20,
         isHold: true,
         rest: 60,
         key: "lsit_hold",
+        tip:
+          acc === 1
+            ? "Pernas retas. Quadril elevado."
+            : acc === 2
+              ? "Pernas retas em V. Força abdominal máxima."
+              : "Joelhos dobrados. Progressão para L-sit.",
       },
     ],
     D: [
@@ -254,13 +313,29 @@ export function buildUpper(week: number, b: number, dl: boolean): Session {
         key: "australian_tempo",
       },
       {
-        name: "Hollow Body Hold",
-        detail: "3x30s — descanso 30s",
+        name:
+          acc === 1
+            ? "Hollow Body Hold"
+            : acc === 2
+              ? "Ab Wheel Rollout"
+              : "Planche Lean Hold",
+        detail:
+          acc === 1
+            ? "3x30s — descanso 30s"
+            : acc === 2
+              ? "3x8 — descanso 60s"
+              : "3x20-30s — descanso 45s",
         sets: 3,
-        reps: 30,
-        isHold: true,
-        rest: 30,
-        key: "hollow_body",
+        reps: acc === 1 ? 30 : acc === 2 ? 8 : 25,
+        isHold: acc !== 2,
+        rest: acc === 1 ? 30 : acc === 2 ? 60 : 45,
+        key: acc === 2 ? "ab_wheel" : "hollow_body",
+        tip:
+          acc === 2
+            ? "Extensão máxima. Core não ceder."
+            : acc === 3
+              ? "Dedos para trás. Ângulo máximo sem perder forma."
+              : undefined,
       },
     ],
   };
