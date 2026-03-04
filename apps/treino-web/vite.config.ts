@@ -5,6 +5,10 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   base: process.env.NODE_ENV === "production" ? "/workout_plan/" : "/",
+  build: {
+    outDir: "../../dist",
+    emptyOutDir: true,
+  },
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),

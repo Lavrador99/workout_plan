@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nx run treino-web:serve",
-    "build": "nx run treino-web:build",
+    "build": "cd apps/treino-web && npx vite build",
     "build:api": "nx run treino-api:build",
     "build:all": "nx run-many -t build",
     "serve:api": "nx run treino-api:serve",
