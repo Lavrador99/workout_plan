@@ -87,6 +87,7 @@ export const SEED_GROUPS: SeedGroup[] = [
   {
     tags: ["mobilidade"],
     items: [
+      "Breathing Drill | Exercício de respiração | Breathing, Respiração diafragmática",
       "Lateral Line Stretch | Alongamento da linha lateral",
       "Thread the Needle | Passar a agulha",
       "Cobra to Downward Dog | Cobra para cão a olhar para baixo",

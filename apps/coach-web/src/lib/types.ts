@@ -85,10 +85,16 @@ export interface Session extends SyncMeta {
   blocks: Block[];
 }
 
-/** A reusable block (e.g. the usual core finisher or Hyrox circuit). */
+/**
+ * A reusable block (e.g. the usual core finisher or Hyrox circuit), or a whole
+ * day when `blocks` is set (then `block` is its first block, for older apps).
+ */
 export interface Template extends SyncMeta {
   name: string;
   block: Block;
+  blocks?: Block[];
+  /** Session title used when the day is applied ("Lower 1"). */
+  title?: string;
 }
 
 export type TableName = "clients" | "exercises" | "sessions" | "templates";

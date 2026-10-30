@@ -120,6 +120,11 @@ export function copyBlock(b: Block): Block {
   return { ...b, id: uid(), items: b.items.map((i) => ({ ...i, id: uid(), sets: i.sets.map((r) => ({ ...r, done: false })) })) };
 }
 
+/** The blocks a template adds: the whole day, or its single block. */
+export function templateBlocks(t: Template): Block[] {
+  return t.blocks?.length ? t.blocks : [t.block];
+}
+
 /** Copy of a session for today: new ids, nothing ticked. */
 export function duplicateSession(s: Session): Session {
   return { ...newSession(s.clientId), title: s.title, blocks: s.blocks.map(copyBlock) };

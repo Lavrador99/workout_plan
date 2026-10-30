@@ -1,13 +1,15 @@
 import { changed, db, matchExercise, save } from "./db";
+import { parseItemLine } from "./parser";
 import { SEED_GROUPS } from "./seedData";
+import { SEED_DAYS } from "./seedTemplates";
 import { norm } from "./text";
-import type { Exercise } from "./types";
+import type { Block, Exercise, Template } from "./types";
 
 // Base library, merged once per device. Seed records get a fixed id
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 1;
+const SEED_VERSION = 2; // 2: the 4-day templates
 
 export interface SeedExercise {
   id: string;
@@ -63,7 +65,34 @@ export async function seedLibrary(force = false): Promise<number> {
     all.push(ex);
     n++;
   }
+  n += await seedTemplates(all);
   await db.meta.put({ key: "seedVersion", value: SEED_VERSION });
   if (n) changed();
+  return n;
+}
+
+/** The 4 days as whole-day templates, items linked to the library by name. */
+export function seedDays(library: Exercise[]): Template[] {
+  return SEED_DAYS.map((d) => {
+    const blocks: Block[] = d.blocks.map(({ items, ...b }, i) => ({
+      ...b,
+      id: `${d.id}-b${i}`,
+      items: items.map((line, j) => {
+        const [rx, note = ""] = line.split("|").map((x) => x.trim());
+        const it = parseItemLine(rx);
+        return { ...it, id: `${d.id}-b${i}-i${j}`, exerciseId: matchExercise(library, it.name)?.id, note: [it.note, note].filter(Boolean).join(" · ") };
+      }),
+    }));
+    return { id: d.id, updatedAt: 1, name: d.name, title: d.title, block: blocks[0], blocks };
+  });
+}
+
+async function seedTemplates(library: Exercise[]): Promise<number> {
+  let n = 0;
+  for (const t of seedDays(library)) {
+    if (await db.templates.get(t.id)) continue; // already here (or deleted on purpose)
+    await db.templates.put({ ...t, dirty: 1 });
+    n++;
+  }
   return n;
 }

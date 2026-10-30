@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import BlockCard from "../components/BlockCard";
-import { copyBlock, duplicateSession, linkItems, newSession, remove, save } from "../lib/db";
+import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
 import { fmtSession } from "../lib/format";
 import { history, suggest } from "../lib/history";
 import { go, useClient, useSession, useSessions, useTemplates } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseSessionText } from "../lib/parser";
 import { uid } from "../lib/text";
-import type { Block, Session } from "../lib/types";
+import type { Block, Session, Template } from "../lib/types";
 
 const TITLES = ["Fullbody", "Superiores", "Inferiores", "Hyrox Sim", "Core", "Mobilidade"];
 
@@ -72,6 +72,19 @@ export default function SessionPage({ id }: { id: string }) {
       ...s.blocks,
       { id, kind, title: kind === "superset" ? "Superset" : "", items: [], ...(kind === "circuit" ? { work: 40, rest: 20, rounds: 3, roundRest: 90 } : {}) },
     ]);
+  };
+
+  const days = templates?.filter((t) => t.blocks?.length) ?? [];
+  const blockTemplates = templates?.filter((t) => !t.blocks?.length) ?? [];
+
+  const applyDay = (t: Template) => update({ ...s, title: s.title || t.title || t.name, blocks: [...s.blocks, ...templateBlocks(t).map(copyBlock)] });
+
+  const saveDay = async () => {
+    const name = prompt("Nome do template de dia", s.title)?.trim();
+    if (!name) return;
+    const blocks = s.blocks.map(copyBlock);
+    await save<Template>("templates", { id: uid(), updatedAt: 0, name, title: s.title, block: blocks[0], blocks });
+    alert(`Template «${name}» guardado.`);
   };
 
   const applyPaste = () => {
@@ -154,6 +167,20 @@ export default function SessionPage({ id }: { id: string }) {
         </datalist>
       </div>
 
+      {s.blocks.length === 0 && days.length > 0 && (
+        <div className="card p-3 flex flex-col gap-2">
+          <span className="label">Começar com um dia</span>
+          <div className="grid grid-cols-2 gap-2">
+            {days.map((t) => (
+              <button key={t.id} type="button" className="btn-accent" onClick={() => applyDay(t)}>
+                {t.name}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">Depois ajusta: toca num exercício para trocar ou mudar séries, cargas e cadência.</p>
+        </div>
+      )}
+
       {s.blocks.map((b, i) => (
         <BlockCard
           key={b.id}
@@ -180,7 +207,13 @@ export default function SessionPage({ id }: { id: string }) {
           <button type="button" className="btn" onClick={() => addBlock("circuit")}>
             + Circuito 40/20
           </button>
-          {templates?.map((t) => (
+          {s.blocks.length > 0 &&
+            days.map((t) => (
+              <button key={t.id} type="button" className="btn text-accent2" onClick={() => confirm(`Juntar os blocos de «${t.name}» a esta sessão?`) && applyDay(t)}>
+                📅 {t.name}
+              </button>
+            ))}
+          {blockTemplates.map((t) => (
             <button key={t.id} type="button" className="btn text-accent2" onClick={() => setBlocks([...s.blocks, copyBlock(t.block)])}>
               ☆ {t.name}
             </button>
@@ -223,6 +256,11 @@ export default function SessionPage({ id }: { id: string }) {
         <button type="button" className="btn" onClick={duplicate}>
           Duplicar para hoje
         </button>
+        {s.blocks.length > 0 && (
+          <button type="button" className="btn" onClick={saveDay}>
+            ☆ Template de dia
+          </button>
+        )}
         <button type="button" className="btn text-danger ml-auto" onClick={del}>
           Apagar
         </button>

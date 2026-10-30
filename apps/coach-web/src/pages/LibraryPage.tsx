@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
-import { matchExercise, mergeExercises, remove, save } from "../lib/db";
+import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../lib/db";
 import { fmtBlock } from "../lib/format";
 import { useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
 import { seedLibrary } from "../lib/seed";
 import { uid } from "../lib/text";
 import { CATEGORIES, levelDots } from "../components/PrescribeSheet";
-import type { Exercise } from "../lib/types";
+import type { Exercise, Template } from "../lib/types";
 
 export default function LibraryPage() {
   const exercises = useExercises() ?? [];
   const usage = useUsage();
   const templates = useTemplates() ?? [];
+  const days = templates.filter((t) => t.blocks?.length);
+  const blocks = templates.filter((t) => !t.blocks?.length);
   const index = useExerciseIndex();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
@@ -74,41 +76,56 @@ export default function LibraryPage() {
         className="btn-ghost text-xs text-muted self-start"
         onClick={async () => {
           const n = await seedLibrary(true);
-          alert(n ? `${n} exercícios da biblioteca base adicionados ou completados.` : "A biblioteca base já está toda cá.");
+          alert(n ? `${n} exercícios/templates da biblioteca base adicionados ou completados.` : "A biblioteca base já está toda cá.");
         }}
       >
-        ↻ Repor exercícios da biblioteca base
+        ↻ Repor exercícios e templates base
       </button>
 
+      <h2 className="font-bold mt-4">Templates de dias</h2>
+      {days.length === 0 ? (
+        <p className="text-xs text-muted">Numa sessão, toca em ☆ Template de dia para guardar a sessão inteira.</p>
+      ) : (
+        <TemplateList list={days} />
+      )}
+
       <h2 className="font-bold mt-4">Templates de blocos</h2>
-      {templates.length === 0 ? (
+      {blocks.length === 0 ? (
         <p className="text-xs text-muted">Numa sessão, abre as opções de um bloco (⋯) e toca em ☆ Template para o reutilizar.</p>
       ) : (
-        <ul className="card divide-y divide-border">
-          {templates.map((t) => (
-            <li key={t.id} className="p-3 flex gap-2 items-start">
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold">☆ {t.name}</div>
-                <pre className="text-xs text-muted whitespace-pre-wrap font-sans">{fmtBlock(t.block)}</pre>
-              </div>
-              <button
-                type="button"
-                className="btn"
-                onClick={async () => {
-                  const name = prompt("Nome do template", t.name)?.trim();
-                  if (name) await save("templates", { ...t, name });
-                }}
-              >
-                ✎
-              </button>
-              <button type="button" className="btn text-danger" onClick={async () => confirm(`Apagar o template «${t.name}»?`) && (await remove("templates", t.id))}>
-                ✕
-              </button>
-            </li>
-          ))}
-        </ul>
+        <TemplateList list={blocks} />
       )}
     </div>
+  );
+}
+
+function TemplateList({ list }: { list: Template[] }) {
+  return (
+    <ul className="card divide-y divide-border">
+      {list.map((t) => (
+        <li key={t.id} className="p-3 flex gap-2 items-start">
+          <details className="flex-1 min-w-0">
+            <summary className="font-semibold cursor-pointer">
+              ☆ {t.name} <span className="text-xs text-muted font-normal">· {templateBlocks(t).length} bloco(s)</span>
+            </summary>
+            <pre className="text-xs text-muted whitespace-pre-wrap font-sans mt-2">{templateBlocks(t).map(fmtBlock).join("\n\n")}</pre>
+          </details>
+          <button
+            type="button"
+            className="btn"
+            onClick={async () => {
+              const name = prompt("Nome do template", t.name)?.trim();
+              if (name) await save("templates", { ...t, name });
+            }}
+          >
+            ✎
+          </button>
+          <button type="button" className="btn text-danger" onClick={async () => confirm(`Apagar o template «${t.name}»?`) && (await remove("templates", t.id))}>
+            ✕
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
