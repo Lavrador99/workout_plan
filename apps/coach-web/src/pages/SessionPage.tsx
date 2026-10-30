@@ -1,0 +1,198 @@
+import { useEffect, useRef, useState } from "react";
+import BlockCard from "../components/BlockCard";
+import { duplicateSession, linkItems, newSession, remove, save } from "../lib/db";
+import { fmtSession } from "../lib/format";
+import { go, useClient, useSession } from "../lib/hooks";
+import { parseSessionText } from "../lib/parser";
+import { uid } from "../lib/text";
+import type { Block, Session } from "../lib/types";
+
+const TITLES = ["Fullbody", "Superiores", "Inferiores", "Hyrox Sim", "Core", "Mobilidade"];
+
+/** Link new/renamed items to the library before saving. */
+async function withLinks(s: Session): Promise<Session> {
+  if (s.blocks.every((b) => b.items.every((i) => i.exerciseId || !i.name))) return s;
+  const blocks: Block[] = [];
+  for (const b of s.blocks) blocks.push({ ...b, items: await linkItems(b.items) });
+  return { ...s, blocks };
+}
+
+export default function SessionPage({ id }: { id: string }) {
+  const stored = useSession(id);
+  const client = useClient(stored?.clientId ?? "");
+  const [s, setS] = useState<Session | null>(null);
+  const [paste, setPaste] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [copied, setCopied] = useState(false);
+  const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const latest = useRef<Session | null>(null);
+
+  // Local copy for instant edits; DB updates from sync are taken when not mid-edit.
+  useEffect(() => {
+    if (stored && !pending.current) setS(stored);
+  }, [stored]);
+
+  const flush = async () => {
+    clearTimeout(pending.current);
+    pending.current = undefined;
+    const s = latest.current;
+    latest.current = null;
+    if (s) await save("sessions", await withLinks(s));
+  };
+  useEffect(() => () => void flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const update = (next: Session) => {
+    setS(next);
+    latest.current = next;
+    clearTimeout(pending.current);
+    pending.current = setTimeout(() => void flush(), 400);
+  };
+
+  if (stored === null) return <p className="p-4 text-muted">Sessão não encontrada.</p>;
+  if (!s) return null;
+
+  const setBlocks = (blocks: Block[]) => update({ ...s, blocks });
+  const moveBlock = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (j < 0 || j >= s.blocks.length) return;
+    const blocks = [...s.blocks];
+    [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
+    setBlocks(blocks);
+  };
+
+  const addBlock = (kind: Block["kind"]) =>
+    setBlocks([
+      ...s.blocks,
+      { id: uid(), kind, title: kind === "superset" ? "Superset" : "", items: [], ...(kind === "circuit" ? { work: 40, rest: 20, rounds: 3, roundRest: 90 } : {}) },
+    ]);
+
+  const applyPaste = () => {
+    const p = parseSessionText(pasteText);
+    update({ ...s, title: s.title || p.title, date: p.date ?? s.date, blocks: [...s.blocks, ...p.blocks] });
+    setPasteText("");
+    setPaste(false);
+  };
+
+  const text = fmtSession(s);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text.replace(/\*\*/g, "*"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      prompt("Copia o texto:", text);
+    }
+  };
+  const share = () => navigator.share?.({ text: text.replace(/\*\*/g, "*") }).catch(() => {});
+
+  const duplicate = async () => {
+    await flush();
+    const copy = await save("sessions", duplicateSession(s));
+    go("session", copy.id);
+  };
+
+  const del = async () => {
+    if (!confirm("Apagar esta sessão?")) return;
+    clearTimeout(pending.current);
+    latest.current = null;
+    await remove("sessions", s.id);
+    go("client", s.clientId);
+  };
+
+  const done = s.blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.sets.filter((x) => x.done).length, 0), 0);
+  const total = s.blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.sets.length, 0), 0);
+
+  return (
+    <div className="flex flex-col gap-3 p-3 pb-28">
+      <div className="flex items-center gap-2">
+        <button type="button" className="btn-ghost -ml-2" onClick={() => void flush().then(() => go("client", s.clientId))}>
+          ← {client?.name ?? ""}
+        </button>
+        <span className="ml-auto text-xs text-muted tabular-nums">{total > 0 && `${done}/${total} séries`}</span>
+      </div>
+
+      <div className="grid grid-cols-[auto_1fr] gap-2">
+        <input type="date" className="input w-auto" value={s.date} onChange={(e) => update({ ...s, date: e.target.value })} />
+        <input className="input font-bold" list="titles" value={s.title} placeholder="Título (Fullbody, Inferiores…)" onChange={(e) => update({ ...s, title: e.target.value })} />
+        <datalist id="titles">
+          {TITLES.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+      </div>
+
+      {s.blocks.map((b, i) => (
+        <BlockCard
+          key={b.id}
+          block={b}
+          onChange={(nb) => setBlocks(s.blocks.map((x) => (x.id === b.id ? nb : x)))}
+          onDelete={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))}
+          onMove={(d) => moveBlock(i, d)}
+        />
+      ))}
+
+      <div className="card p-3 flex flex-col gap-2">
+        <span className="label">Adicionar bloco</span>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn" onClick={() => addBlock("list")}>
+            + Lista / mobilidade
+          </button>
+          <button type="button" className="btn" onClick={() => addBlock("sets")}>
+            + Séries
+          </button>
+          <button type="button" className="btn" onClick={() => addBlock("superset")}>
+            + Superset
+          </button>
+          <button type="button" className="btn" onClick={() => addBlock("circuit")}>
+            + Circuito 40/20
+          </button>
+          <button type="button" className="btn-accent" onClick={() => setPaste(!paste)}>
+            ✎ Escrever / colar texto
+          </button>
+        </div>
+        {paste && (
+          <div className="flex flex-col gap-2">
+            <textarea
+              className="input min-h-[220px] py-2 font-mono text-sm"
+              autoFocus
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"Flexibilidade e mobilidade\nElephant wall\nThread the needle\n\nBack squat 4x8 47,5kg\n(Russian twist, side bends)\nStep up 3x8 2x8kg E+1\n\n40\"/20\" x3 | 1:30 rest\nDevil press\nWall ball"}
+            />
+            <p className="text-xs text-muted">Uma linha por exercício. Linha em branco = novo bloco. (entre parênteses) = intercalado.</p>
+            <button type="button" className="btn-accent" onClick={applyPaste} disabled={!pasteText.trim()}>
+              Adicionar à sessão
+            </button>
+          </div>
+        )}
+      </div>
+
+      <label className="flex flex-col gap-1">
+        <span className="label">Notas da sessão</span>
+        <textarea className="input py-2 min-h-[70px]" value={s.notes} onChange={(e) => update({ ...s, notes: e.target.value })} />
+      </label>
+
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn" onClick={copy}>
+          {copied ? "✓ Copiado" : "Copiar texto"}
+        </button>
+        {"share" in navigator && (
+          <button type="button" className="btn" onClick={share}>
+            Partilhar
+          </button>
+        )}
+        <button type="button" className="btn" onClick={duplicate}>
+          Duplicar para hoje
+        </button>
+        <button type="button" className="btn text-danger ml-auto" onClick={del}>
+          Apagar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export async function openNewSession(clientId: string, from?: Session) {
+  const s = await save("sessions", from ? duplicateSession(from) : newSession(clientId));
+  go("session", s.id);
+}

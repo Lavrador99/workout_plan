@@ -25,6 +25,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // the coach app lives under /coach/ with its own service worker
+      workbox: { navigateFallbackDenylist: [/\/coach\//] },
       manifest: {
         name: "Elite Hybrid Planner",
         short_name: "Treino",

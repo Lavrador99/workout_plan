@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #0f0f0f;
+  color: #f0f0f0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overscroll-behavior-y: none;
+}
+
+input,
+textarea,
+select {
+  font-size: 16px; /* no zoom on iOS focus */
+}
+
+@layer components {
+  .card {
+    @apply bg-card border border-border rounded-xl;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 min-h-[40px] text-sm font-semibold bg-card2 border border-border active:scale-[0.97] transition disabled:opacity-40;
+  }
+  .btn-accent {
+    @apply btn bg-accent text-black border-accent;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent border-transparent;
+  }
+  .input {
+    @apply w-full bg-card2 border border-border rounded-lg px-3 min-h-[40px] text-[16px] outline-none focus:border-accent;
+  }
+  .label {
+    @apply text-xs uppercase tracking-wide text-muted;
+  }
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
