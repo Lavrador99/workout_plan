@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "./db";
 import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
-import type { Client, Exercise, Session, Template } from "./types";
+import type { Client, Exercise, Focus, Session, Template } from "./types";
 
 // ── Hash router: #/client/abc → ["client", "abc"] ──────────────────────────
 
@@ -55,6 +55,10 @@ export function useExercises(): Exercise[] | undefined {
 
 export function useTemplates(): Template[] | undefined {
   return useLiveQuery(async () => (await db.templates.toArray()).filter((t) => !t.deleted).sort((a, b) => a.name.localeCompare(b.name, "pt")), []);
+}
+
+export function useFocuses(): Focus[] | undefined {
+  return useLiveQuery(async () => (await db.focuses.toArray()).filter((f) => !f.deleted).sort((a, b) => a.name.localeCompare(b.name, "pt")), []);
 }
 
 /** How many times each exercise was prescribed (all clients). */

@@ -9,9 +9,9 @@ import { db, onLocalChange } from "./db";
 import type { SyncMeta, TableName } from "./types";
 
 const CFG_KEY = "coach_api_cfg";
-const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates"];
-const KIND: Record<TableName, string> = { clients: "client", exercises: "exercise", sessions: "session", templates: "template" };
-const TABLE_OF: Record<string, TableName> = { client: "clients", exercise: "exercises", session: "sessions", template: "templates" };
+const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses"];
+const KIND: Record<TableName, string> = { clients: "client", exercises: "exercise", sessions: "session", templates: "template", focuses: "focus" };
+const TABLE_OF: Record<string, TableName> = { client: "clients", exercise: "exercises", session: "sessions", template: "templates", focus: "focuses" };
 const PUSH_CHUNK = 200;
 /** Fields the UI relies on, in case a record arrives incomplete. */
 const DEFAULTS: Record<TableName, object> = {
@@ -19,6 +19,7 @@ const DEFAULTS: Record<TableName, object> = {
   exercises: { name: "", aliases: [], tags: [] },
   sessions: { title: "", notes: "", blocks: [] },
   templates: { name: "", block: { id: "", kind: "list", title: "", items: [] } },
+  focuses: { kind: "sport", name: "", patterns: [], muscles: [], exerciseIds: [], notes: "" },
 };
 
 export interface SyncConfig {

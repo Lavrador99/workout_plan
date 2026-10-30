@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { remove, save } from "../lib/db";
 import { fmtLoad } from "../lib/format";
-import { go, useClient, useExercises, useSessions } from "../lib/hooks";
+import Chips from "../components/Chips";
+import CountsView from "../components/CountsView";
+import { go, useClient, useExercises, useFocuses, useSessions } from "../lib/hooks";
+import { FOCUS_KINDS } from "../lib/movement";
 import { fmtDate, num } from "../lib/text";
 import type { Client, Item, Session } from "../lib/types";
 import { openNewSession } from "./SessionPage";
@@ -35,8 +38,9 @@ export default function ClientPage({ id }: { id: string }) {
   const stored = useClient(id);
   const sessions = useSessions(id);
   const exercises = useExercises();
+  const focuses = useFocuses();
   const [c, setC] = useState<Client | null>(null);
-  const [tab, setTab] = useState<"sessions" | "info" | "records">("sessions");
+  const [tab, setTab] = useState<"sessions" | "info" | "records" | "counts">("sessions");
 
   useEffect(() => {
     if (stored) setC(stored);
@@ -44,6 +48,8 @@ export default function ClientPage({ id }: { id: string }) {
 
   const names = useMemo(() => new Map((exercises ?? []).map((e) => [e.id, e.name])), [exercises]);
   const marks = useMemo(() => bestMarks(sessions ?? [], names), [sessions, names]);
+  const focusIds = stored?.focusIds;
+  const mine = useMemo(() => (focuses ?? []).filter((f) => focusIds?.includes(f.id)), [focuses, focusIds]);
 
   if (stored === null) return <p className="p-4 text-muted">Cliente não encontrado.</p>;
   if (!c) return null;
@@ -76,6 +82,7 @@ export default function ClientPage({ id }: { id: string }) {
           [
             ["sessions", `Sessões (${sessions?.length ?? 0})`],
             ["records", "Marcas"],
+            ["counts", "Contagens"],
             ["info", "Ficha"],
           ] as const
         ).map(([k, label]) => (
@@ -135,6 +142,8 @@ export default function ClientPage({ id }: { id: string }) {
         </div>
       )}
 
+      {tab === "counts" && <CountsView sessions={sessions ?? []} exercises={exercises ?? []} focuses={mine} />}
+
       {tab === "info" && (
         <div className="card p-3 flex flex-col gap-3" onBlur={persist}>
           <Field label="Nome">
@@ -154,6 +163,32 @@ export default function ClientPage({ id }: { id: string }) {
           <Field label="Lesões / cuidados">
             <input className="input" value={c.injuries} placeholder="ex: Glúteo médio esquerdo" onChange={(e) => edit({ injuries: e.target.value })} />
           </Field>
+          {FOCUS_KINDS.map(([kind, label]) => {
+            const options = (focuses ?? []).filter((f) => f.kind === kind);
+            const labels = options.map((f) => f.name);
+            const picked = options.filter((f) => c.focusIds?.includes(f.id)).map((f) => f.name);
+            return (
+              <div key={kind} className="flex flex-col gap-1">
+                <span className="label">{label}</span>
+                {options.length ? (
+                  <Chips
+                    options={labels}
+                    value={picked}
+                    onChange={(v) => {
+                      const other = (c.focusIds ?? []).filter((id) => !options.some((f) => f.id === id));
+                      const next = { ...c, focusIds: [...other, ...options.filter((f) => v.includes(f.name)).map((f) => f.id)] };
+                      setC(next);
+                      void save("clients", next);
+                    }}
+                  />
+                ) : (
+                  <button type="button" className="btn-ghost text-accent2 self-start -ml-3" onClick={() => go("focus")}>
+                    Criar em Perfis →
+                  </button>
+                )}
+              </div>
+            );
+          })}
           <Field label="Notas e records">
             <textarea className="input py-2 min-h-[180px]" value={c.notes} placeholder={"Front Squat - 8x50kg\nDeadlift - 20x50kg"} onChange={(e) => edit({ notes: e.target.value })} />
           </Field>

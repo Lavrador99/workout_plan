@@ -17,6 +17,8 @@ export interface Client extends SyncMeta {
   hrRest?: number | null;
   injuries: string; // "Glúteo médio esquerdo"
   notes: string; // free text, e.g. records copied from the old notes
+  /** Sports, pathologies and asymmetries (Focus ids) this client works on. */
+  focusIds?: string[];
 }
 
 export interface Exercise extends SyncMeta {
@@ -24,6 +26,8 @@ export interface Exercise extends SyncMeta {
   pt?: string; // Portuguese name, shown under the main one
   aliases: string[]; // other names (PT/EN, typos, short forms)
   tags: string[];
+  /** Movement patterns; unset = guessed from the name (movement.ts). */
+  patterns?: string[];
   demoUrl?: string;
 }
 
@@ -60,6 +64,8 @@ export interface Item {
   extraLeft?: number; // E +1
   rmTest?: number | null; // "8RM: ___"
   note: string;
+  grip?: string; // hand position: "pronada", "neutra"…
+  stance?: string; // feet: "largura da anca", "afastados"…
   sets: SetRow[];
 }
 
@@ -97,4 +103,20 @@ export interface Template extends SyncMeta {
   title?: string;
 }
 
-export type TableName = "clients" | "exercises" | "sessions" | "templates";
+export type FocusKind = "sport" | "pathology" | "asymmetry";
+
+/**
+ * A sport, pathology or asymmetry the coach works with: the movement patterns,
+ * muscles and key exercises that matter for it. Sets of a client's sessions
+ * that hit any of these count towards it.
+ */
+export interface Focus extends SyncMeta {
+  kind: FocusKind;
+  name: string;
+  patterns: string[];
+  muscles: string[]; // matched against the exercise tags ("glúteo médio")
+  exerciseIds: string[];
+  notes: string;
+}
+
+export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses";

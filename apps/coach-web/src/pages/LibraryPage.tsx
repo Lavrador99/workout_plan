@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../lib/db";
 import { fmtBlock } from "../lib/format";
 import { useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
+import { inferPatterns, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
 import { uid } from "../lib/text";
+import Chips from "../components/Chips";
 import { CATEGORIES, levelDots } from "../components/PrescribeSheet";
 import type { Exercise, Template } from "../lib/types";
 
@@ -135,6 +137,7 @@ function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: 
   const [aliases, setAliases] = useState(ex.aliases.join(", "));
   const [tags, setTags] = useState(ex.tags.join(", "));
   const [demo, setDemo] = useState(ex.demoUrl ?? "");
+  const [patterns, setPatterns] = useState(() => patternsOf(ex));
   const [mergeQ, setMergeQ] = useState("");
   const split = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -144,7 +147,11 @@ function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: 
   }, [mergeQ, all, ex.id]);
 
   const submit = async () => {
-    await save("exercises", { ...ex, name: name.trim() || ex.name, pt: pt.trim() || undefined, aliases: split(aliases), tags: split(tags), demoUrl: demo.trim() || undefined });
+    const next = { ...ex, name: name.trim() || ex.name, pt: pt.trim() || undefined, aliases: split(aliases), tags: split(tags), demoUrl: demo.trim() || undefined };
+    // keep guessing while the coach agrees with the guess, so better rules still reach it
+    const guessed = inferPatterns(next);
+    const same = guessed.length === patterns.length && guessed.every((p) => patterns.includes(p));
+    await save("exercises", { ...next, patterns: same ? undefined : PATTERNS.filter((p) => patterns.includes(p)) });
     onClose();
   };
 
@@ -155,7 +162,9 @@ function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: 
       <input className="input font-semibold" value={name} onChange={(e) => setName(e.target.value)} />
       <input className="input" value={pt} placeholder="Nome em português" onChange={(e) => setPt(e.target.value)} />
       <input className="input" value={aliases} placeholder="Sinónimos, separados por vírgula" onChange={(e) => setAliases(e.target.value)} />
-      <input className="input" value={tags} placeholder="Etiquetas: core, unilateral, anti-rotação…" onChange={(e) => setTags(e.target.value)} />
+      <input className="input" value={tags} placeholder="Etiquetas e músculos: core, glúteo médio, adutores…" onChange={(e) => setTags(e.target.value)} />
+      <span className="label">Padrões de movimento{ex.patterns ? "" : " (sugeridos pelo nome)"}</span>
+      <Chips options={PATTERNS} value={patterns} onChange={setPatterns} />
       <input className="input" value={demo} placeholder="Link de vídeo (opcional)" onChange={(e) => setDemo(e.target.value)} />
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-accent" onClick={submit}>

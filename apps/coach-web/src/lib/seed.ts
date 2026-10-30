@@ -3,13 +3,13 @@ import { parseItemLine } from "./parser";
 import { SEED_GROUPS } from "./seedData";
 import { SEED_DAYS } from "./seedTemplates";
 import { norm } from "./text";
-import type { Block, Exercise, Template } from "./types";
+import type { Block, Exercise, Focus, Template } from "./types";
 
 // Base library, merged once per device. Seed records get a fixed id
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 2; // 2: the 4-day templates
+const SEED_VERSION = 3; // 2: the 4-day templates, 3: the football profile
 
 export interface SeedExercise {
   id: string;
@@ -66,6 +66,7 @@ export async function seedLibrary(force = false): Promise<number> {
     n++;
   }
   n += await seedTemplates(all);
+  n += await seedFocuses(all);
   await db.meta.put({ key: "seedVersion", value: SEED_VERSION });
   if (n) changed();
   return n;
@@ -92,6 +93,33 @@ async function seedTemplates(library: Exercise[]): Promise<number> {
   for (const t of seedDays(library)) {
     if (await db.templates.get(t.id)) continue; // already here (or deleted on purpose)
     await db.templates.put({ ...t, dirty: 1 });
+    n++;
+  }
+  return n;
+}
+
+/** Starting profiles; the coach adds their own pathologies and asymmetries. */
+export function seedProfiles(library: Exercise[]): Focus[] {
+  const ids = (names: string[]) => names.map((n) => matchExercise(library, n)?.id).filter((id): id is string => !!id);
+  return [
+    {
+      id: "seed-focus-futebol",
+      updatedAt: 1,
+      kind: "sport",
+      name: "Futebol",
+      patterns: ["afundo / unilateral", "flexão do joelho", "adução", "flexão da anca", "flexão plantar", "salto / pliometria", "lateral / mudança de direção", "anti-rotação"],
+      muscles: ["posteriores", "adutores", "glúteo médio", "gémeos", "quadríceps", "flexores da anca"],
+      exerciseIds: ids(["Nordic Hamstring Curl", "Copenhagen Plank", "Single Leg RDL", "Bulgarian Split Squat", "Lateral Bound", "Calf Raise"]),
+      notes: "Sprint, mudanças de direção, remate. Prevenção: posteriores (nórdico), adutores (Copenhaga), gémeos/tendão de Aquiles.",
+    },
+  ];
+}
+
+async function seedFocuses(library: Exercise[]): Promise<number> {
+  let n = 0;
+  for (const f of seedProfiles(library)) {
+    if (await db.focuses.get(f.id)) continue; // already here (or deleted on purpose)
+    await db.focuses.put({ ...f, dirty: 1 });
     n++;
   }
   return n;

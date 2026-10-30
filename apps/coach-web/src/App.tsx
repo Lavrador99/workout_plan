@@ -2,6 +2,7 @@ import { UpdateBar } from "./components/PwaBanners";
 import { go, useRoute, useSyncStatus } from "./lib/hooks";
 import ClientPage from "./pages/ClientPage";
 import ClientsPage from "./pages/ClientsPage";
+import FocusPage from "./pages/FocusPage";
 import HistoryPage from "./pages/HistoryPage";
 import ImportPage from "./pages/ImportPage";
 import LibraryPage from "./pages/LibraryPage";
@@ -11,6 +12,7 @@ import SettingsPage from "./pages/SettingsPage";
 const TABS = [
   ["", "Clientes", "👥"],
   ["library", "Biblioteca", "📚"],
+  ["focus", "Perfis", "🎯"],
   ["settings", "Definições", "⚙️"],
 ] as const;
 
@@ -38,6 +40,8 @@ export default function App() {
           <ImportPage clientId={id} />
         ) : page === "library" ? (
           <LibraryPage />
+        ) : page === "focus" ? (
+          <FocusPage />
         ) : page === "settings" ? (
           <SettingsPage />
         ) : (

@@ -1,11 +1,13 @@
 import { useContext, useMemo, useState } from "react";
 import { fmtLoad, fmtRx } from "../lib/format";
 import { history, suggest } from "../lib/history";
+import { GRIPS, STANCES } from "../lib/movement";
 import { go } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
 import { fmtDate, fmtNum, fmtSec, num } from "../lib/text";
 import type { Item, SetRow } from "../lib/types";
+import { ChipPick } from "./Chips";
 import ExerciseInput from "./ExerciseInput";
 import RxFields from "./RxFields";
 import Stepper from "./Stepper";
@@ -44,6 +46,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
       <button type="button" className="w-full text-left flex flex-wrap items-baseline gap-x-2" onClick={() => setOpen(!open)}>
         <span className={`font-semibold ${filler ? "text-sm text-muted" : ""}`}>{item.name || "—"}</span>
         <span className="text-sm text-accent2">{rx}</span>
+        {(item.grip || item.stance) && <span className="text-xs text-muted">{[item.grip && `pega ${item.grip}`, item.stance && `pés ${item.stance}`].filter(Boolean).join(" · ")}</span>}
       </button>
 
       {item.sets.length > 0 && (
@@ -111,6 +114,15 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
             <Stepper label="Extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
             <Stepper label="Isometria" suffix="s" value={item.holdSec} step={1} onChange={(v) => onChange({ ...item, holdSec: v || null })} />
             <Stepper label="Teste RM" value={item.rmTest} step={1} onChange={(v) => onChange({ ...item, rmTest: v || null })} />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="label">Pega</span>
+            <ChipPick options={GRIPS} value={item.grip} onChange={(grip) => onChange({ ...item, grip })} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label">Pés</span>
+            <ChipPick options={STANCES} value={item.stance} onChange={(stance) => onChange({ ...item, stance })} />
           </div>
 
           <label className="flex flex-col gap-1">
