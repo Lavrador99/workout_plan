@@ -7,5 +7,5 @@ compatibility_date = "2026-10-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "coach-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "990700a1-b4e9-40d4-b3ca-2b6cb441a2dd"
 migrations_dir = "migrations"
