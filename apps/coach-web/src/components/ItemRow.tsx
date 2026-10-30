@@ -5,8 +5,9 @@ import { go } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
 import { fmtDate, fmtNum, fmtSec, num } from "../lib/text";
-import type { Item, LoadMode, SetRow } from "../lib/types";
+import type { Item, SetRow } from "../lib/types";
 import ExerciseInput from "./ExerciseInput";
+import RxFields from "./RxFields";
 import Stepper from "./Stepper";
 
 interface Props {
@@ -14,27 +15,6 @@ interface Props {
   onChange: (item: Item) => void;
   onDelete: () => void;
   onMove: (dir: -1 | 1) => void;
-}
-
-type Field = "reps" | "duration" | "load";
-
-/** Change a value on every set, keeping pyramid differences (adds the delta). */
-function setAll(item: Item, field: Field, v: number | null): Item {
-  const first = item.sets[0]?.[field] ?? null;
-  const sets = (item.sets.length ? item.sets : [{}]).map((s) => {
-    if (v == null) return { ...s, [field]: null };
-    const cur = s[field];
-    return { ...s, [field]: cur == null || first == null ? v : Math.max(0, Math.round((cur + v - first) * 100) / 100) };
-  });
-  return { ...item, sets };
-}
-
-function setCount(item: Item, n: number | null): Item {
-  const count = Math.max(0, Math.round(n ?? 0));
-  const last: SetRow = item.sets[item.sets.length - 1] ?? { reps: null, duration: null, load: null };
-  const sets = item.sets.slice(0, count);
-  while (sets.length < count) sets.push({ ...last, done: false });
-  return { ...item, sets };
 }
 
 function chipText(item: Item, s: SetRow): string {
@@ -90,50 +70,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
           <ExerciseInput initial={item.name} placeholder="Nome (ou reescreve tudo: 3x10 12kg…)" onSubmit={retype} />
           <LastTime item={item} onApply={onChange} />
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stepper label="Séries" value={item.sets.length} step={1} onChange={(v) => onChange(setCount(item, v))} />
-            {timed ? (
-              <Stepper label="Tempo" suffix="s" value={item.sets[0]?.duration} step={5} onChange={(v) => onChange(setAll(item, "duration", v))} />
-            ) : (
-              <Stepper
-                label={item.repsUnit === "passos" ? "Passos" : item.repsUnit === "m" ? "Metros" : "Reps"}
-                value={item.sets[0]?.reps}
-                step={1}
-                onChange={(v) => onChange(setAll(item, "reps", v))}
-              />
-            )}
-            <Stepper label="Carga" suffix="kg" value={item.sets[0]?.load} step={item.loadMode === "dual" ? 2 : 2.5} onChange={(v) => onChange(setAll(item, "load", v))} />
-            <Stepper label="Extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Seg
-              options={[
-                ["r", "Reps"],
-                ["passos", "Passos"],
-                ["s", "Tempo"],
-              ]}
-              value={timed ? "s" : item.repsUnit}
-              onChange={(v) => {
-                if (v === "s") onChange({ ...item, sets: item.sets.map((s) => ({ ...s, duration: s.duration ?? s.reps ?? 30, reps: null })) });
-                else
-                  onChange({
-                    ...item,
-                    repsUnit: v as Item["repsUnit"],
-                    sets: item.sets.map((s) => ({ ...s, reps: s.reps ?? s.duration ?? 10, duration: null })),
-                  });
-              }}
-            />
-            <Seg
-              options={[
-                ["abs", "kg"],
-                ["dual", "2× kg"],
-                ["added", "+kg"],
-              ]}
-              value={item.loadMode}
-              onChange={(v) => onChange({ ...item, loadMode: v as LoadMode })}
-            />
-          </div>
+          <RxFields item={item} onChange={onChange} />
 
           {item.sets.length > 0 && (
             <table className="w-full text-sm">
@@ -170,7 +107,8 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
             </table>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
+            <Stepper label="Extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
             <Stepper label="Isometria" suffix="s" value={item.holdSec} step={1} onChange={(v) => onChange({ ...item, holdSec: v || null })} />
             <Stepper label="Teste RM" value={item.rmTest} step={1} onChange={(v) => onChange({ ...item, rmTest: v || null })} />
           </div>
@@ -204,7 +142,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
 }
 
 /** "Última vez" for this client + one-tap repeat / progress. */
-function LastTime({ item, onApply }: { item: Item; onApply: (i: Item) => void }) {
+export function LastTime({ item, onApply }: { item: Item; onApply: (i: Item) => void }) {
   const ctx = useContext(SessionCtx);
   const occ = useMemo(
     () => (ctx ? history(ctx.sessions, item, { before: ctx.date, excludeId: ctx.sessionId }) : []),
@@ -249,22 +187,5 @@ function NumCell({ value, onChange }: { value: number | null | undefined; onChan
         if (v !== (value ?? null)) onChange(v);
       }}
     />
-  );
-}
-
-export function Seg({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="inline-flex rounded-lg border border-border overflow-hidden">
-      {options.map(([v, label]) => (
-        <button
-          key={v}
-          type="button"
-          className={`px-3 h-9 text-sm ${value === v ? "bg-accent text-black font-semibold" : "bg-card2 text-muted"}`}
-          onClick={() => onChange(v)}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
   );
 }

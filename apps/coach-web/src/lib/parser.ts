@@ -59,6 +59,12 @@ export function parseItemLine(raw: string): Item {
     rmTest = Number(n);
     return " ";
   });
+  // tempo 3-1-1-0 / tempo 3110 / cadência 30X0 → cadence
+  let tempo: string | undefined;
+  line = line.replace(/\b(?:tempo|cad[eê]ncia|cad)\s*:?\s*([0-9x])[-.]?([0-9x])[-.]?([0-9x])[-.]?([0-9x])\b/gi, (_, a, b, c, d) => {
+    tempo = [a, b, c, d].join("-").toUpperCase();
+    return " ";
+  });
   // (4-5s) and other parentheticals with numbers are notes; "(bench)" stays in the name
   line = line.replace(/\(([^)]*\d[^)]*)\)/g, (_, inner) => {
     notes.push(inner.trim());
@@ -77,6 +83,7 @@ export function parseItemLine(raw: string): Item {
   const item = emptyItem(name);
   item.extraLeft = extraLeft || undefined;
   item.rmTest = rmTest;
+  if (tempo) item.tempo = tempo;
 
   if (rest) parseRx(rest, item, notes);
   item.note = notes.filter(Boolean).join(" ");

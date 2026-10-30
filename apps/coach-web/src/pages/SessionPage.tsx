@@ -28,6 +28,7 @@ export default function SessionPage({ id }: { id: string }) {
   const [paste, setPaste] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [copied, setCopied] = useState(false);
+  const [newBlock, setNewBlock] = useState<string | null>(null);
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<Session | null>(null);
 
@@ -64,11 +65,14 @@ export default function SessionPage({ id }: { id: string }) {
     setBlocks(blocks);
   };
 
-  const addBlock = (kind: Block["kind"]) =>
+  const addBlock = (kind: Block["kind"]) => {
+    const id = uid();
+    setNewBlock(id); // its exercise picker opens straight away
     setBlocks([
       ...s.blocks,
-      { id: uid(), kind, title: kind === "superset" ? "Superset" : "", items: [], ...(kind === "circuit" ? { work: 40, rest: 20, rounds: 3, roundRest: 90 } : {}) },
+      { id, kind, title: kind === "superset" ? "Superset" : "", items: [], ...(kind === "circuit" ? { work: 40, rest: 20, rounds: 3, roundRest: 90 } : {}) },
     ]);
+  };
 
   const applyPaste = () => {
     const p = parseSessionText(pasteText);
@@ -157,6 +161,7 @@ export default function SessionPage({ id }: { id: string }) {
           onChange={(nb) => setBlocks(s.blocks.map((x) => (x.id === b.id ? nb : x)))}
           onDelete={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))}
           onMove={(d) => moveBlock(i, d)}
+          autoPick={b.id === newBlock}
         />
       ))}
 

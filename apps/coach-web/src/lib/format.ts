@@ -52,6 +52,7 @@ export function fmtRx(item: Item): string {
       );
     }
   }
+  if (item.tempo) parts.push(`tempo ${item.tempo}`);
   if (item.holdSec) parts.push(`iso ${item.holdSec}s`);
   if (item.rmTest) parts.push(`${item.rmTest}RM: ___`);
   if (item.extraLeft) parts.push(`(E +${item.extraLeft})`);

@@ -34,10 +34,15 @@ export function onLocalChange(fn: Listener): () => void {
   return () => changeListeners.delete(fn);
 }
 
+/** Tell listeners (sync) that something was written locally. */
+export function changed() {
+  changeListeners.forEach((f) => f());
+}
+
 export async function save<T extends SyncMeta>(table: TableName, rec: T): Promise<T> {
   const r = { ...rec, updatedAt: Date.now(), dirty: 1 as const };
   await (db[table] as unknown as Table<T, string>).put(r);
-  changeListeners.forEach((f) => f());
+  changed();
   return r;
 }
 
@@ -58,7 +63,7 @@ export function newClient(name: string): Client {
 export function matchExercise(list: Exercise[], name: string): Exercise | undefined {
   const n = norm(name);
   if (!n) return undefined;
-  return list.find((e) => !e.deleted && (norm(e.name) === n || e.aliases.some((a) => norm(a) === n)));
+  return list.find((e) => !e.deleted && (norm(e.name) === n || (e.pt && norm(e.pt) === n) || e.aliases.some((a) => norm(a) === n)));
 }
 
 /** Link items to library exercises, creating new library entries when needed. */
@@ -84,8 +89,10 @@ export async function linkItems(items: Item[]): Promise<Item[]> {
 export async function mergeExercises(fromId: string, intoId: string): Promise<void> {
   const [from, into] = await Promise.all([db.exercises.get(fromId), db.exercises.get(intoId)]);
   if (!from || !into || fromId === intoId) return;
-  const aliases = [...new Set([...into.aliases, from.name, ...from.aliases])].filter((a) => norm(a) !== norm(into.name));
-  await save("exercises", { ...into, aliases, tags: [...new Set([...into.tags, ...from.tags])] });
+  const aliases = [...new Set([...into.aliases, from.name, ...(from.pt ? [from.pt] : []), ...from.aliases])].filter(
+    (a) => norm(a) !== norm(into.name) && norm(a) !== norm(into.pt ?? ""),
+  );
+  await save("exercises", { ...into, pt: into.pt || from.pt, aliases, tags: [...new Set([...into.tags, ...from.tags])] });
   const sessions = await db.sessions.toArray();
   for (const s of sessions) {
     let changed = false;
@@ -153,6 +160,6 @@ export async function importBackup(b: Backup): Promise<number> {
       }
     }
   }
-  changeListeners.forEach((f) => f());
+  changed();
   return n;
 }

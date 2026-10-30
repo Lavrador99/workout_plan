@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { matchExercise, mergeExercises, remove, save } from "../lib/db";
 import { fmtBlock } from "../lib/format";
 import { useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
+import { seedLibrary } from "../lib/seed";
 import { uid } from "../lib/text";
+import { CATEGORIES, levelDots } from "../components/PrescribeSheet";
 import type { Exercise } from "../lib/types";
 
 export default function LibraryPage() {
@@ -12,8 +14,12 @@ export default function LibraryPage() {
   const index = useExerciseIndex();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
+  const [tag, setTag] = useState("");
 
-  const list = useMemo(() => (q.trim() ? index.search(q, 50) : exercises), [q, index, exercises]);
+  const list = useMemo(() => {
+    const found = q.trim() ? index.search(q, tag ? 300 : 50) : exercises;
+    return tag ? found.filter((e) => e.tags.includes(tag)) : found;
+  }, [q, tag, index, exercises]);
   const exact = q.trim() ? matchExercise(exercises, q) : undefined;
 
   const create = async () => {
@@ -32,6 +38,16 @@ export default function LibraryPage() {
           </button>
         )}
       </div>
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+        <button type="button" className={`chip ${!tag ? "chip-on" : ""}`} onClick={() => setTag("")}>
+          Todos
+        </button>
+        {CATEGORIES.map((c) => (
+          <button key={c} type="button" className={`chip ${tag === c ? "chip-on" : ""}`} onClick={() => setTag(tag === c ? "" : c)}>
+            {c}
+          </button>
+        ))}
+      </div>
       <p className="text-xs text-muted">
         Os exercícios entram aqui sozinhos quando os prescreves. Junta duplicados ("Gémeo" e "Calf raise") com <b>Juntar</b> e o nome passa a sinónimo.
       </p>
@@ -41,15 +57,28 @@ export default function LibraryPage() {
             {editing === ex.id ? (
               <Editor ex={ex} all={exercises} onClose={() => setEditing(null)} />
             ) : (
-              <button type="button" className="w-full text-left px-3 py-2.5 flex items-baseline gap-2" onClick={() => setEditing(ex.id)}>
-                <span className="font-medium">{ex.name}</span>
-                <span className="text-xs text-muted truncate flex-1">{ex.aliases.join(", ")}</span>
+              <button type="button" className="w-full text-left px-3 py-2.5 flex items-center gap-2" onClick={() => setEditing(ex.id)}>
+                <span className="flex-1 min-w-0">
+                  <span className="font-medium">{ex.name}</span>
+                  <span className="block text-xs text-muted truncate">{[ex.pt, ...ex.aliases].filter(Boolean).join(" · ")}</span>
+                </span>
+                <span className="text-xs">{levelDots(ex)}</span>
                 <span className="text-xs text-muted tabular-nums">{usage.get(ex.id) ?? 0}×</span>
               </button>
             )}
           </li>
         ))}
       </ul>
+      <button
+        type="button"
+        className="btn-ghost text-xs text-muted self-start"
+        onClick={async () => {
+          const n = await seedLibrary(true);
+          alert(n ? `${n} exercícios da biblioteca base adicionados ou completados.` : "A biblioteca base já está toda cá.");
+        }}
+      >
+        ↻ Repor exercícios da biblioteca base
+      </button>
 
       <h2 className="font-bold mt-4">Templates de blocos</h2>
       {templates.length === 0 ? (
@@ -85,6 +114,7 @@ export default function LibraryPage() {
 
 function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: () => void }) {
   const [name, setName] = useState(ex.name);
+  const [pt, setPt] = useState(ex.pt ?? "");
   const [aliases, setAliases] = useState(ex.aliases.join(", "));
   const [tags, setTags] = useState(ex.tags.join(", "));
   const [demo, setDemo] = useState(ex.demoUrl ?? "");
@@ -93,11 +123,11 @@ function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: 
 
   const others = useMemo(() => {
     const n = mergeQ.trim().toLowerCase();
-    return n ? all.filter((e) => e.id !== ex.id && (e.name.toLowerCase().includes(n) || e.aliases.some((a) => a.toLowerCase().includes(n)))).slice(0, 6) : [];
+    return n ? all.filter((e) => e.id !== ex.id && (e.name.toLowerCase().includes(n) || e.pt?.toLowerCase().includes(n) || e.aliases.some((a) => a.toLowerCase().includes(n)))).slice(0, 6) : [];
   }, [mergeQ, all, ex.id]);
 
   const submit = async () => {
-    await save("exercises", { ...ex, name: name.trim() || ex.name, aliases: split(aliases), tags: split(tags), demoUrl: demo.trim() || undefined });
+    await save("exercises", { ...ex, name: name.trim() || ex.name, pt: pt.trim() || undefined, aliases: split(aliases), tags: split(tags), demoUrl: demo.trim() || undefined });
     onClose();
   };
 
@@ -106,6 +136,7 @@ function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: 
   return (
     <div className="p-3 flex flex-col gap-2 bg-bg">
       <input className="input font-semibold" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className="input" value={pt} placeholder="Nome em português" onChange={(e) => setPt(e.target.value)} />
       <input className="input" value={aliases} placeholder="Sinónimos, separados por vírgula" onChange={(e) => setAliases(e.target.value)} />
       <input className="input" value={tags} placeholder="Etiquetas: core, unilateral, anti-rotação…" onChange={(e) => setTags(e.target.value)} />
       <input className="input" value={demo} placeholder="Link de vídeo (opcional)" onChange={(e) => setDemo(e.target.value)} />

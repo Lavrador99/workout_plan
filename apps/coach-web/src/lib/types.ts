@@ -21,6 +21,7 @@ export interface Client extends SyncMeta {
 
 export interface Exercise extends SyncMeta {
   name: string;
+  pt?: string; // Portuguese name, shown under the main one
   aliases: string[]; // other names (PT/EN, typos, short forms)
   tags: string[];
   demoUrl?: string;
@@ -55,6 +56,7 @@ export interface Item {
   loadMax?: number | null; // range 12-15kg
   loadMode: LoadMode;
   holdSec?: number | null; // isometric hold per rep (iso 10s)
+  tempo?: string; // cadence "3-1-1-0" (eccentric-pause-concentric-pause)
   extraLeft?: number; // E +1
   rmTest?: number | null; // "8RM: ___"
   note: string;

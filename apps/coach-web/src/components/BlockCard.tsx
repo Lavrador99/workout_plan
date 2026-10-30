@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { copyBlock, save } from "../lib/db";
 import { fmtCircuitHeader } from "../lib/format";
 import { parseItemLine } from "../lib/parser";
 import { uid } from "../lib/text";
 import type { Block, BlockKind, Item, Template } from "../lib/types";
 import CircuitTimer from "./CircuitTimer";
-import ExerciseInput from "./ExerciseInput";
-import ItemRow, { Seg } from "./ItemRow";
+import ItemRow from "./ItemRow";
+import PrescribeSheet from "./PrescribeSheet";
+import Seg from "./Seg";
 import Stepper from "./Stepper";
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
   onChange: (b: Block) => void;
   onDelete: () => void;
   onMove: (dir: -1 | 1) => void;
+  /** Open the exercise picker straight away (block just created). */
+  autoPick?: boolean;
 }
 
 const KINDS: [BlockKind, string][] = [
@@ -23,8 +26,9 @@ const KINDS: [BlockKind, string][] = [
   ["circuit", "Circuito"],
 ];
 
-export default function BlockCard({ block, onChange, onDelete, onMove }: Props) {
+export default function BlockCard({ block, onChange, onDelete, onMove, autoPick }: Props) {
   const [settings, setSettings] = useState(false);
+  const [picking, setPicking] = useState(!!autoPick);
   const [timer, setTimer] = useState(false);
   const isCircuit = block.kind === "circuit";
   const doneSets = block.items.reduce((n, i) => n + i.sets.filter((s) => s.done).length, 0);
@@ -39,17 +43,29 @@ export default function BlockCard({ block, onChange, onDelete, onMove }: Props) 
     setItems(items);
   };
 
+  // The picker adds several items in a row before this block re-renders,
+  // so additions go onto the latest block, not the one from the last render.
+  const latest = useRef(block);
+  latest.current = block;
+
+  const addItems = (items: Item[]) => {
+    const b = latest.current;
+    const kind = b.kind === "list" && items.some((i) => i.sets.length) ? "sets" : b.kind;
+    latest.current = { ...b, kind, items: [...b.items, ...items] };
+    onChange(latest.current);
+  };
+
   const add = (text: string) => {
     // "(Russian twist, side bends)" → fillers
     const paren = text.match(/^\((.*)\)$/);
     const parts = paren ? paren[1].split(/\s*[,;]\s*/) : [text];
-    const items = parts.filter(Boolean).map((t) => {
-      const it = parseItemLine(t);
-      if (paren) it.role = "filler";
-      return it;
-    });
-    const kind = block.kind === "list" && items.some((i) => i.sets.length) ? "sets" : block.kind;
-    onChange({ ...block, kind, items: [...block.items, ...items] });
+    addItems(
+      parts.filter(Boolean).map((t) => {
+        const it = parseItemLine(t);
+        if (paren) it.role = "filler";
+        return it;
+      }),
+    );
   };
 
   return (
@@ -125,9 +141,11 @@ export default function BlockCard({ block, onChange, onDelete, onMove }: Props) 
         ))}
       </div>
 
-      <div className="mt-2">
-        <ExerciseInput onSubmit={add} placeholder="+ exercício (ex: Hip hike 2x12 E+1)" />
-      </div>
+      <button type="button" className="btn w-full mt-2 border-dashed text-accent" onClick={() => setPicking(true)}>
+        + Exercício
+      </button>
+
+      {picking && <PrescribeSheet block={block} onAddText={add} onAdd={(it) => addItems([it])} onClose={() => setPicking(false)} />}
 
       {timer && <CircuitTimer block={block} onClose={() => setTimer(false)} />}
     </section>

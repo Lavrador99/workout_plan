@@ -91,6 +91,16 @@ describe("parseItemLine", () => {
     expect(t.rm).toBe(8);
   });
 
+  it("cadence (tempo) round-trips", () => {
+    const it1 = parseItemLine("Back squat 4x6 60kg tempo 3110");
+    expect(it1.tempo).toBe("3-1-1-0");
+    expect(it1.sets).toHaveLength(4);
+    expect(it1.note).toBe("");
+    expect(fmtItem(it1)).toBe("Back squat - 4x6 60kg tempo 3-1-1-0");
+    expect(parseItemLine(fmtItem(it1)).tempo).toBe("3-1-1-0");
+    expect(parseItemLine("RDL 3x8 cadência 30X0").tempo).toBe("3-0-X-0");
+  });
+
   it("names without prescription and leftover words", () => {
     expect(rx("90/90 rotação externa")).toMatchObject({ name: "90/90 rotação externa", sets: [] });
     expect(rx("Kettlebell swing x6 potentes")).toMatchObject({ sets: [[6, null, null]], note: "potentes" });
