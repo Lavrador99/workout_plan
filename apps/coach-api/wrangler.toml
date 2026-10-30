@@ -1,0 +1,11 @@
+# Coach sync API — Cloudflare Workers + D1 (free plan).
+# First deploy: `npm run deploy:api` from the repo root fills in database_id.
+name = "coach-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "coach-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

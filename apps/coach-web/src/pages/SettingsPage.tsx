@@ -1,21 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { exportBackup, importBackup, type Backup } from "../lib/db";
 import { useSyncStatus } from "../lib/hooks";
-import { currentUser, getConfig, setConfig, signIn, signOut, syncNow } from "../lib/sync";
+import { getConfig, setConfig, syncNow, testConnection } from "../lib/sync";
 
 export default function SettingsPage() {
   const status = useSyncStatus();
   const cfg = getConfig();
   const [url, setUrl] = useState(cfg?.url ?? "");
-  const [key, setKey] = useState(cfg?.key ?? "");
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [user, setUser] = useState<string | null>(null);
+  const [token, setToken] = useState(cfg?.token ?? "");
+  const [editing, setEditing] = useState(!cfg);
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-
-  useEffect(() => {
-    void currentUser().then(setUser);
-  }, [status]);
 
   const download = async () => {
     const b = await exportBackup();
@@ -38,16 +33,25 @@ export default function SettingsPage() {
     }
   };
 
+  const connect = async () => {
+    setBusy(true);
+    setMsg("");
+    const err = await testConnection({ url, token });
+    setBusy(false);
+    if (err) return setMsg(`Não ligou: ${err}`);
+    await setConfig({ url, token });
+    setEditing(false);
+    setMsg("Ligado. A enviar os dados deste dispositivo…");
+  };
+
   const statusText =
     status.state === "off"
       ? "Desligada — os dados ficam só neste dispositivo."
-      : status.state === "signed-out"
-        ? "Configurada — falta entrar."
-        : status.state === "syncing"
-          ? "A sincronizar…"
-          : status.state === "error"
-            ? `Erro: ${status.message}`
-            : `Sincronizado${status.at ? ` às ${new Date(status.at).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}` : ""}.`;
+      : status.state === "syncing"
+        ? "A sincronizar…"
+        : status.state === "error"
+          ? `Erro: ${status.message}`
+          : `Sincronizado${status.at ? ` às ${new Date(status.at).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}` : ""}.`;
 
   return (
     <div className="flex flex-col gap-4 p-3 pb-28">
@@ -55,46 +59,44 @@ export default function SettingsPage() {
         <h2 className="font-bold">Sincronização (telemóvel ↔ PC)</h2>
         <p className={`text-sm ${status.state === "error" ? "text-danger" : "text-muted"}`}>{statusText}</p>
 
-        {status.state === "off" && (
+        {editing ? (
           <>
             <p className="text-xs text-muted">
-              Cria um projeto grátis em supabase.com (região UE), corre o ficheiro <code>supabase.sql</code> no SQL Editor e cola aqui o Project URL e a chave
-              "anon public" (Settings → API).
+              Cola o endereço da tua API e a chave que o <code>npm run deploy:api</code> mostrou no fim. Usa os mesmos no telemóvel e no PC.
             </p>
-            <input className="input" placeholder="https://xxxx.supabase.co" value={url} onChange={(e) => setUrl(e.target.value)} />
-            <input className="input" placeholder="anon public key" value={key} onChange={(e) => setKey(e.target.value)} />
-            <button type="button" className="btn-accent" disabled={!url || !key} onClick={() => setConfig({ url: url.trim(), key: key.trim() })}>
-              Guardar
-            </button>
-          </>
-        )}
-
-        {status.state === "signed-out" && (
-          <>
-            <input className="input" type="email" placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className="input" type="password" placeholder="palavra-passe" value={pass} onChange={(e) => setPass(e.target.value)} />
+            <input className="input" placeholder="https://coach-api.<conta>.workers.dev" inputMode="url" autoCapitalize="off" value={url} onChange={(e) => setUrl(e.target.value)} />
+            <input className="input font-mono" placeholder="chave" autoCapitalize="off" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />
             <div className="flex gap-2">
-              <button type="button" className="btn-accent flex-1" onClick={async () => setMsg((await signIn(email, pass)) ?? "")}>
-                Entrar
+              <button type="button" className="btn-accent flex-1" disabled={!url.trim() || !token.trim() || busy} onClick={connect}>
+                {busy ? "A testar…" : "Ligar"}
               </button>
-              <button type="button" className="btn flex-1" onClick={async () => setMsg((await signIn(email, pass, true)) ?? "Conta criada. Se o Supabase pedir, confirma o email e depois entra.")}>
-                Criar conta
-              </button>
+              {cfg && (
+                <button type="button" className="btn" onClick={() => setEditing(false)}>
+                  Cancelar
+                </button>
+              )}
             </div>
-            <button type="button" className="btn-ghost text-muted self-start" onClick={() => setConfig(null)}>
-              Alterar projeto
-            </button>
           </>
-        )}
-
-        {(status.state === "idle" || status.state === "syncing" || status.state === "error") && (
+        ) : (
           <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-sm">{user}</span>
+            <span className="text-xs text-muted truncate max-w-full">{cfg?.url}</span>
             <button type="button" className="btn-accent ml-auto" onClick={() => void syncNow()}>
               Sincronizar agora
             </button>
-            <button type="button" className="btn" onClick={() => void signOut()}>
-              Sair
+            <button type="button" className="btn" onClick={() => setEditing(true)}>
+              Alterar
+            </button>
+            <button
+              type="button"
+              className="btn text-danger"
+              onClick={() => {
+                if (confirm("Desligar a sincronização neste dispositivo? Os dados ficam cá.")) {
+                  void setConfig(null);
+                  setEditing(true);
+                }
+              }}
+            >
+              Desligar
             </button>
           </div>
         )}

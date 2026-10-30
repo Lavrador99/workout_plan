@@ -8,6 +8,8 @@
     "build": "cd apps/treino-web && npx vite build && cd ../coach-web && npx vite build",
     "dev:coach": "cd apps/coach-web && npx vite",
     "test:coach": "cd apps/coach-web && npx vitest run",
+    "dev:api:coach": "cd apps/coach-api && npx wrangler d1 migrations apply coach-db --local && npx wrangler dev",
+    "deploy:api": "node apps/coach-api/scripts/deploy.mjs",
     "build:api": "nx run treino-api:build",
     "build:all": "nx run-many -t build",
     "serve:api": "nx run treino-api:serve",
@@ -19,16 +21,17 @@
     "@nestjs/common": "^11.1.15",
     "@nestjs/core": "^11.1.15",
     "@nestjs/platform-express": "^11.1.15",
-    "@supabase/supabase-js": "^2.118.0",
     "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
     "fuse.js": "^7.5.0",
+    "hono": "^4.13.14",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261030.1",
     "@nestjs/cli": "^11.0.16",
     "@nestjs/schematics": "^11.0.9",
     "@nx/nest": "^22.5.3",
@@ -50,7 +53,8 @@
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "wrangler": "^4.156.0"
   },
   "nx": {}
 }

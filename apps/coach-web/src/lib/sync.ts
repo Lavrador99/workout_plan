@@ -1,27 +1,33 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Optional Supabase sync (free tier). One table, `coach_records`, holds every
-// record as JSON. Pull first (newer updatedAt wins), then push local changes.
-// See apps/coach-web/supabase.sql for the table and access rules.
+// Optional sync with the coach API (apps/coach-api, Cloudflare Workers + D1).
+// Pull first (newer updatedAt wins), then push local changes. The server keeps
+// a write counter (seq), so each device only pulls what changed since last time.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Table } from "dexie";
 import { db, onLocalChange } from "./db";
 import type { SyncMeta, TableName } from "./types";
 
-const CFG_KEY = "coach_sync_cfg";
+const CFG_KEY = "coach_api_cfg";
 const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates"];
 const KIND: Record<TableName, string> = { clients: "client", exercises: "exercise", sessions: "session", templates: "template" };
 const TABLE_OF: Record<string, TableName> = { client: "clients", exercise: "exercises", session: "sessions", template: "templates" };
+const PUSH_CHUNK = 200;
+/** Fields the UI relies on, in case a record arrives incomplete. */
+const DEFAULTS: Record<TableName, object> = {
+  clients: { name: "", injuries: "", notes: "" },
+  exercises: { name: "", aliases: [], tags: [] },
+  sessions: { title: "", notes: "", blocks: [] },
+  templates: { name: "", block: { id: "", kind: "list", title: "", items: [] } },
+};
 
 export interface SyncConfig {
   url: string;
-  key: string;
+  token: string;
 }
 
 export type SyncStatus =
   | { state: "off" }
-  | { state: "signed-out" }
   | { state: "idle"; at: number }
   | { state: "syncing" }
   | { state: "error"; message: string };
@@ -40,71 +46,69 @@ export function onStatus(fn: (s: SyncStatus) => void): () => void {
   return () => statusListeners.delete(fn);
 }
 
+const cleanUrl = (u: string) => u.trim().replace(/\/+$/, "");
+
 export function getConfig(): SyncConfig | null {
   try {
     const c = JSON.parse(localStorage.getItem(CFG_KEY) ?? "null");
-    return c?.url && c?.key ? c : null;
+    return c?.url && c?.token ? c : null;
   } catch {
     return null;
   }
 }
 
-export function setConfig(c: SyncConfig | null) {
+/** Save the API address + key. A new server gets everything this device has. */
+export async function setConfig(c: SyncConfig | null) {
+  const prev = getConfig();
+  const next = c ? { url: cleanUrl(c.url), token: c.token.trim() } : null;
   try {
-    if (c) localStorage.setItem(CFG_KEY, JSON.stringify(c));
+    if (next) localStorage.setItem(CFG_KEY, JSON.stringify(next));
     else localStorage.removeItem(CFG_KEY);
   } catch {
     /* storage blocked: sync stays off */
   }
-  client = null;
-  void refresh();
-}
-
-let client: SupabaseClient | null = null;
-async function sb(): Promise<SupabaseClient | null> {
-  const cfg = getConfig();
-  if (!cfg) return null;
-  if (!client) {
-    const { createClient } = await import("@supabase/supabase-js");
-    client = createClient(cfg.url, cfg.key);
+  if (next && prev?.url !== next.url) {
+    await db.meta.delete("lastSeq");
+    for (const t of TABLES) await (db[t] as unknown as Table<SyncMeta, string>).toCollection().modify({ dirty: 1 });
   }
-  return client;
-}
-
-export async function currentUser(): Promise<string | null> {
-  const c = await sb();
-  if (!c) return null;
-  const { data } = await c.auth.getSession();
-  return data.session?.user.email ?? null;
-}
-
-export async function signIn(email: string, password: string, create = false): Promise<string | null> {
-  const c = await sb();
-  if (!c) return "Configura primeiro o URL e a chave.";
-  const { error } = create
-    ? await c.auth.signUp({ email, password })
-    : await c.auth.signInWithPassword({ email, password });
-  if (error) return error.message;
-  await refresh();
+  if (!next) return setStatus({ state: "off" });
+  setStatus({ state: "idle", at: 0 });
   void syncNow();
-  return null;
 }
 
-export async function signOut() {
-  const c = await sb();
-  await c?.auth.signOut();
-  await refresh();
+async function api<T>(cfg: SyncConfig, path: string, body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(cfg.url + path, {
+      method: body ? "POST" : "GET",
+      headers: { Authorization: `Bearer ${cfg.token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error("sem ligação à API");
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error ?? `Erro ${res.status}`);
+  return json as T;
 }
 
-async function refresh() {
-  if (!getConfig()) return setStatus({ state: "off" });
-  const email = await currentUser();
-  if (!email) return setStatus({ state: "signed-out" });
-  if (status.state === "off" || status.state === "signed-out") setStatus({ state: "idle", at: 0 });
+/** Check address and key without changing anything. Returns an error message or null. */
+export async function testConnection(c: SyncConfig): Promise<string | null> {
+  try {
+    await api({ url: cleanUrl(c.url), token: c.token.trim() }, "/sync?since=999999999999");
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
 }
 
-async function meta<T>(key: string): Promise<T | undefined> {
-  return (await db.meta.get(key))?.value as T | undefined;
+interface RemoteRow {
+  id: string;
+  kind: string;
+  data: SyncMeta;
+  updated_at: number;
+  deleted: boolean;
+  seq: number;
 }
 
 let running: Promise<void> | null = null;
@@ -115,43 +119,35 @@ export function syncNow(): Promise<void> {
 }
 
 async function doSync() {
-  const c = await sb();
-  if (!c) return setStatus({ state: "off" });
-  const { data: auth } = await c.auth.getSession();
-  if (!auth.session) return setStatus({ state: "signed-out" });
+  const cfg = getConfig();
+  if (!cfg) return setStatus({ state: "off" });
   if (!navigator.onLine) return;
   setStatus({ state: "syncing" });
   try {
     // ── pull ──
-    let since = (await meta<string>("lastPull")) ?? "1970-01-01T00:00:00Z";
+    let since = ((await db.meta.get("lastSeq"))?.value as number | undefined) ?? 0;
     for (;;) {
-      const { data, error } = await c
-        .from("coach_records")
-        .select("id, kind, data, updated_at, deleted, server_ts")
-        .gt("server_ts", since)
-        .order("server_ts")
-        .limit(500);
-      if (error) throw error;
-      if (!data?.length) break;
-      for (const row of data) {
+      const { rows, more } = await api<{ rows: RemoteRow[]; more: boolean }>(cfg, `/sync?since=${since}`);
+      for (const row of rows) {
         const table = TABLE_OF[row.kind];
-        if (!table) continue;
-        const t = db[table] as unknown as Table<SyncMeta, string>;
-        const local = await t.get(row.id);
-        if (!local || local.updatedAt <= Number(row.updated_at)) {
-          await t.put({ ...(row.data as SyncMeta), id: row.id, updatedAt: Number(row.updated_at), deleted: row.deleted, dirty: 0 });
+        if (table) {
+          const t = db[table] as unknown as Table<SyncMeta, string>;
+          const local = await t.get(row.id);
+          if (!local || local.updatedAt <= row.updated_at) {
+            await t.put({ ...DEFAULTS[table], ...row.data, id: row.id, updatedAt: row.updated_at, deleted: row.deleted, dirty: 0 });
+          }
         }
+        since = Math.max(since, row.seq);
       }
-      since = data[data.length - 1].server_ts;
-      await db.meta.put({ key: "lastPull", value: since });
-      if (data.length < 500) break;
+      await db.meta.put({ key: "lastSeq", value: since });
+      if (!more) break;
     }
     // ── push ──
     for (const table of TABLES) {
       const t = db[table] as unknown as Table<SyncMeta, string>;
       const dirty = await t.where("dirty").equals(1).toArray();
-      for (let i = 0; i < dirty.length; i += 200) {
-        const chunk = dirty.slice(i, i + 200);
+      for (let i = 0; i < dirty.length; i += PUSH_CHUNK) {
+        const chunk = dirty.slice(i, i + PUSH_CHUNK);
         const rows = chunk.map(({ dirty: _d, ...rec }) => ({
           id: rec.id,
           kind: KIND[table],
@@ -159,8 +155,7 @@ async function doSync() {
           updated_at: rec.updatedAt,
           deleted: !!rec.deleted,
         }));
-        const { error } = await c.from("coach_records").upsert(rows);
-        if (error) throw error;
+        await api(cfg, "/sync", { rows });
         // only clear the flag if the record was not edited again meanwhile
         await db.transaction("rw", t, async () => {
           for (const rec of chunk) {
@@ -178,7 +173,8 @@ async function doSync() {
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 export function startAutoSync() {
-  void refresh().then(() => syncNow());
+  if (getConfig()) setStatus({ state: "idle", at: 0 });
+  void syncNow();
   onLocalChange(() => {
     clearTimeout(timer);
     timer = setTimeout(() => void syncNow(), 3000);

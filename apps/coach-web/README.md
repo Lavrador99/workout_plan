@@ -26,12 +26,19 @@ Devil press
 Wall ball
 ```
 
-## Ligar a sincronização (uma vez)
+## Sincronização (telemóvel ↔ PC)
 
-1. Criar conta e projeto em [supabase.com](https://supabase.com) (Free, região Europa).
-2. SQL Editor → colar e correr [`supabase.sql`](./supabase.sql).
-3. Authentication → Sign In / Providers → Email: desligar "Confirm email" (opcional, evita o email de confirmação).
-4. Settings → API: copiar **Project URL** e a chave **anon public**.
-5. Na app: Definições → colar URL e chave → Criar conta → repetir "Entrar" no outro dispositivo com o mesmo email.
+A app guarda tudo no dispositivo e funciona sem rede. Para ter os mesmos dados em vários dispositivos, usa a API em [`apps/coach-api`](../coach-api) (Cloudflare Workers + D1, plano grátis).
 
-A chave "anon" pode estar no browser: o acesso aos dados é protegido pelo login e pelas regras RLS do `supabase.sql`. O plano gratuito pausa o projeto após 7 dias sem uso; reativa-se no painel do Supabase e os dados locais nunca se perdem.
+Uma vez, no PC, na raiz do repo:
+
+```bash
+npm install
+npm run deploy:api
+```
+
+O script abre o browser para entrares na Cloudflare (cria a conta se ainda não tiveres), cria a base de dados, publica a API e mostra no fim o **endereço** e a **chave**. Na app: Definições → Sincronização → cola os dois → Ligar. Repete no outro dispositivo com os mesmos valores.
+
+- Faz commit do `apps/coach-api/wrangler.toml` depois do primeiro deploy (passa a ter o id da base de dados).
+- A chave fica em `apps/coach-api/.coach-token` (fora do git). Se a perderes, apaga esse ficheiro e corre `npm run deploy:api` outra vez: é criada uma chave nova e colas a nova nos dispositivos.
+- API local para desenvolvimento: `npm run dev:api:coach` (usa `apps/coach-api/.dev.vars` com `SYNC_TOKEN=...`).

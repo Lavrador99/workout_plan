@@ -1,0 +1,7 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "coach-api",
+  "projectType": "application",
+  "sourceRoot": "apps/coach-api/src",
+  "tags": ["scope:api", "type:app"]
+}
