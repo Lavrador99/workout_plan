@@ -1,3 +1,4 @@
+import { UpdateBar } from "./components/PwaBanners";
 import { go, useRoute, useSyncStatus } from "./lib/hooks";
 import ClientPage from "./pages/ClientPage";
 import ClientsPage from "./pages/ClientsPage";
@@ -20,6 +21,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto safe-top">
+      <UpdateBar />
       {sync.state === "error" && (
         <button type="button" className="w-full text-xs bg-danger/20 text-danger py-1" onClick={() => go("settings")}>
           Sincronização falhou — os dados estão guardados neste dispositivo.

@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { InstallCard } from "../components/PwaBanners";
 import { exportBackup, importBackup, type Backup } from "../lib/db";
 import { useSyncStatus } from "../lib/hooks";
+import { usePwa } from "../lib/pwa";
 import { getConfig, setConfig, syncNow, testConnection } from "../lib/sync";
 
 export default function SettingsPage() {
   const status = useSyncStatus();
+  const pwa = usePwa();
   const cfg = getConfig();
   const [url, setUrl] = useState(cfg?.url ?? "");
   const [token, setToken] = useState(cfg?.token ?? "");
@@ -101,6 +104,23 @@ export default function SettingsPage() {
           </div>
         )}
         {msg && <p className="text-sm text-accent2">{msg}</p>}
+      </section>
+
+      <InstallCard />
+
+      <section className="card p-3 flex flex-col gap-1 text-sm">
+        <h2 className="font-bold mb-1">App</h2>
+        <div className="flex justify-between">
+          <span className="text-muted">Instalada</span>
+          <span>{pwa.installed ? "✓ sim" : "não"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted">Dados protegidos pelo browser</span>
+          <span className={pwa.persisted === false && status.state === "off" ? "text-danger" : ""}>{pwa.persisted == null ? "…" : pwa.persisted ? "✓ sim" : "não"}</span>
+        </div>
+        {pwa.persisted === false && status.state === "off" && (
+          <p className="text-xs text-muted">O browser pode apagar dados de sites pouco usados. Instalar a app e ligar a sincronização evita perdas.</p>
+        )}
       </section>
 
       <section className="card p-3 flex flex-col gap-2">

@@ -20,21 +20,32 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
-      workbox: { globPatterns: ["**/*.{js,css,html,png,svg}"] },
+      // ask before swapping versions, so an update never reloads mid-session
+      registerType: "prompt",
+      includeAssets: ["icons/icon.svg", "icons/apple-touch-icon.png"],
+      workbox: { globPatterns: ["**/*.{js,css,html,png,svg}"], cleanupOutdatedCaches: true },
       manifest: {
+        id: base,
         name: "Coach — prescrição de treino",
         short_name: "Coach",
         description: "Prescrever e registar treinos personalizados",
+        lang: "pt-PT",
+        dir: "ltr",
         theme_color: "#0f0f0f",
         background_color: "#0f0f0f",
         display: "standalone",
         orientation: "portrait",
         scope: base,
         start_url: base,
+        categories: ["health", "fitness", "productivity"],
         icons: [
-          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+        shortcuts: [
+          { name: "Clientes", url: `${base}#/`, icons: [{ src: "icons/icon-192.png", sizes: "192x192" }] },
+          { name: "Biblioteca", url: `${base}#/library`, icons: [{ src: "icons/icon-192.png", sizes: "192x192" }] },
         ],
       },
     }),

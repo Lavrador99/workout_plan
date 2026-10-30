@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { InstallCard } from "../components/PwaBanners";
 import { newClient, save } from "../lib/db";
 import { go, useClients, useSessions } from "../lib/hooks";
 import { fmtDate, norm } from "../lib/text";
@@ -28,6 +29,7 @@ export default function ClientsPage() {
           + Cliente
         </button>
       </div>
+      <InstallCard compact />
       {clients && clients.length === 0 && (
         <div className="card p-4 text-sm text-muted">
           Ainda não tens clientes. Escreve um nome e carrega em <b>+ Cliente</b>. Depois podes colar o histórico de treinos dele em <b>Importar</b>.
