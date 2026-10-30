@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { matchExercise, mergeExercises, remove, save } from "../lib/db";
-import { useExerciseIndex, useExercises, useUsage } from "../lib/hooks";
+import { fmtBlock } from "../lib/format";
+import { useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
 import { uid } from "../lib/text";
 import type { Exercise } from "../lib/types";
 
 export default function LibraryPage() {
   const exercises = useExercises() ?? [];
   const usage = useUsage();
+  const templates = useTemplates() ?? [];
   const index = useExerciseIndex();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
@@ -48,6 +50,35 @@ export default function LibraryPage() {
           </li>
         ))}
       </ul>
+
+      <h2 className="font-bold mt-4">Templates de blocos</h2>
+      {templates.length === 0 ? (
+        <p className="text-xs text-muted">Numa sessão, abre as opções de um bloco (⋯) e toca em ☆ Template para o reutilizar.</p>
+      ) : (
+        <ul className="card divide-y divide-border">
+          {templates.map((t) => (
+            <li key={t.id} className="p-3 flex gap-2 items-start">
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold">☆ {t.name}</div>
+                <pre className="text-xs text-muted whitespace-pre-wrap font-sans">{fmtBlock(t.block)}</pre>
+              </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={async () => {
+                  const name = prompt("Nome do template", t.name)?.trim();
+                  if (name) await save("templates", { ...t, name });
+                }}
+              >
+                ✎
+              </button>
+              <button type="button" className="btn text-danger" onClick={async () => confirm(`Apagar o template «${t.name}»?`) && (await remove("templates", t.id))}>
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

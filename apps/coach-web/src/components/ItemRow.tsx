@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { fmtLoad, fmtRx } from "../lib/format";
+import { history, suggest } from "../lib/history";
+import { go } from "../lib/hooks";
+import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
-import { fmtNum, fmtSec, num } from "../lib/text";
+import { fmtDate, fmtNum, fmtSec, num } from "../lib/text";
 import type { Item, LoadMode, SetRow } from "../lib/types";
 import ExerciseInput from "./ExerciseInput";
 import Stepper from "./Stepper";
@@ -85,6 +88,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
       {open && (
         <div className="mt-3 p-3 rounded-lg bg-bg border border-border flex flex-col gap-3">
           <ExerciseInput initial={item.name} placeholder="Nome (ou reescreve tudo: 3x10 12kg…)" onSubmit={retype} />
+          <LastTime item={item} onApply={onChange} />
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stepper label="Séries" value={item.sets.length} step={1} onChange={(v) => onChange(setCount(item, v))} />
@@ -195,6 +199,40 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** "Última vez" for this client + one-tap repeat / progress. */
+function LastTime({ item, onApply }: { item: Item; onApply: (i: Item) => void }) {
+  const ctx = useContext(SessionCtx);
+  const occ = useMemo(
+    () => (ctx ? history(ctx.sessions, item, { before: ctx.date, excludeId: ctx.sessionId }) : []),
+    [ctx, item.exerciseId, item.name], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  if (!ctx || !occ.length) return null;
+  const prev = occ[0];
+  const sg = suggest(prev);
+  const allDone = prev.item.sets.every((s) => s.done);
+  return (
+    <div className="rounded-lg border border-border p-2 flex flex-col gap-2">
+      <div className="text-sm">
+        <span className="label">Última vez · {fmtDate(prev.session.date)} </span>
+        <div>
+          {fmtRx(prev.item) || "—"} <span className={allDone ? "text-success" : "text-muted"}>{allDone ? "✓ tudo feito" : "incompleto"}</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {sg && (
+          <button type="button" className={sg.kind === "progress" ? "btn-accent" : "btn"} onClick={() => onApply(sg.apply(item))}>
+            {sg.kind === "progress" ? "↑ " : "↺ "}
+            {sg.label}
+          </button>
+        )}
+        <button type="button" className="btn-ghost text-accent2" onClick={() => go("history", ctx.clientId, item.exerciseId ?? `n:${item.name}`)}>
+          Histórico ({occ.length}) →
+        </button>
+      </div>
     </div>
   );
 }

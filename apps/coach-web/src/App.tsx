@@ -1,6 +1,7 @@
 import { go, useRoute, useSyncStatus } from "./lib/hooks";
 import ClientPage from "./pages/ClientPage";
 import ClientsPage from "./pages/ClientsPage";
+import HistoryPage from "./pages/HistoryPage";
 import ImportPage from "./pages/ImportPage";
 import LibraryPage from "./pages/LibraryPage";
 import SessionPage from "./pages/SessionPage";
@@ -13,9 +14,9 @@ const TABS = [
 ] as const;
 
 export default function App() {
-  const [page = "", id = ""] = useRoute();
+  const [page = "", id = "", sub = ""] = useRoute();
   const sync = useSyncStatus();
-  const tab = page === "client" || page === "session" || page === "import" ? "" : page;
+  const tab = page === "client" || page === "session" || page === "import" || page === "history" ? "" : page;
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto safe-top">
@@ -29,6 +30,8 @@ export default function App() {
           <ClientPage key={id} id={id} />
         ) : page === "session" ? (
           <SessionPage key={id} id={id} />
+        ) : page === "history" ? (
+          <HistoryPage key={id + sub} clientId={id} exKey={sub} />
         ) : page === "import" ? (
           <ImportPage clientId={id} />
         ) : page === "library" ? (

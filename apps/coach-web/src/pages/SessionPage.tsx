@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import BlockCard from "../components/BlockCard";
-import { duplicateSession, linkItems, newSession, remove, save } from "../lib/db";
+import { copyBlock, duplicateSession, linkItems, newSession, remove, save } from "../lib/db";
 import { fmtSession } from "../lib/format";
-import { go, useClient, useSession } from "../lib/hooks";
+import { history, suggest } from "../lib/history";
+import { go, useClient, useSession, useSessions, useTemplates } from "../lib/hooks";
+import { SessionCtx } from "../lib/sessionContext";
 import { parseSessionText } from "../lib/parser";
 import { uid } from "../lib/text";
 import type { Block, Session } from "../lib/types";
@@ -20,6 +22,8 @@ async function withLinks(s: Session): Promise<Session> {
 export default function SessionPage({ id }: { id: string }) {
   const stored = useSession(id);
   const client = useClient(stored?.clientId ?? "");
+  const clientSessions = useSessions(stored?.clientId ?? "");
+  const templates = useTemplates();
   const [s, setS] = useState<Session | null>(null);
   const [paste, setPaste] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -99,16 +103,41 @@ export default function SessionPage({ id }: { id: string }) {
     go("client", s.clientId);
   };
 
+  const ctx = { clientId: s.clientId, sessionId: s.id, date: s.date, sessions: clientSessions ?? [] };
+
+  /** Apply "progress" to every exercise that was fully done last time. */
+  const progressAll = () => {
+    let n = 0;
+    const blocks = s.blocks.map((b) => ({
+      ...b,
+      items: b.items.map((it) => {
+        if (!it.sets.length || it.sets.some((x) => x.done)) return it;
+        const sg = suggest(history(ctx.sessions, it, { before: s.date, excludeId: s.id })[0]);
+        if (sg?.kind !== "progress") return it;
+        n++;
+        return sg.apply(it);
+      }),
+    }));
+    if (!n) return alert("Nada para progredir: nenhum exercício foi feito por completo na última vez.");
+    if (confirm(`Subir ${n} exercício(s) que foram feitos por completo na última vez?`)) setBlocks(blocks);
+  };
+
   const done = s.blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.sets.filter((x) => x.done).length, 0), 0);
   const total = s.blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.sets.length, 0), 0);
 
   return (
+    <SessionCtx.Provider value={ctx}>
     <div className="flex flex-col gap-3 p-3 pb-28">
       <div className="flex items-center gap-2">
         <button type="button" className="btn-ghost -ml-2" onClick={() => void flush().then(() => go("client", s.clientId))}>
           ← {client?.name ?? ""}
         </button>
         <span className="ml-auto text-xs text-muted tabular-nums">{total > 0 && `${done}/${total} séries`}</span>
+        {total > 0 && done === 0 && (
+          <button type="button" className="btn text-accent" onClick={progressAll}>
+            ↑ Progressão
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-[auto_1fr] gap-2">
@@ -146,6 +175,11 @@ export default function SessionPage({ id }: { id: string }) {
           <button type="button" className="btn" onClick={() => addBlock("circuit")}>
             + Circuito 40/20
           </button>
+          {templates?.map((t) => (
+            <button key={t.id} type="button" className="btn text-accent2" onClick={() => setBlocks([...s.blocks, copyBlock(t.block)])}>
+              ☆ {t.name}
+            </button>
+          ))}
           <button type="button" className="btn-accent" onClick={() => setPaste(!paste)}>
             ✎ Escrever / colar texto
           </button>
@@ -189,6 +223,7 @@ export default function SessionPage({ id }: { id: string }) {
         </button>
       </div>
     </div>
+    </SessionCtx.Provider>
   );
 }
 

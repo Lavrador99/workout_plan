@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Client, Exercise, Item, Session, SyncMeta, TableName } from "./types";
+import type { Block, Client, Exercise, Item, Session, SyncMeta, TableName, Template } from "./types";
 import { norm, todayISO, uid } from "./text";
 
 // Local-first storage: everything lives in IndexedDB so the app works in the
@@ -9,6 +9,7 @@ class CoachDB extends Dexie {
   clients!: Table<Client, string>;
   exercises!: Table<Exercise, string>;
   sessions!: Table<Session, string>;
+  templates!: Table<Template, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
 
   constructor() {
@@ -19,6 +20,7 @@ class CoachDB extends Dexie {
       sessions: "id, clientId, date, updatedAt, dirty",
       meta: "key",
     });
+    this.version(2).stores({ templates: "id, name, updatedAt, dirty" });
   }
 }
 
@@ -106,17 +108,14 @@ export function newSession(clientId: string): Session {
   return { id: uid(), updatedAt: 0, clientId, date: todayISO(), title: "", notes: "", blocks: [] };
 }
 
+/** Fresh copy of a block: new ids, nothing ticked. */
+export function copyBlock(b: Block): Block {
+  return { ...b, id: uid(), items: b.items.map((i) => ({ ...i, id: uid(), sets: i.sets.map((r) => ({ ...r, done: false })) })) };
+}
+
 /** Copy of a session for today: new ids, nothing ticked. */
 export function duplicateSession(s: Session): Session {
-  return {
-    ...newSession(s.clientId),
-    title: s.title,
-    blocks: s.blocks.map((b) => ({
-      ...b,
-      id: uid(),
-      items: b.items.map((i) => ({ ...i, id: uid(), sets: i.sets.map((r) => ({ ...r, done: false })) })),
-    })),
-  };
+  return { ...newSession(s.clientId), title: s.title, blocks: s.blocks.map(copyBlock) };
 }
 
 // ── Backup ──────────────────────────────────────────────────────────────────
@@ -128,23 +127,25 @@ export interface Backup {
   clients: Client[];
   exercises: Exercise[];
   sessions: Session[];
+  templates?: Template[];
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [clients, exercises, sessions] = await Promise.all([
+  const [clients, exercises, sessions, templates] = await Promise.all([
     db.clients.toArray(),
     db.exercises.toArray(),
     db.sessions.toArray(),
+    db.templates.toArray(),
   ]);
-  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions };
+  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates };
 }
 
 /** Merge a backup in: newer record wins, so importing twice is harmless. */
 export async function importBackup(b: Backup): Promise<number> {
   let n = 0;
-  for (const table of ["clients", "exercises", "sessions"] as const) {
+  for (const table of ["clients", "exercises", "sessions", "templates"] as const) {
     const t = db[table] as unknown as Table<SyncMeta, string>;
-    for (const rec of b[table] as SyncMeta[]) {
+    for (const rec of (b[table] ?? []) as SyncMeta[]) {
       const cur = await t.get(rec.id);
       if (!cur || cur.updatedAt < rec.updatedAt) {
         await t.put({ ...rec, dirty: 1 });

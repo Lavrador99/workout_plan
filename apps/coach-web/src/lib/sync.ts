@@ -10,9 +10,9 @@ import { db, onLocalChange } from "./db";
 import type { SyncMeta, TableName } from "./types";
 
 const CFG_KEY = "coach_sync_cfg";
-const TABLES: TableName[] = ["clients", "exercises", "sessions"];
-const KIND: Record<TableName, string> = { clients: "client", exercises: "exercise", sessions: "session" };
-const TABLE_OF: Record<string, TableName> = { client: "clients", exercise: "exercises", session: "sessions" };
+const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates"];
+const KIND: Record<TableName, string> = { clients: "client", exercises: "exercise", sessions: "session", templates: "template" };
+const TABLE_OF: Record<string, TableName> = { client: "clients", exercise: "exercises", session: "sessions", template: "templates" };
 
 export interface SyncConfig {
   url: string;

@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { copyBlock, save } from "../lib/db";
 import { fmtCircuitHeader } from "../lib/format";
 import { parseItemLine } from "../lib/parser";
-import type { Block, BlockKind, Item } from "../lib/types";
+import { uid } from "../lib/text";
+import type { Block, BlockKind, Item, Template } from "../lib/types";
 import CircuitTimer from "./CircuitTimer";
 import ExerciseInput from "./ExerciseInput";
 import ItemRow, { Seg } from "./ItemRow";
@@ -93,6 +95,16 @@ export default function BlockCard({ block, onChange, onDelete, onMove }: Props) 
             </button>
             <button type="button" className="btn" onClick={() => onMove(1)}>
               ↓ Descer
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={async () => {
+                const name = prompt("Nome do template", block.title || "")?.trim();
+                if (name) await save<Template>("templates", { id: uid(), updatedAt: 0, name, block: copyBlock(block) });
+              }}
+            >
+              ☆ Template
             </button>
             <button type="button" className="btn text-danger ml-auto" onClick={() => confirm("Apagar este bloco?") && onDelete()}>
               Apagar bloco

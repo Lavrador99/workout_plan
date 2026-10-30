@@ -83,4 +83,10 @@ export interface Session extends SyncMeta {
   blocks: Block[];
 }
 
-export type TableName = "clients" | "exercises" | "sessions";
+/** A reusable block (e.g. the usual core finisher or Hyrox circuit). */
+export interface Template extends SyncMeta {
+  name: string;
+  block: Block;
+}
+
+export type TableName = "clients" | "exercises" | "sessions" | "templates";

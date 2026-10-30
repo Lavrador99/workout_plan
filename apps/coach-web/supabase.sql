@@ -5,12 +5,17 @@
 create table if not exists public.coach_records (
   id          text primary key,
   user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  kind        text not null check (kind in ('client', 'exercise', 'session')),
+  kind        text not null,
   data        jsonb not null,
   updated_at  bigint not null,
   deleted     boolean not null default false,
   server_ts   timestamptz not null default now()
 );
+
+-- record kinds (re-running this file updates the list on an existing table)
+alter table public.coach_records drop constraint if exists coach_records_kind_check;
+alter table public.coach_records add constraint coach_records_kind_check
+  check (kind in ('client', 'exercise', 'session', 'template'));
 
 create index if not exists coach_records_user_ts on public.coach_records (user_id, server_ts);
 

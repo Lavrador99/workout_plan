@@ -115,13 +115,13 @@ export default function ClientPage({ id }: { id: string }) {
       {tab === "records" && (
         <div className="card p-3">
           {marks.length === 0 ? (
-            <p className="text-sm text-muted">As marcas aparecem aqui quando marcas séries com carga como feitas (✓).</p>
+            <p className="text-sm text-muted">As marcas aparecem aqui quando marcas séries com carga como feitas (✓). Toca num exercício para ver a evolução.</p>
           ) : (
             <table className="w-full text-sm">
               <tbody>
                 {marks.map((m) => (
-                  <tr key={m.name} className="border-b border-border last:border-0">
-                    <td className="py-2">{m.name}</td>
+                  <tr key={m.name} className="border-b border-border last:border-0 cursor-pointer" onClick={() => go("history", id, m.item.exerciseId ?? `n:${m.item.name}`)}>
+                    <td className="py-2 text-accent2">{m.name}</td>
                     <td className="text-right font-semibold whitespace-nowrap">
                       {m.reps != null ? `${m.reps} × ` : ""}
                       {fmtLoad({ ...m.item, loadMax: null }, m.load)}
