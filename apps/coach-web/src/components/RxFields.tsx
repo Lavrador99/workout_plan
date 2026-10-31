@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { setAll, setCount } from "../lib/rx";
+import { firstWork, setAll, setCount } from "../lib/rx";
 import type { Item, LoadMode } from "../lib/types";
 import Seg from "./Seg";
 import Stepper from "./Stepper";
@@ -16,21 +16,22 @@ export function normTempo(s: string): string {
 /** Sets, volume, load and cadence: the prescription of one exercise. */
 export default function RxFields({ item, onChange }: { item: Item; onChange: (i: Item) => void }) {
   const timed = item.sets.some((s) => s.duration != null);
+  const ref = firstWork(item);
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-2">
         <Stepper label="Séries" value={item.sets.length} step={1} onChange={(v) => onChange(setCount(item, v))} />
         {timed ? (
-          <Stepper label="Tempo" suffix="s" value={item.sets[0]?.duration} step={5} onChange={(v) => onChange(setAll(item, "duration", v))} />
+          <Stepper label="Tempo" suffix="s" value={ref?.duration} step={5} onChange={(v) => onChange(setAll(item, "duration", v))} />
         ) : (
           <Stepper
             label={item.repsUnit === "passos" ? "Passos" : item.repsUnit === "m" ? "Metros" : "Reps"}
-            value={item.sets[0]?.reps}
+            value={ref?.reps}
             step={1}
             onChange={(v) => onChange(setAll(item, "reps", v))}
           />
         )}
-        <Stepper label="Carga" suffix="kg" value={item.sets[0]?.load} step={item.loadMode === "dual" ? 2 : 2.5} onChange={(v) => onChange(setAll(item, "load", v))} />
+        <Stepper label="Carga" suffix="kg" value={ref?.load} step={item.loadMode === "dual" ? 2 : 2.5} onChange={(v) => onChange(setAll(item, "load", v))} />
       </div>
 
       <div className="flex flex-wrap gap-2">

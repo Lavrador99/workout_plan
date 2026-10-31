@@ -2,8 +2,11 @@ import { useRef, useState } from "react";
 import { copyBlock, save } from "../lib/db";
 import { fmtCircuitHeader } from "../lib/format";
 import { parseItemLine } from "../lib/parser";
+import { useReorder } from "../lib/reorder";
 import { uid } from "../lib/text";
-import type { Block, BlockKind, Item, Template } from "../lib/types";
+import type { Block, BlockKind, Item, Section, Template } from "../lib/types";
+import BlockDiagram, { kindLabel } from "./BlockDiagram";
+import DragHandle from "./DragHandle";
 import CircuitTimer from "./CircuitTimer";
 import ItemRow from "./ItemRow";
 import PrescribeSheet from "./PrescribeSheet";
@@ -15,6 +18,9 @@ interface Props {
   onChange: (b: Block) => void;
   onDelete: () => void;
   onMove: (dir: -1 | 1) => void;
+  onDuplicate: () => void;
+  /** Drag handle (SessionPage's reorder). */
+  handle?: React.ReactNode;
   /** Open the exercise picker straight away (block just created). */
   autoPick?: boolean;
 }
@@ -24,17 +30,42 @@ const KINDS: [BlockKind, string][] = [
   ["sets", "Séries"],
   ["superset", "Superset"],
   ["circuit", "Circuito"],
+  ["emom", "EMOM"],
+  ["amrap", "AMRAP"],
 ];
 
-export default function BlockCard({ block, onChange, onDelete, onMove, autoPick }: Props) {
+export const SECTIONS: Section[] = ["aquecimento", "ativação", "mobilidade", "principal", "condicionamento", "retorno à calma"];
+
+const PRESETS: [string, Partial<Block>][] = [
+  ["Tabata 20/10 ×8", { work: 20, rest: 10, rounds: 8, roundRest: 60 }],
+  ["HIIT 40/20", { work: 40, rest: 20, rounds: 3, roundRest: 90 }],
+  ["30/30", { work: 30, rest: 30, rounds: 4, roundRest: 60 }],
+  ["45/15", { work: 45, rest: 15, rounds: 3, roundRest: 90 }],
+];
+
+/** Sensible numbers when switching to a timed block. */
+export const KIND_DEFAULTS: Partial<Record<BlockKind, Partial<Block>>> = {
+  circuit: { work: 40, rest: 20, rounds: 3, roundRest: 90 },
+  emom: { work: 60, rest: null, rounds: 10, roundRest: null },
+  amrap: { work: 600, rest: null, rounds: null, roundRest: null },
+};
+
+export default function BlockCard({ block, onChange, onDelete, onMove, onDuplicate, handle, autoPick }: Props) {
   const [settings, setSettings] = useState(false);
   const [picking, setPicking] = useState(!!autoPick);
   const [timer, setTimer] = useState(false);
-  const isCircuit = block.kind === "circuit";
+  const [diagram, setDiagram] = useState(false);
+  const isCircuit = block.kind === "circuit" || block.kind === "emom" || block.kind === "amrap";
   const doneSets = block.items.reduce((n, i) => n + i.sets.filter((s) => s.done).length, 0);
   const totalSets = block.items.reduce((n, i) => n + i.sets.length, 0);
 
   const setItems = (items: Item[]) => onChange({ ...block, items });
+  const reorder = useReorder(block.items, setItems);
+  const duplicateItem = (it: Item) => {
+    const i = block.items.findIndex((x) => x.id === it.id);
+    const copy = { ...it, id: uid(), sets: it.sets.map((r) => ({ ...r, done: false })) };
+    setItems([...block.items.slice(0, i + 1), copy, ...block.items.slice(i + 1)]);
+  };
   const moveItem = (i: number, d: -1 | 1) => {
     const j = i + d;
     if (j < 0 || j >= block.items.length) return;
@@ -71,12 +102,16 @@ export default function BlockCard({ block, onChange, onDelete, onMove, autoPick 
   return (
     <section className="card p-3">
       <header className="flex items-center gap-2 mb-1">
-        <button type="button" className="flex-1 text-left" onClick={() => setSettings(!settings)}>
-          <span className="label">{KINDS.find(([k]) => k === block.kind)?.[1]}</span>
+        {handle}
+        <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setSettings(!settings)}>
+          <span className="label">{kindLabel(block)}</span>
           <div className="font-bold">
-            {isCircuit ? fmtCircuitHeader(block) : block.title || (block.kind === "superset" ? "Superset" : "")}
+            {isCircuit ? fmtCircuitHeader(block) : block.title || (block.kind === "superset" ? kindLabel(block) : "")}
             {isCircuit && block.title && block.title !== "Circuito" && <span className="text-muted font-normal"> · {block.title}</span>}
           </div>
+        </button>
+        <button type="button" className={`btn-ghost px-2 ${diagram ? "text-accent" : "text-muted"}`} onClick={() => setDiagram(!diagram)} aria-label="Ver estrutura">
+          ◫
         </button>
         {totalSets > 0 && (
           <span className={`text-xs tabular-nums ${doneSets === totalSets ? "text-success" : "text-muted"}`}>
@@ -96,8 +131,36 @@ export default function BlockCard({ block, onChange, onDelete, onMove, autoPick 
       {settings && (
         <div className="flex flex-col gap-3 p-3 mb-2 rounded-lg bg-bg border border-border">
           <input className="input" value={block.title} placeholder="Título do bloco (opcional)" onChange={(e) => onChange({ ...block, title: e.target.value })} />
-          <Seg options={KINDS} value={block.kind} onChange={(k) => onChange({ ...block, kind: k as BlockKind })} />
-          {isCircuit && (
+          <div className="flex flex-col gap-1">
+            <span className="label">Secção</span>
+            <div className="flex flex-wrap gap-1.5">
+              {SECTIONS.map((sec) => (
+                <button key={sec} type="button" className={`chip ${block.section === sec ? "chip-on" : ""}`} onClick={() => onChange({ ...block, section: block.section === sec ? undefined : sec })}>
+                  {sec}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <Seg options={KINDS} value={block.kind} onChange={(k) => k !== block.kind && onChange({ ...block, kind: k as BlockKind, ...KIND_DEFAULTS[k as BlockKind] })} />
+          </div>
+          {block.kind === "emom" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Stepper label="Intervalo" suffix="s" value={block.work} step={15} onChange={(v) => onChange({ ...block, work: v })} />
+              <Stepper label="Intervalos" value={block.rounds} step={1} onChange={(v) => onChange({ ...block, rounds: v })} />
+            </div>
+          )}
+          {block.kind === "amrap" && <Stepper label="Tempo limite" suffix="s" value={block.work} step={60} onChange={(v) => onChange({ ...block, work: v })} />}
+          {block.kind === "circuit" && (
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map(([label, p]) => (
+                <button key={label} type="button" className="chip" onClick={() => onChange({ ...block, ...p })}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {block.kind === "circuit" && (
             <div className="grid grid-cols-2 gap-3">
               <Stepper label="Trabalho" suffix="s" value={block.work} step={5} onChange={(v) => onChange({ ...block, work: v })} />
               <Stepper label="Pausa" suffix="s" value={block.rest} step={5} onChange={(v) => onChange({ ...block, rest: v })} />
@@ -105,7 +168,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, autoPick 
               <Stepper label="Desc. ronda" suffix="s" value={block.roundRest} step={15} onChange={(v) => onChange({ ...block, roundRest: v })} />
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button type="button" className="btn" onClick={() => onMove(-1)}>
               ↑ Subir
             </button>
@@ -122,6 +185,9 @@ export default function BlockCard({ block, onChange, onDelete, onMove, autoPick 
             >
               ☆ Template
             </button>
+            <button type="button" className="btn" onClick={onDuplicate}>
+              ⧉ Duplicar
+            </button>
             <button type="button" className="btn text-danger ml-auto" onClick={() => confirm("Apagar este bloco?") && onDelete()}>
               Apagar bloco
             </button>
@@ -129,15 +195,20 @@ export default function BlockCard({ block, onChange, onDelete, onMove, autoPick 
         </div>
       )}
 
+      {diagram && <BlockDiagram block={block} />}
+
       <div className="divide-y divide-border">
-        {block.items.map((it, i) => (
-          <ItemRow
-            key={it.id}
-            item={it}
-            onChange={(n) => setItems(block.items.map((x) => (x.id === it.id ? n : x)))}
-            onDelete={() => setItems(block.items.filter((x) => x.id !== it.id))}
-            onMove={(d) => moveItem(i, d)}
-          />
+        {reorder.ordered.map((it, i) => (
+          <div key={it.id} ref={reorder.ref(it.id)} className={reorder.dragging === it.id ? "opacity-60 bg-card2 rounded-lg" : ""}>
+            <ItemRow
+              item={it}
+              onChange={(n) => setItems(block.items.map((x) => (x.id === it.id ? n : x)))}
+              onDelete={() => setItems(block.items.filter((x) => x.id !== it.id))}
+              onMove={(d) => moveItem(i, d)}
+              onDuplicate={() => duplicateItem(it)}
+              handle={block.items.length > 1 ? <DragHandle {...reorder.handle(it.id)} /> : undefined}
+            />
+          </div>
         ))}
       </div>
 

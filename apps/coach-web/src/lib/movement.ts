@@ -96,12 +96,16 @@ export function hitsFocus(f: Focus, ex: Exercise | undefined, patterns: string[]
 /**
  * Sets an item counts for. Once anything in the session is ticked only ticked
  * sets count (what was done); before that, what was prescribed. A circuit
- * item counts one per round; an item without sets counts once.
+ * item counts one per round; an item without sets counts once. Warm-up sets never count.
  */
 export function countedSets(block: Block, item: Item, ticked: boolean): number {
   if (block.kind === "circuit" && item.sets.length <= 1) return block.rounds ?? 1;
+  // EMOM: the intervals are shared out between the exercises; AMRAP: rounds unknown, one each
+  if (block.kind === "emom") return Math.max(1, Math.round((block.rounds ?? 1) / Math.max(1, block.items.filter((i) => i.role === "main").length)));
+  if (block.kind === "amrap") return 1;
   if (!item.sets.length) return 1;
-  return ticked ? item.sets.filter((s) => s.done).length : item.sets.length;
+  const sets = item.sets.filter((s) => s.type !== "warmup");
+  return ticked ? sets.filter((s) => s.done).length : sets.length;
 }
 
 export interface Tally {

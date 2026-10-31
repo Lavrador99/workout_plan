@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import BlockCard from "../components/BlockCard";
+import BlockCard, { KIND_DEFAULTS } from "../components/BlockCard";
+import DragHandle from "../components/DragHandle";
 import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
 import { fmtSession } from "../lib/format";
 import { history, suggest } from "../lib/history";
 import { go, useClient, useSession, useSessions, useTemplates } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseSessionText } from "../lib/parser";
+import { useReorder } from "../lib/reorder";
 import { uid } from "../lib/text";
 import type { Block, Session, Template } from "../lib/types";
 
@@ -31,6 +33,7 @@ export default function SessionPage({ id }: { id: string }) {
   const [newBlock, setNewBlock] = useState<string | null>(null);
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<Session | null>(null);
+  const reorder = useReorder(s?.blocks ?? [], (blocks) => s && update({ ...s, blocks }));
 
   // Local copy for instant edits; DB updates from sync are taken when not mid-edit.
   useEffect(() => {
@@ -68,10 +71,14 @@ export default function SessionPage({ id }: { id: string }) {
   const addBlock = (kind: Block["kind"]) => {
     const id = uid();
     setNewBlock(id); // its exercise picker opens straight away
-    setBlocks([
-      ...s.blocks,
-      { id, kind, title: kind === "superset" ? "Superset" : "", items: [], ...(kind === "circuit" ? { work: 40, rest: 20, rounds: 3, roundRest: 90 } : {}) },
-    ]);
+    // a new block stays in the section of the one before it
+    const section = s.blocks[s.blocks.length - 1]?.section;
+    setBlocks([...s.blocks, { id, kind, section, title: "", items: [], ...KIND_DEFAULTS[kind] }]);
+  };
+
+  const duplicateBlock = (b: Block) => {
+    const i = s.blocks.findIndex((x) => x.id === b.id);
+    setBlocks([...s.blocks.slice(0, i + 1), copyBlock(b), ...s.blocks.slice(i + 1)]);
   };
 
   const days = templates?.filter((t) => t.blocks?.length) ?? [];
@@ -181,15 +188,19 @@ export default function SessionPage({ id }: { id: string }) {
         </div>
       )}
 
-      {s.blocks.map((b, i) => (
-        <BlockCard
-          key={b.id}
-          block={b}
-          onChange={(nb) => setBlocks(s.blocks.map((x) => (x.id === b.id ? nb : x)))}
-          onDelete={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))}
-          onMove={(d) => moveBlock(i, d)}
-          autoPick={b.id === newBlock}
-        />
+      {reorder.ordered.map((b, i, all) => (
+        <div key={b.id} ref={reorder.ref(b.id)} className={`flex flex-col gap-1 ${reorder.dragging === b.id ? "opacity-60" : ""}`}>
+          {b.section && b.section !== all[i - 1]?.section && <h2 className="label text-accent mt-2">{b.section}</h2>}
+          <BlockCard
+            block={b}
+            onChange={(nb) => setBlocks(s.blocks.map((x) => (x.id === b.id ? nb : x)))}
+            onDelete={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))}
+            onMove={(d) => moveBlock(i, d)}
+            onDuplicate={() => duplicateBlock(b)}
+            handle={s.blocks.length > 1 ? <DragHandle {...reorder.handle(b.id)} /> : undefined}
+            autoPick={b.id === newBlock}
+          />
+        </div>
       ))}
 
       <div className="card p-3 flex flex-col gap-2">
@@ -205,7 +216,13 @@ export default function SessionPage({ id }: { id: string }) {
             + Superset
           </button>
           <button type="button" className="btn" onClick={() => addBlock("circuit")}>
-            + Circuito 40/20
+            + Circuito / HIIT
+          </button>
+          <button type="button" className="btn" onClick={() => addBlock("emom")}>
+            + EMOM
+          </button>
+          <button type="button" className="btn" onClick={() => addBlock("amrap")}>
+            + AMRAP
           </button>
           {s.blocks.length > 0 &&
             days.map((t) => (

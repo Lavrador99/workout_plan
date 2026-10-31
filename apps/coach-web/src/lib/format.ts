@@ -1,7 +1,32 @@
 // Structured session → the coach's own text format (for WhatsApp, print, notes).
 
-import type { Block, Item, SetRow, Session } from "./types";
+import type { Block, Item, ItemMethod, SetRow, SetType, Session } from "./types";
 import { fmtDate, fmtNum, fmtSec } from "./text";
+
+export const SET_TYPE: Record<SetType, { short: string; label: string }> = {
+  warmup: { short: "A", label: "aquecimento" },
+  work: { short: "", label: "efetiva" },
+  failure: { short: "F", label: "até à falha" },
+  drop: { short: "D", label: "drop" },
+};
+
+export function fmtMethod(m: ItemMethod): string {
+  switch (m.type) {
+    case "restpause":
+      return `rest-pause +${m.miniSets} (${m.pause}s)`;
+    case "cluster":
+      return `cluster ${m.clusters}×${m.reps} (${m.pause}s)`;
+    case "myo":
+      return `myo-reps ${m.activation} + ${m.miniSets}×${m.miniReps} (${m.pause}s)`;
+    case "mechdrop":
+      return `drop mecânico: ${m.variants}`;
+  }
+}
+
+function fmtEffort(item: Item, v: number | null | undefined): string {
+  if (v == null) return "";
+  return item.effort === "rpe" ? `@${fmtNum(v)}` : `RIR ${fmtNum(v)}`;
+}
 
 export function fmtLoad(item: Item, load: number | null | undefined): string {
   if (load == null) return "";
@@ -25,7 +50,8 @@ function fmtVolume(item: Item, s: SetRow): string {
   return "";
 }
 
-const same = (a: SetRow, b: SetRow) => a.reps === b.reps && a.duration === b.duration && a.load === b.load;
+const same = (a: SetRow, b: SetRow) =>
+  a.reps === b.reps && a.duration === b.duration && a.load === b.load && (a.rir ?? null) === (b.rir ?? null) && (a.type ?? "work") === (b.type ?? "work");
 
 /** Prescription only, e.g. "3x8 2x8kg (E +1)". */
 export function fmtRx(item: Item): string {
@@ -40,18 +66,24 @@ export function fmtRx(item: Item): string {
       else if (sets.length > 1) parts.push(`${sets.length} séries`);
       const load = fmtLoad(item, sets[0].load);
       if (load) parts.push(load);
+      const effort = fmtEffort(item, sets[0].rir);
+      if (effort) parts.push(effort);
     } else {
       parts.push(
         sets
           .map((s) => {
-            const vol = fmtVolume(item, s);
+            const vol = fmtVolume(item, s) || (s.type === "drop" || s.type === "failure" ? "falha" : "");
             const load = fmtLoad(item, s.load);
-            return vol && load ? `${vol}x${load}` : vol || load;
+            const mark = s.type && s.type !== "work" ? `${SET_TYPE[s.type].short}:` : "";
+            return mark + [vol && load ? `${vol}x${load}` : vol || load, fmtEffort(item, s.rir)].filter(Boolean).join(" ");
           })
           .join(" / "),
       );
     }
+    const rests = [...new Set(sets.filter((s) => s.rest).map((s) => s.rest as number))];
+    if (rests.length === 1) parts.push(`desc. ${fmtSec(rests[0])}`);
   }
+  if (item.method) parts.push(fmtMethod(item.method));
   if (item.tempo) parts.push(`tempo ${item.tempo}`);
   if (item.holdSec) parts.push(`iso ${item.holdSec}s`);
   if (item.rmTest) parts.push(`${item.rmTest}RM: ___`);
@@ -67,6 +99,8 @@ export function fmtItem(item: Item): string {
 }
 
 export function fmtCircuitHeader(b: Block): string {
+  if (b.kind === "emom") return `EMOM ${b.work && b.work !== 60 ? `${fmtSec(b.work)} ` : ""}x${b.rounds ?? "?"}`;
+  if (b.kind === "amrap") return `AMRAP ${fmtSec(b.work) || "?"}`;
   let s = `${b.work ?? ""}"/${b.rest ?? ""}"`;
   if (b.rounds) s += ` x${b.rounds}`;
   if (b.roundRest) s += ` | ${fmtSec(b.roundRest)} rest`;
@@ -75,7 +109,7 @@ export function fmtCircuitHeader(b: Block): string {
 
 export function fmtBlock(b: Block): string {
   const lines: string[] = [];
-  if (b.kind === "circuit") lines.push(`**${fmtCircuitHeader(b)}**`);
+  if (b.kind === "circuit" || b.kind === "emom" || b.kind === "amrap") lines.push(`**${fmtCircuitHeader(b)}**`);
   else if (b.title) lines.push(b.title);
   // consecutive fillers are written together: (Russian twist, side bends)
   for (let i = 0; i < b.items.length; i++) {

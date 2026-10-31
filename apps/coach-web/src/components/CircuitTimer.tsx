@@ -13,6 +13,12 @@ function buildPhases(b: Block): Phase[] {
   const ex = names.length ? names : ["Trabalho"];
   const rounds = b.rounds ?? 1;
   const out: Phase[] = [{ kind: "prep", sec: 10, label: "Preparar", round: 1 }];
+  if (b.kind === "amrap") return [...out, { kind: "work", sec: b.work ?? 600, label: ex.join(" → "), round: 1 }];
+  if (b.kind === "emom") {
+    // one exercise per interval, in turn; what is left of the interval is the rest
+    for (let r = 1; r <= rounds; r++) out.push({ kind: "work", sec: b.work ?? 60, label: ex[(r - 1) % ex.length], round: r });
+    return out;
+  }
   for (let r = 1; r <= rounds; r++) {
     ex.forEach((name, i) => {
       out.push({ kind: "work", sec: b.work ?? 30, label: name, round: r });

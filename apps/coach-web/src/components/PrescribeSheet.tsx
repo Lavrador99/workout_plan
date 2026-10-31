@@ -28,7 +28,7 @@ export const CATEGORIES = [
   "cardio",
 ];
 
-const KIND_LABEL: Record<Block["kind"], string> = { list: "Lista", sets: "Séries", superset: "Superset", circuit: "Circuito" };
+const KIND_LABEL: Record<Block["kind"], string> = { list: "Lista", sets: "Séries", superset: "Superset", circuit: "Circuito", emom: "EMOM", amrap: "AMRAP" };
 
 const LEVEL: Record<string, string> = { fácil: "🟢", médio: "🟡", difícil: "🔴" };
 
@@ -96,9 +96,9 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
         durationMax: model.durationMax,
         loadMax: prev ? model.loadMax : null,
         tempo: prev ? model.tempo : undefined,
-        sets: model.sets.map((s) => ({ reps: s.reps ?? null, duration: s.duration ?? null, load: prev ? (s.load ?? null) : null, done: false })),
+        sets: model.sets.map((s) => ({ ...s, reps: s.reps ?? null, duration: s.duration ?? null, load: prev ? (s.load ?? null) : null, done: false })),
       };
-    } else if (block.kind === "list" || block.kind === "circuit") d = base;
+    } else if (block.kind === "list" || block.kind === "circuit" || block.kind === "emom" || block.kind === "amrap") d = base;
     else d = { ...base, sets: Array.from({ length: 3 }, () => ({ reps: 10, duration: null, load: null, done: false })) };
     setDraft(d);
     window.scrollTo(0, 0);
@@ -224,7 +224,7 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
               <span className="label">Nota (opcional)</span>
               <input className="input" value={draft.note} placeholder="ex: calcanhares no chão, pausa em baixo" onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
             </label>
-            {block.kind !== "circuit" && (
+            {(block.kind === "list" || block.kind === "sets" || block.kind === "superset") && (
               <label className="flex items-center gap-2 text-sm text-muted">
                 <input type="checkbox" checked={draft.role === "filler"} onChange={(e) => setDraft({ ...draft, role: e.target.checked ? "filler" : "main" })} />
                 Intercalado (feito no descanso do anterior)

@@ -65,6 +65,18 @@ export function parseItemLine(raw: string): Item {
     tempo = [a, b, c, d].join("-").toUpperCase();
     return " ";
   });
+  // RIR 2 / RPE 8 / @8 → effort on every set
+  let effort: { kind: "rir" | "rpe"; v: number } | undefined;
+  line = line.replace(new RegExp(`\\b(RIR|RPE)\\s*:?\\s*(${NUM})|(?:^|\\s)@\\s*(${NUM})\\b`, "gi"), (_, k, v, at) => {
+    effort = k?.toLowerCase() === "rir" ? { kind: "rir", v: num(v)! } : { kind: "rpe", v: num(v ?? at)! };
+    return " ";
+  });
+  // desc 90s / descanso 2min / desc. 1:30 / rest 60 → rest after every set
+  let restSec: number | undefined;
+  line = line.replace(/\b(?:desc(?:anso)?|rest)\.?\s*:?\s*(?:(\d+):(\d{2})|(\d+)\s*(s|seg|min)?)\b/gi, (_, m, ss, n, u) => {
+    restSec = m != null ? Number(m) * 60 + Number(ss) : Number(n) * (u?.toLowerCase() === "min" ? 60 : 1);
+    return " ";
+  });
   // (4-5s) and other parentheticals with numbers are notes; "(bench)" stays in the name
   line = line.replace(/\(([^)]*\d[^)]*)\)/g, (_, inner) => {
     notes.push(inner.trim());
@@ -86,6 +98,9 @@ export function parseItemLine(raw: string): Item {
   if (tempo) item.tempo = tempo;
 
   if (rest) parseRx(rest, item, notes);
+  const e = effort as { kind: "rir" | "rpe"; v: number } | undefined;
+  if (e) item.effort = e.kind;
+  if (e || restSec != null) item.sets = item.sets.map((x) => ({ ...x, ...(e ? { rir: e.v } : {}), ...(restSec != null ? { rest: restSec } : {}) }));
   item.note = notes.filter(Boolean).join(" ");
   return item;
 }

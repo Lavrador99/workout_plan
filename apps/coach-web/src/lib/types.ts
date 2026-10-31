@@ -40,13 +40,30 @@ export type LoadMode =
 /** What the reps number counts. */
 export type RepsUnit = "r" | "passos" | "m";
 
-/** One set. Edited in place during the session, so it ends up as what was done. */
+/** warmup = aquecimento, work = efetiva, failure = até à falha, drop = redução logo a seguir à anterior. */
+export type SetType = "warmup" | "work" | "failure" | "drop";
+
+/**
+ * One set, prescribed on its own (load, reps, effort and rest can all differ).
+ * Edited in place during the session, so it ends up as what was done.
+ * An empty reps/load is left open for the athlete to choose (autoregulation).
+ */
 export interface SetRow {
   reps?: number | null;
   duration?: number | null; // seconds
   load?: number | null;
+  type?: SetType; // unset = work
+  rir?: number | null; // or RPE, as the item's `effort` says
+  rest?: number | null; // seconds after this set
   done?: boolean;
 }
+
+/** How each set is done, beyond plain reps (drops are separate "drop" sets). */
+export type ItemMethod =
+  | { type: "restpause"; miniSets: number; pause: number } //   set to near failure, pause, mini-sets
+  | { type: "cluster"; clusters: number; reps: number; pause: number } // e.g. 4 × 2 reps, 20s between
+  | { type: "myo"; activation: number; miniSets: number; miniReps: number; pause: number }
+  | { type: "mechdrop"; variants: string }; // harder → easier variants, no rest
 
 export interface Item {
   id: string;
@@ -62,6 +79,8 @@ export interface Item {
   holdSec?: number | null; // isometric hold per rep (iso 10s)
   tempo?: string; // cadence "3-1-1-0" (eccentric-pause-concentric-pause)
   extraLeft?: number; // E +1
+  effort?: "rir" | "rpe"; // what SetRow.rir holds (default RIR)
+  method?: ItemMethod;
   rmTest?: number | null; // "8RM: ___"
   note: string;
   grip?: string; // hand position: "pronada", "neutra"…
@@ -69,11 +88,19 @@ export interface Item {
   sets: SetRow[];
 }
 
-export type BlockKind = "list" | "sets" | "superset" | "circuit";
+/**
+ * superset = 2+ exercises in a row then rest (3 = triset, 4+ = giant set).
+ * emom: `work` = interval (s), `rounds` = intervals, items rotate each interval.
+ * amrap: `work` = time cap (s), as many rounds as possible.
+ */
+export type BlockKind = "list" | "sets" | "superset" | "circuit" | "emom" | "amrap";
+
+export type Section = "aquecimento" | "ativação" | "mobilidade" | "principal" | "condicionamento" | "retorno à calma";
 
 export interface Block {
   id: string;
   kind: BlockKind;
+  section?: Section;
   title: string;
   /** Circuits: work/rest seconds, rounds, rest between rounds. */
   work?: number | null;

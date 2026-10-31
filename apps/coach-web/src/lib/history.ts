@@ -61,8 +61,8 @@ export function suggest(prev: Occurrence | undefined): Suggestion | null {
   const step = loadStep(p);
 
   const sets: SetRow[] = p.sets.map((s) => {
-    const r: SetRow = { reps: s.reps ?? null, duration: s.duration ?? null, load: s.load ?? null, done: false };
-    if (!allDone) return r;
+    const r: SetRow = { ...s, reps: s.reps ?? null, duration: s.duration ?? null, load: s.load ?? null, done: false };
+    if (!allDone || s.type === "warmup") return r;
     if (hasLoad) r.load = s.load != null ? s.load + step : null;
     else if (timed) r.duration = (s.duration ?? 0) + 5;
     else if (r.reps != null) r.reps += 1;

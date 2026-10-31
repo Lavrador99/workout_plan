@@ -1,14 +1,16 @@
 import { useContext, useMemo, useState } from "react";
-import { fmtLoad, fmtRx } from "../lib/format";
+import { fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
 import { history, suggest } from "../lib/history";
 import { GRIPS, STANCES } from "../lib/movement";
 import { go } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
+import { addBackoff, addDrop, addWarmups, cycleType, pyramid } from "../lib/rx";
 import { fmtDate, fmtNum, fmtSec, num } from "../lib/text";
 import type { Item, SetRow } from "../lib/types";
 import { ChipPick } from "./Chips";
 import ExerciseInput from "./ExerciseInput";
+import MethodFields from "./MethodFields";
 import RxFields from "./RxFields";
 import Stepper from "./Stepper";
 
@@ -17,15 +19,20 @@ interface Props {
   onChange: (item: Item) => void;
   onDelete: () => void;
   onMove: (dir: -1 | 1) => void;
+  onDuplicate?: () => void;
+  /** Drag handle (BlockCard's reorder). */
+  handle?: React.ReactNode;
 }
 
 function chipText(item: Item, s: SetRow): string {
-  const vol = s.duration != null ? fmtSec(s.duration) : s.reps != null ? String(s.reps) : "";
+  const vol = s.duration != null ? fmtSec(s.duration) : s.reps != null ? String(s.reps) : s.type === "drop" || s.type === "failure" ? "falha" : "";
   const load = fmtLoad({ ...item, loadMax: null }, s.load);
-  return [vol, load].filter(Boolean).join(" · ") || "✓";
+  const effort = s.rir != null ? `${item.effort === "rpe" ? "@" : "RIR "}${fmtNum(s.rir)}` : "";
+  const mark = s.type && s.type !== "work" ? SET_TYPE[s.type].short + " " : "";
+  return mark + ([vol, load, effort].filter(Boolean).join(" · ") || "✓");
 }
 
-export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
+export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate, handle }: Props) {
   const [open, setOpen] = useState(false);
   const timed = item.sets.some((s) => s.duration != null);
   const filler = item.role === "filler";
@@ -43,11 +50,14 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
 
   return (
     <div className={`py-2 ${filler ? "pl-4 border-l-2 border-border ml-1" : ""}`}>
-      <button type="button" className="w-full text-left flex flex-wrap items-baseline gap-x-2" onClick={() => setOpen(!open)}>
+      <div className="flex items-start gap-1">
+      {handle}
+      <button type="button" className="flex-1 min-w-0 text-left flex flex-wrap items-baseline gap-x-2" onClick={() => setOpen(!open)}>
         <span className={`font-semibold ${filler ? "text-sm text-muted" : ""}`}>{item.name || "—"}</span>
         <span className="text-sm text-accent2">{rx}</span>
         {(item.grip || item.stance) && <span className="text-xs text-muted">{[item.grip && `pega ${item.grip}`, item.stance && `pés ${item.stance}`].filter(Boolean).join(" · ")}</span>}
       </button>
+      </div>
 
       {item.sets.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -57,7 +67,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
               type="button"
               onClick={() => toggleDone(i)}
               className={`rounded-full px-2.5 h-8 text-xs font-semibold border transition ${
-                s.done ? "bg-success/20 border-success text-success" : "border-border bg-card2 text-muted"
+                s.done ? "bg-success/20 border-success text-success" : s.type === "warmup" ? "border-dashed border-border bg-transparent text-muted" : "border-border bg-card2 text-muted"
               }`}
             >
               {s.done ? "✓ " : ""}
@@ -76,39 +86,79 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
           <RxFields item={item} onChange={onChange} />
 
           {item.sets.length > 0 && (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="label text-left">
-                  <th className="font-normal py-1">#</th>
-                  <th className="font-normal">{timed ? "Seg" : "Reps"}</th>
-                  <th className="font-normal">Kg</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {item.sets.map((s, i) => (
-                  <tr key={i}>
-                    <td className="text-muted w-6">{i + 1}</td>
-                    <td className="pr-2 py-1">
-                      <NumCell value={timed ? s.duration : s.reps} onChange={(v) => setRow(i, timed ? { duration: v } : { reps: v })} />
-                    </td>
-                    <td className="pr-2">
-                      <NumCell value={s.load} onChange={(v) => setRow(i, { load: v })} />
-                    </td>
-                    <td className="w-10">
-                      <button
-                        type="button"
-                        className={`w-9 h-9 rounded-lg border ${s.done ? "bg-success/20 border-success text-success" : "border-border text-muted"}`}
-                        onClick={() => toggleDone(i)}
-                      >
-                        ✓
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="label text-left">
+                    <th className="font-normal py-1" title="Toca para mudar o tipo">Tipo</th>
+                    <th className="font-normal">{timed ? "Seg" : "Reps"}</th>
+                    <th className="font-normal">Kg</th>
+                    <th className="font-normal">
+                      <button type="button" className="underline decoration-dotted" onClick={() => onChange({ ...item, effort: item.effort === "rpe" ? "rir" : "rpe" })}>
+                        {item.effort === "rpe" ? "RPE" : "RIR"}
                       </button>
-                    </td>
+                    </th>
+                    <th className="font-normal">Desc.</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {item.sets.map((s, i) => (
+                    <tr key={i} className={s.type === "warmup" ? "text-muted" : ""}>
+                      <td className="w-12 pr-1">
+                        <button type="button" className="w-11 h-9 rounded-lg border border-border text-xs font-semibold" onClick={() => setRow(i, cycleType(s))}>
+                          {s.type && s.type !== "work" ? SET_TYPE[s.type].short : i + 1 - item.sets.slice(0, i).filter((x) => x.type === "warmup").length}
+                        </button>
+                      </td>
+                      <td className="pr-1 py-1">
+                        <NumCell value={timed ? s.duration : s.reps} onChange={(v) => setRow(i, timed ? { duration: v } : { reps: v })} />
+                      </td>
+                      <td className="pr-1">
+                        <NumCell value={s.load} onChange={(v) => setRow(i, { load: v })} />
+                      </td>
+                      <td className="pr-1">
+                        <NumCell value={s.rir} onChange={(v) => setRow(i, { rir: v })} />
+                      </td>
+                      <td className="pr-1">
+                        <NumCell value={s.rest} onChange={(v) => setRow(i, { rest: v })} />
+                      </td>
+                      <td className="w-10">
+                        <button
+                          type="button"
+                          className={`w-9 h-9 rounded-lg border ${s.done ? "bg-success/20 border-success text-success" : "border-border text-muted"}`}
+                          onClick={() => toggleDone(i)}
+                        >
+                          ✓
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-muted -mt-2">
+                Tipo: nº = efetiva · A aquecimento · F até à falha · D drop. Desc. em segundos. Deixa vazio para o atleta escolher.
+              </p>
+              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+                <button type="button" className="chip" onClick={() => onChange(pyramid(item))}>
+                  ↗ Pirâmide
+                </button>
+                <button type="button" className="chip" onClick={() => onChange(pyramid(item, true))}>
+                  ↘ Pirâmide inversa
+                </button>
+                <button type="button" className="chip" onClick={() => onChange(addWarmups(item))}>
+                  + Aquecimento
+                </button>
+                <button type="button" className="chip" onClick={() => onChange(addBackoff(item))}>
+                  + Back-off
+                </button>
+                <button type="button" className="chip" onClick={() => onChange(addDrop(item))}>
+                  + Drop
+                </button>
+              </div>
+            </>
           )}
+
+          <MethodFields item={item} onChange={onChange} />
 
           <div className="grid grid-cols-3 gap-2">
             <Stepper label="Extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
@@ -140,6 +190,11 @@ export default function ItemRow({ item, onChange, onDelete, onMove }: Props) {
             <button type="button" className="btn" onClick={() => onChange({ ...item, role: filler ? "main" : "filler" })}>
               {filler ? "Tornar principal" : "Intercalado ( )"}
             </button>
+            {onDuplicate && (
+              <button type="button" className="btn" onClick={onDuplicate}>
+                ⧉ Duplicar
+              </button>
+            )}
             <button type="button" className="btn text-danger" onClick={onDelete}>
               Apagar
             </button>
@@ -191,7 +246,7 @@ function NumCell({ value, onChange }: { value: number | null | undefined; onChan
   return (
     <input
       key={String(value)}
-      className="input min-h-[36px] text-center"
+      className="input min-h-[36px] text-center px-1"
       inputMode="decimal"
       defaultValue={fmtNum(value)}
       onBlur={(e) => {
