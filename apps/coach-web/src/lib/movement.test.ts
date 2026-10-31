@@ -88,5 +88,11 @@ describe("periods", () => {
     ]);
     expect(groupByPeriod(s, "week").map((g) => g.key)).toEqual(["2026-11-02", "2026-10-26", "2026-09-28"]);
     expect(groupByPeriod(s, "session").map((g) => g.key)).toEqual(["c", "b", "a"]);
+    const older = [...s, session("d", "2025-12-30", [])];
+    expect(groupByPeriod(older, "year").map((g) => [g.label, g.sessions.length])).toEqual([
+      ["2026", 3],
+      ["2025", 1],
+    ]);
+    expect(groupByPeriod(older, "all").map((g) => [g.label, g.sessions.length])).toEqual([["Total", 4]]);
   });
 });

@@ -7,9 +7,11 @@ const PERIODS: [Period, string][] = [
   ["session", "Sessão"],
   ["week", "Semana"],
   ["month", "Mês"],
+  ["year", "Ano"],
+  ["all", "Total"],
 ];
 
-/** Sets per movement pattern, grip, stance and client focus, for one session / week / month. */
+/** Sets per movement pattern, grip, stance and client focus, for one session / week / month / year, or all time. */
 export default function CountsView({ sessions, exercises, focuses }: { sessions: Session[]; exercises: Exercise[]; focuses: Focus[] }) {
   const [period, setPeriod] = useState<Period>("week");
   const [at, setAt] = useState(0);

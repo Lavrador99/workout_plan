@@ -157,7 +157,7 @@ export function tally(sessions: Session[], exercises: Map<string, Exercise>, foc
 
 // ── Periods ─────────────────────────────────────────────────────────────────
 
-export type Period = "session" | "week" | "month";
+export type Period = "session" | "week" | "month" | "year" | "all";
 
 const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -175,15 +175,31 @@ export interface PeriodGroup {
   sessions: Session[];
 }
 
-/** Sessions grouped by session / week / month, newest first. */
+function periodOf(s: Session, period: Period): [key: string, label: string] {
+  const [y, m, d] = s.date.split("-");
+  switch (period) {
+    case "session":
+      return [s.id, `${d}/${m}/${y}${s.title ? ` · ${s.title}` : ""}`];
+    case "week": {
+      const key = weekStart(s.date);
+      const [wy, wm, wd] = key.split("-");
+      return [key, `Semana de ${wd}/${wm}/${wy}`];
+    }
+    case "month":
+      return [`${y}-${m}`, `${MONTHS[Number(m) - 1]} ${y}`];
+    case "year":
+      return [y, y];
+    case "all":
+      return ["all", "Total"];
+  }
+}
+
+/** Sessions grouped by session / week / month / year (or all together), newest first. */
 export function groupByPeriod(sessions: Session[], period: Period): PeriodGroup[] {
   const groups = new Map<string, PeriodGroup>();
   for (const s of sessions) {
     if (s.deleted) continue;
-    const key = period === "session" ? s.id : period === "week" ? weekStart(s.date) : s.date.slice(0, 7);
-    const [y, m, d] = (period === "session" ? s.date : key).split("-");
-    const label =
-      period === "session" ? `${d}/${m}/${y}${s.title ? ` · ${s.title}` : ""}` : period === "week" ? `Semana de ${d}/${m}/${y}` : `${MONTHS[Number(m) - 1]} ${y}`;
+    const [key, label] = periodOf(s, period);
     const g = groups.get(key) ?? { key, label, sessions: [] };
     g.sessions.push(s);
     groups.set(key, g);
