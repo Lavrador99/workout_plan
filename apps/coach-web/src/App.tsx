@@ -28,9 +28,14 @@ export default function App() {
   return (
     <div className="min-h-screen max-w-2xl mx-auto safe-top">
       <UpdateBar />
-      {sync.state === "error" && (
-        <button type="button" className="w-full text-xs bg-danger/20 text-danger py-1" onClick={() => go("settings")}>
-          Sincronização falhou — os dados estão guardados neste dispositivo.
+      {page !== "settings" && (sync.state === "off" || sync.state === "error") && (
+        <button type="button" className="w-full text-xs bg-warn/15 text-warn px-3 py-1.5 text-left flex items-center gap-2" onClick={() => go("settings")}>
+          <span className="flex-1">
+            {sync.state === "off"
+              ? "⚠ Sincronização desligada: o que fizeres aqui não chega aos outros aparelhos."
+              : `⚠ Não sincronizou (${sync.message}). Está guardado neste aparelho.`}
+          </span>
+          <span className="font-semibold shrink-0">{sync.state === "off" ? "Ligar ›" : "Ver ›"}</span>
         </button>
       )}
       <main className="pb-20">
@@ -58,6 +63,9 @@ export default function App() {
             <button key={k} type="button" onClick={() => go(k)} className={`flex-1 flex flex-col items-center py-2 text-xs ${tab === k ? "text-accent" : "text-muted"}`}>
               <span className="text-lg leading-none relative">
                 {icon}
+                {k === "settings" && (sync.state === "off" || sync.state === "error") && (
+                  <span className="absolute -top-0.5 -right-1.5 w-2.5 h-2.5 rounded-full bg-warn" />
+                )}
                 {k === "library" && toReview > 0 && (
                   <span className="absolute -top-1 -right-3 min-w-4 h-4 px-1 rounded-full bg-warn text-black text-[10px] font-bold leading-4">{toReview}</span>
                 )}
