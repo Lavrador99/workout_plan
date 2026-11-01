@@ -100,7 +100,9 @@ export async function mergeExercises(fromId: string, intoId: string): Promise<vo
   const aliases = [...new Set([...into.aliases, from.name, ...(from.pt ? [from.pt] : []), ...from.aliases])].filter(
     (a) => norm(a) !== norm(into.name) && norm(a) !== norm(into.pt ?? ""),
   );
-  await save("exercises", { ...into, pt: into.pt || from.pt, aliases, tags: [...new Set([...into.tags, ...from.tags])] });
+  // a base that goes into an exercise with no family of its own hands its family over
+  const progressions = into.progressions?.length ? into.progressions : from.progressions?.filter((p) => p !== intoId);
+  await save("exercises", { ...into, pt: into.pt || from.pt, aliases, tags: [...new Set([...into.tags, ...from.tags])], progressions });
   const sessions = await db.sessions.toArray();
   for (const s of sessions) {
     let changed = false;
@@ -113,6 +115,12 @@ export async function mergeExercises(fromId: string, intoId: string): Promise<vo
       }),
     }));
     if (changed) await save("sessions", { ...s, blocks });
+  }
+  // families that listed it now list the exercise it went into
+  for (const e of await db.exercises.toArray()) {
+    if (!e.progressions?.includes(fromId)) continue;
+    const progressions = [...new Set(e.progressions.map((p) => (p === fromId ? intoId : p)))].filter((p) => p !== e.id);
+    await save("exercises", { ...e, progressions });
   }
   await remove("exercises", fromId);
 }

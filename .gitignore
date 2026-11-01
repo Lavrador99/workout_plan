@@ -31,3 +31,4 @@ vite.config.*.timestamp*
 .wrangler/
 .dev.vars
 .coach-token
+exports/

@@ -1,11 +1,12 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { fmtCircuitHeader, fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
 import { history, loadStep } from "../lib/history";
-import { addSet, buildSteps, editSet, isDone, nextOpen, restAfter, sameStep, setDone, type Step } from "../lib/live";
+import { addSet, buildSteps, editSet, isDone, nextOpen, restAfter, sameStep, setDone, setItem, type Step } from "../lib/live";
 import { SessionCtx } from "../lib/sessionContext";
 import { fmtNum, fmtSec, num } from "../lib/text";
 import type { Item, Session, SetRow } from "../lib/types";
 import CircuitTimer, { beep } from "./CircuitTimer";
+import { EasierHarder } from "./Progressions";
 
 /** 754000 → "12:34", 3754000 → "1:02:34" */
 export function fmtClock(ms: number): string {
@@ -173,6 +174,7 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
                 onTick={tick}
                 onSkip={skip}
                 onAddSet={() => onChange(addSet(s, cur.bi, cur.ii))}
+                onItem={(it) => onChange(setItem(s, cur.bi, cur.ii, it))}
               />
             )
           )}
@@ -216,6 +218,7 @@ function SetCard({
   onTick,
   onSkip,
   onAddSet,
+  onItem,
 }: {
   item: Item;
   step: Step;
@@ -224,6 +227,7 @@ function SetCard({
   onTick: () => void;
   onSkip: () => void;
   onAddSet: () => void;
+  onItem: (item: Item) => void;
 }) {
   const set: SetRow | undefined = step.kind === "set" ? item.sets[step.si] : undefined;
   const timed = set?.duration != null;
@@ -241,6 +245,8 @@ function SetCard({
         {details && <span className="text-sm text-muted">{details}</span>}
         {set && <LastTime item={item} si={(step as Extract<Step, { kind: "set" }>).si} session={session} />}
       </div>
+
+      <EasierHarder item={item} onChange={onItem} />
 
       {set && (
         <>

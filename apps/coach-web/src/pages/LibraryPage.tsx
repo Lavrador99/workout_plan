@@ -1,16 +1,19 @@
 import { useMemo, useState } from "react";
 import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../lib/db";
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
+import { downloadText, exercisesCsv } from "../lib/exportExercises";
 import { fmtBlock } from "../lib/format";
 import { useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
 import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
-import { uid } from "../lib/text";
+import { todayISO, uid } from "../lib/text";
 import { ChipGroups } from "../components/Chips";
+import { FamilySection, ProgressionsView } from "../components/Progressions";
+import { families } from "../lib/progressions";
 import { CATEGORIES, levelDots } from "../components/PrescribeSheet";
 import type { Exercise, Template } from "../lib/types";
 
-type View = "all" | "review" | "dups";
+type View = "all" | "review" | "dups" | "prog";
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
@@ -29,6 +32,7 @@ export default function LibraryPage() {
 
   const missing = useMemo(() => new Map(exercises.map((e) => [e.id, missingInfo(e)] as const).filter(([, m]) => m.length)), [exercises]);
   const dups = useMemo(() => findDuplicates(exercises), [exercises]);
+  const familyCount = useMemo(() => families(exercises).length, [exercises]);
 
   const list = useMemo(() => {
     const found = q.trim() ? index.search(q, tag || view === "review" ? 300 : 50) : exercises;
@@ -56,14 +60,17 @@ export default function LibraryPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <ViewTab on={view === "all"} onClick={() => setView("all")} n={exercises.length} label="Todos" />
         <ViewTab on={view === "review"} onClick={() => setView("review")} n={missing.size} label="Por rever" warn />
         <ViewTab on={view === "dups"} onClick={() => setView("dups")} n={dups.length} label="Duplicados" warn />
+        <ViewTab on={view === "prog"} onClick={() => setView("prog")} n={familyCount} label="Progressões" />
       </div>
 
       {view === "dups" ? (
         <Duplicates pairs={dups} usage={usage} />
+      ) : view === "prog" ? (
+        <ProgressionsView exercises={exercises} />
       ) : (
         <>
           <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
@@ -76,12 +83,17 @@ export default function LibraryPage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <p className="text-xs text-muted flex-1">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <p className="text-xs text-muted basis-full">
               {view === "review"
                 ? "Sem padrão de movimento ou sem músculos, não contam bem nas contagens. Toca para completar."
                 : "Entram aqui sozinhos quando os prescreves. Seleciona vários para os juntar num só."}
             </p>
+            {!selected && (
+              <button type="button" className="btn shrink-0" onClick={() => downloadText(exercisesCsv(exercises, usage), `exercicios-${todayISO()}.csv`, "text/csv")} title="Todos os exercícios numa folha de cálculo (CSV)">
+                ⤓ Exportar
+              </button>
+            )}
             <button type="button" className={`btn shrink-0 ${selected ? "text-accent border-accent" : ""}`} onClick={() => setSelected(selected ? null : [])}>
               {selected ? "Cancelar" : "☑ Selecionar"}
             </button>
@@ -95,7 +107,7 @@ export default function LibraryPage() {
                 return (
                   <li key={ex.id}>
                     {editing === ex.id && !selected ? (
-                      <Editor ex={ex} all={exercises} onClose={() => setEditing(null)} />
+                      <Editor ex={ex} all={exercises} onClose={() => setEditing(null)} onOpen={setEditing} />
                     ) : (
                       <button
                         type="button"
@@ -257,7 +269,7 @@ function TemplateList({ list }: { list: Template[] }) {
   );
 }
 
-function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: () => void }) {
+function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; onClose: () => void; onOpen: (id: string) => void }) {
   const [name, setName] = useState(ex.name);
   const [pt, setPt] = useState(ex.pt ?? "");
   const [aliases, setAliases] = useState(ex.aliases.join(", "));
@@ -299,6 +311,7 @@ function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: 
         Músculos{!muscles.length ? " · ⚠ escolhe pelo menos um" : ex.muscles ? "" : " (sugeridos)"}
       </span>
       <ChipGroups groups={MUSCLE_CHIP_GROUPS} value={muscles} onChange={setMuscles} />
+      <FamilySection ex={ex} exercises={all} onOpen={onOpen} />
       <input className="input" value={demo} placeholder="Link de vídeo (opcional)" onChange={(e) => setDemo(e.target.value)} />
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-accent" onClick={submit}>

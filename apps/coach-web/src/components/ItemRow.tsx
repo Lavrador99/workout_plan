@@ -11,6 +11,7 @@ import type { Item, SetRow } from "../lib/types";
 import { ChipPick } from "./Chips";
 import ExerciseInput from "./ExerciseInput";
 import MethodFields from "./MethodFields";
+import { LevelPicker } from "./Progressions";
 import RxFields from "./RxFields";
 import Stepper from "./Stepper";
 
@@ -82,6 +83,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
         <div className="mt-3 p-3 rounded-lg bg-bg border border-border flex flex-col gap-3">
           <ExerciseInput initial={item.name} placeholder="Nome (ou reescreve tudo: 3x10 12kg…)" onSubmit={retype} />
           <LastTime item={item} onApply={onChange} />
+          <LevelPicker item={item} onChange={onChange} />
 
           <RxFields item={item} onChange={onChange} />
 

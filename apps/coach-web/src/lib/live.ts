@@ -93,6 +93,11 @@ export function editSet(s: Session, bi: number, ii: number, si: number, field: F
   });
 }
 
+/** Replace one item (another level of the exercise, say). */
+export function setItem(s: Session, bi: number, ii: number, item: Item): Session {
+  return mapItem(s, bi, ii, () => item);
+}
+
 /** One more set like the last one, after it. */
 export function addSet(s: Session, bi: number, ii: number): Session {
   return mapItem(s, bi, ii, (it) => {
