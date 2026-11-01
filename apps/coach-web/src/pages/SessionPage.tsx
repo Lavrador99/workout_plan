@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import BlockCard, { KIND_DEFAULTS } from "../components/BlockCard";
 import DragHandle from "../components/DragHandle";
 import ExtrasSheet from "../components/ExtrasSheet";
+import LiveView, { fmtClock, useNow } from "../components/LiveView";
 import PrescribeSheet from "../components/PrescribeSheet";
 import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
 import { fmtSession } from "../lib/format";
@@ -14,6 +15,9 @@ import { uid } from "../lib/text";
 import type { Block, Item, Section, Session, Template } from "../lib/types";
 
 const TITLES = ["Fullbody", "Superiores", "Inferiores", "Hyrox Sim", "Core", "Mobilidade"];
+
+/** A session started longer ago than this is not reopened live (forgot to finish it). */
+const LIVE_RESUME_MS = 4 * 3600_000;
 
 /** Plain exercises one after the other; every other kind is a grouped block (an extra). */
 const isPlain = (b: Block) => b.kind === "list" || b.kind === "sets";
@@ -43,10 +47,17 @@ export default function SessionPage({ id }: { id: string }) {
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<Session | null>(null);
   const reorder = useReorder(s?.blocks ?? [], (blocks) => s && update({ ...s, blocks }));
+  const [live, setLive] = useState(false);
+  const resumed = useRef(false);
 
   // Local copy for instant edits; DB updates from sync are taken when not mid-edit.
   useEffect(() => {
     if (stored && !pending.current) setS(stored);
+    // reopening a session that is still running goes straight back to it
+    if (stored && !resumed.current) {
+      resumed.current = true;
+      if (stored.startedAt && !stored.endedAt && Date.now() - stored.startedAt < LIVE_RESUME_MS) setLive(true);
+    }
   }, [stored]);
 
   const flush = async () => {
@@ -174,6 +185,19 @@ export default function SessionPage({ id }: { id: string }) {
   const done = s.blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.sets.filter((x) => x.done).length, 0), 0);
   const total = s.blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.sets.length, 0), 0);
 
+  const startLive = () => {
+    // a finished session is resumed: the clock keeps its start
+    update({ ...s, startedAt: s.startedAt ?? Date.now(), endedAt: null });
+    setLive(true);
+  };
+
+  if (live)
+    return (
+      <SessionCtx.Provider value={ctx}>
+        <LiveView session={s} onChange={update} onMinimize={() => setLive(false)} />
+      </SessionCtx.Provider>
+    );
+
   return (
     <SessionCtx.Provider value={ctx}>
     <div className="flex flex-col gap-3 p-3 pb-28">
@@ -225,6 +249,8 @@ export default function SessionPage({ id }: { id: string }) {
           ))}
         </datalist>
       </div>
+
+      {s.blocks.some((b) => b.items.length) && <LiveBar session={s} onStart={startLive} />}
 
       {s.blocks.length === 0 && days.length > 0 && (
         <div className="card p-3 flex flex-col gap-2">
@@ -303,6 +329,32 @@ export default function SessionPage({ id }: { id: string }) {
       )}
     </div>
     </SessionCtx.Provider>
+  );
+}
+
+/** Start / back to / resume the live session. */
+function LiveBar({ session: s, onStart }: { session: Session; onStart: () => void }) {
+  const now = useNow();
+  if (!s.startedAt)
+    return (
+      <button type="button" className="btn-accent h-14 text-lg" onClick={onStart}>
+        ▶ Iniciar treino
+      </button>
+    );
+  if (!s.endedAt)
+    return (
+      <button type="button" className="btn h-14 text-base border-danger/60" onClick={onStart}>
+        <span className="w-2.5 h-2.5 rounded-full bg-danger animate-pulse" />
+        Ao vivo · <span className="tabular-nums">{fmtClock(now - s.startedAt)}</span> — voltar ao treino
+      </button>
+    );
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted">
+      <span className="text-success">✓</span> Treino de {Math.max(1, Math.round((s.endedAt - s.startedAt) / 60000))} min
+      <button type="button" className="btn-ghost ml-auto text-accent2" onClick={onStart}>
+        Retomar
+      </button>
+    </div>
   );
 }
 

@@ -31,7 +31,7 @@ function buildPhases(b: Block): Phase[] {
   return out;
 }
 
-function beep(freq: number, ms = 180) {
+export function beep(freq: number, ms = 180) {
   try {
     const ctx = new AudioContext();
     const o = ctx.createOscillator();

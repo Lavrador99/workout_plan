@@ -70,7 +70,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
                 s.done ? "bg-success/20 border-success text-success" : s.type === "warmup" ? "border-dashed border-border bg-transparent text-muted" : "border-border bg-card2 text-muted"
               }`}
             >
-              {s.done ? "✓ " : ""}
+              {s.done && chipText(item, s) !== "✓" ? "✓ " : ""}
               {chipText(item, s)}
             </button>
           ))}

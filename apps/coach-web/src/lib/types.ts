@@ -120,6 +120,9 @@ export interface Session extends SyncMeta {
   title: string;
   notes: string;
   blocks: Block[];
+  /** Live session: when the coach started and finished it (ms). */
+  startedAt?: number | null;
+  endedAt?: number | null;
 }
 
 /**
