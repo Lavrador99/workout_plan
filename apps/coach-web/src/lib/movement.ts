@@ -9,6 +9,7 @@ export const PATTERNS = [
   "afundo / unilateral",
   "dobradiça da anca",
   "flexão do joelho",
+  "extensão do joelho",
   "flexão da anca",
   "adução",
   "abdução",
@@ -17,6 +18,7 @@ export const PATTERNS = [
   "empurrar vertical",
   "puxar horizontal",
   "puxar vertical",
+  "rotação do ombro",
   "transporte",
   "rotação",
   "anti-rotação",
@@ -28,6 +30,7 @@ export const PATTERNS = [
   "salto / pliometria",
   "lateral / mudança de direção",
   "locomoção / cardio",
+  "mobilidade",
 ];
 
 export const GRIPS = ["pronada", "supinada", "neutra", "mista", "larga", "estreita"];
@@ -45,6 +48,7 @@ const RULES: [string, RegExp][] = [
   ["agachamento", /\b(squats?|agachamento|leg press|goblet|sissy|wall sit)\b/],
   ["dobradiça da anca", /\b(deadlift|rdl|peso morto|good morning|bom dia|hinge|dobradica|hip thrusts?|glute bridge|ponte|swings?|pull through|back extension|extensao lombar|cleans?|snatch\w*)\b/],
   ["flexão do joelho", /\b(leg curl|hamstring curl|nordic\w*|nordico|curl de (pernas|posteriores)|glute ham|razor curl)\b/],
+  ["extensão do joelho", /\b(leg extensions?|extensao de pernas|cadeira extensora|spanish squat)\b/],
   ["flexão da anca", /\b(hip flexion|hip flexor\w*|flexao da anca)\b/],
   ["adução", /\b(copenhag\w*|adductor\w*|adutor\w*|aducao)\b/],
   ["abdução", /\b(band walks?|lateral band|abducao|abduction|clam\w*|side lying lateral raise|hip hike|glute med\w*)\b/],
@@ -53,17 +57,19 @@ const RULES: [string, RegExp][] = [
   ["empurrar vertical", /\b(overhead press|ohp|press militar|shoulder press|landmine press|push press|handstand|pino|pike push|kettlebell press|kb press)\b/],
   ["puxar horizontal", /\b(rows?|remadas?|face pulls?|reverse fly|band pull apart)\b/],
   ["puxar vertical", /\b(pull ups?|pullups?|chin ups?|pulldown|puxada|elevacoes)\b/],
+  ["rotação do ombro", /\b(external rotation|internal rotation|rotator cuff|rotacao (externa|interna)|coifa)\b/],
   ["transporte", /\b(carry|carries|farmer|suitcase|transporte|mala)\b/],
   ["rotação", /\bcore rotacao\b|\b(russian twist|woodchop|rotacao de joelho)\b/],
-  ["anti-rotação", /\bcore anti rotacao\b|\b(pallof|chop|bird dog)\b/],
+  ["anti-rotação", /\bcore anti rotacao\b|\b(pallof|chop|bird dog|shoulder taps?|renegade)\b/],
   ["anti-extensão", /\bcore anti extensao\b|\b(dead bug|rollout|ab wheel)\b|(?<!(side|copenhagen) )\bplank\b|\bprancha\b(?! (lateral|copenhaga))/],
   ["flexão lateral", /\bcore flexao lateral\b|\bside bends?\b/],
   ["anti-flexão lateral", /\bcore anti flexao lateral\b|\b(side plank|prancha lateral|windmill)\b/],
-  ["flexão do tronco", /\bcore flexao\b(?! lateral)|\b(crunch|sit ups?|leg raise|knee raise|v ups?|toes to bar)\b/],
+  ["flexão do tronco", /\bcore flexao\b(?! lateral)|\b(crunch|sit ups?|leg raise|knee raise|v ups?|toes to bar|slams?|jefferson curl)\b/],
   ["extensão do tronco", /\bcore extensao\b|\b(superman|reverse hyper|sorensen)\b/],
   ["salto / pliometria", /\bpliometria\b|\b(jumps?|hops?|bounds?|bounding|pogos?|saltos?|skips?|multissaltos)\b/],
   ["lateral / mudança de direção", /\bpotencia lateral\b|\b(shuffle|lateral bound|lateral glide|cod|mudanca de direcao|change of direction)\b/],
   ["locomoção / cardio", /\bcardio\b|\b(run|running|sprints?|corrida|bike|rower|remo|incline walk|caminhada|passadeira|ski erg)\b/],
+  ["mobilidade", /\bmobilidade\b|\b(stretch\w*|alongamento|mobiliza\w*|mobility|cars|breathing|respiracao|thread the needle|cobra|downward dog)\b/],
 ];
 
 /** Movement patterns guessed from the exercise's names and tags. */
@@ -79,12 +85,92 @@ export function patternsOf(ex: Pick<Exercise, "name" | "pt" | "aliases" | "tags"
   return ex.patterns ?? inferPatterns(ex);
 }
 
+// ── Muscles ─────────────────────────────────────────────────────────────────
+
+// Muscle → what names and tags say it (accent-free, lowercase).
+const MUSCLE_RULES: [string, RegExp][] = [
+  ["glúteo máximo", /\b(gluteo maximo|gluteos|glutes?|hip thrusts?|glute bridge)\b/],
+  ["glúteo médio", /\b(gluteo medio|glute med\w*)\b/],
+  ["glúteo mínimo", /\bgluteo minimo\b/],
+  ["quadríceps", /\b(quadriceps|quads?|leg extension)\b/],
+  ["posteriores", /\b(posteriores|isquiotibiais|hamstrings?)\b/],
+  ["adutores", /\b(adutor\w*|adductor\w*|copenhag\w*)\b/],
+  ["gémeos", /\b(gemeos?|calf|calves|soleo|ankle|tornozelo)\b/],
+  ["tibial", /\b(tibial\w*)\b/],
+  ["flexores da anca", /\b(flexores da anca|hip flexor\w*|psoas|couch stretch)\b/],
+  ["abdominais", /\b(abdominais|abs)\b/],
+  ["oblíquos", /\b(obliquos?|obliques?)\b/],
+  ["lombares", /\b(lombar\w*|lower back)\b/],
+  ["peitoral", /\b(peitoral|peito|chest|pecs?)\b/],
+  ["deltoides", /\b(deltoides?|delts?|ombros?|shoulders?)\b/],
+  ["trapézio", /\b(trapezio|traps?|shrugs?)\b/],
+  ["grande dorsal", /\b(grande dorsal|dorsal|lats?)\b/],
+  ["romboides", /\b(romboides|rhomboids?)\b/],
+  ["bíceps", /\b(biceps|bicep curl)\b/],
+  ["tríceps", /\b(triceps)\b/],
+  ["pescoço", /\b(neck|pescoco|cervica\w*)\b/],
+  ["antebraços", /\b(antebracos?|forearms?|grip)\b/],
+  ["coifa dos rotadores", /\b(coifa|rotadores|rotator cuff|external rotation|rotacao externa)\b/],
+];
+
+export const MUSCLES = [...MUSCLE_RULES.map(([m]) => m), "corpo inteiro"];
+
+// What a movement pattern works, when names and tags say nothing.
+const PATTERN_MUSCLES: Record<string, string[]> = {
+  agachamento: ["quadríceps", "glúteo máximo"],
+  "afundo / unilateral": ["quadríceps", "glúteo máximo", "glúteo médio"],
+  "dobradiça da anca": ["posteriores", "glúteo máximo", "lombares"],
+  "flexão do joelho": ["posteriores"],
+  "extensão do joelho": ["quadríceps"],
+  "flexão da anca": ["flexores da anca"],
+  adução: ["adutores"],
+  abdução: ["glúteo médio"],
+  "flexão plantar": ["gémeos"],
+  "empurrar horizontal": ["peitoral", "tríceps", "deltoides"],
+  "empurrar vertical": ["deltoides", "tríceps"],
+  "puxar horizontal": ["grande dorsal", "romboides", "deltoides"],
+  "puxar vertical": ["grande dorsal", "bíceps"],
+  "rotação do ombro": ["coifa dos rotadores"],
+  transporte: ["antebraços", "trapézio", "oblíquos"],
+  rotação: ["oblíquos"],
+  "anti-rotação": ["oblíquos", "abdominais"],
+  "anti-extensão": ["abdominais"],
+  "flexão lateral": ["oblíquos"],
+  "anti-flexão lateral": ["oblíquos"],
+  "flexão do tronco": ["abdominais"],
+  "extensão do tronco": ["lombares"],
+  "salto / pliometria": ["quadríceps", "glúteo máximo", "gémeos"],
+  "lateral / mudança de direção": ["glúteo médio", "adutores"],
+  "locomoção / cardio": ["corpo inteiro"],
+};
+
+/** Muscles guessed from the names and tags, else from the movement patterns. */
+export function inferMuscles(ex: Pick<Exercise, "name" | "pt" | "aliases" | "tags" | "patterns">): string[] {
+  const text = [ex.name, ex.pt ?? "", ...ex.aliases, ...ex.tags.map((t) => t.replace(/#\d+$/, ""))].map(norm).join(" | ");
+  const found = new Set(MUSCLE_RULES.filter(([, re]) => re.test(text)).map(([m]) => m));
+  if (!found.size) for (const p of patternsOf(ex)) for (const m of PATTERN_MUSCLES[p] ?? []) found.add(m);
+  return MUSCLES.filter((m) => found.has(m));
+}
+
+/** The exercise's muscles: set by the coach, else guessed. */
+export function musclesOf(ex: Pick<Exercise, "name" | "pt" | "aliases" | "tags" | "patterns" | "muscles">): string[] {
+  return ex.muscles ?? inferMuscles(ex);
+}
+
+/** What the exercise is missing for the counts to work: no patterns, no muscles. */
+export function missingInfo(ex: Exercise): ("padrão" | "músculos")[] {
+  const out: ("padrão" | "músculos")[] = [];
+  if (!patternsOf(ex).length) out.push("padrão");
+  if (!musclesOf(ex).length) out.push("músculos");
+  return out;
+}
+
 /** Does this exercise count for the focus: key exercise, shared pattern or worked muscle. */
 export function hitsFocus(f: Focus, ex: Exercise | undefined, patterns: string[]): boolean {
   if (ex && f.exerciseIds.includes(ex.id)) return true;
   if (patterns.some((p) => f.patterns.includes(p))) return true;
   if (!ex || !f.muscles.length) return false;
-  const text = [ex.name, ex.pt ?? "", ...ex.tags.map((t) => t.replace(/#\d+$/, ""))].map(norm).join(" | ");
+  const text = [ex.name, ex.pt ?? "", ...ex.tags.map((t) => t.replace(/#\d+$/, "")), ...musclesOf(ex)].map(norm).join(" | ");
   return f.muscles.some((m) => {
     const n = norm(m);
     return n && text.includes(n);

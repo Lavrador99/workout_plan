@@ -1,5 +1,7 @@
 import { UpdateBar } from "./components/PwaBanners";
-import { go, useRoute, useSyncStatus } from "./lib/hooks";
+import { useMemo } from "react";
+import { go, useExercises, useRoute, useSyncStatus } from "./lib/hooks";
+import { missingInfo } from "./lib/movement";
 import ClientPage from "./pages/ClientPage";
 import ClientsPage from "./pages/ClientsPage";
 import FocusPage from "./pages/FocusPage";
@@ -19,6 +21,8 @@ const TABS = [
 export default function App() {
   const [page = "", id = "", sub = ""] = useRoute();
   const sync = useSyncStatus();
+  const exercises = useExercises();
+  const toReview = useMemo(() => exercises?.filter((e) => missingInfo(e).length).length ?? 0, [exercises]);
   const tab = page === "client" || page === "session" || page === "import" || page === "history" ? "" : page;
 
   return (
@@ -52,7 +56,12 @@ export default function App() {
         <div className="max-w-2xl mx-auto flex">
           {TABS.map(([k, label, icon]) => (
             <button key={k} type="button" onClick={() => go(k)} className={`flex-1 flex flex-col items-center py-2 text-xs ${tab === k ? "text-accent" : "text-muted"}`}>
-              <span className="text-lg leading-none">{icon}</span>
+              <span className="text-lg leading-none relative">
+                {icon}
+                {k === "library" && toReview > 0 && (
+                  <span className="absolute -top-1 -right-3 min-w-4 h-4 px-1 rounded-full bg-warn text-black text-[10px] font-bold leading-4">{toReview}</span>
+                )}
+              </span>
               {label}
               {k === "settings" && sync.state === "syncing" && <span className="sr-only">a sincronizar</span>}
             </button>

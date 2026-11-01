@@ -1,17 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import BlockCard, { KIND_DEFAULTS } from "../components/BlockCard";
 import DragHandle from "../components/DragHandle";
+import ExtrasSheet from "../components/ExtrasSheet";
+import PrescribeSheet from "../components/PrescribeSheet";
 import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
 import { fmtSession } from "../lib/format";
 import { history, suggest } from "../lib/history";
 import { go, useClient, useSession, useSessions, useTemplates } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
-import { parseSessionText } from "../lib/parser";
+import { itemsFromLine, parseSessionText } from "../lib/parser";
 import { useReorder } from "../lib/reorder";
 import { uid } from "../lib/text";
-import type { Block, Session, Template } from "../lib/types";
+import type { Block, Item, Section, Session, Template } from "../lib/types";
 
 const TITLES = ["Fullbody", "Superiores", "Inferiores", "Hyrox Sim", "Core", "Mobilidade"];
+
+/** Plain exercises one after the other; every other kind is a grouped block (an extra). */
+const isPlain = (b: Block) => b.kind === "list" || b.kind === "sets";
 
 /** Link new/renamed items to the library before saving. */
 async function withLinks(s: Session): Promise<Session> {
@@ -27,9 +32,13 @@ export default function SessionPage({ id }: { id: string }) {
   const clientSessions = useSessions(stored?.clientId ?? "");
   const templates = useTemplates();
   const [s, setS] = useState<Session | null>(null);
-  const [paste, setPaste] = useState(false);
-  const [pasteText, setPasteText] = useState("");
+  const [extras, setExtras] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  /** Where "+ Exercício" adds: the last plain block, or a new one made on the first add. */
+  const [target, setTarget] = useState<Block | null>(null);
   const [copied, setCopied] = useState(false);
+  const current = useRef<Session | null>(null);
   const [newBlock, setNewBlock] = useState<string | null>(null);
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<Session | null>(null);
@@ -50,6 +59,7 @@ export default function SessionPage({ id }: { id: string }) {
   useEffect(() => () => void flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (next: Session) => {
+    current.current = next;
     setS(next);
     latest.current = next;
     clearTimeout(pending.current);
@@ -58,6 +68,7 @@ export default function SessionPage({ id }: { id: string }) {
 
   if (stored === null) return <p className="p-4 text-muted">Sessão não encontrada.</p>;
   if (!s) return null;
+  current.current = s;
 
   const setBlocks = (blocks: Block[]) => update({ ...s, blocks });
   const moveBlock = (i: number, d: -1 | 1) => {
@@ -75,6 +86,22 @@ export default function SessionPage({ id }: { id: string }) {
     const section = s.blocks[s.blocks.length - 1]?.section;
     setBlocks([...s.blocks, { id, kind, section, title: "", items: [], ...KIND_DEFAULTS[kind] }]);
   };
+
+  const openPicker = () => {
+    const last = s.blocks[s.blocks.length - 1];
+    setTarget(last && isPlain(last) ? last : { id: uid(), kind: "sets", section: last?.section, title: "", items: [] });
+  };
+
+  // Several exercises can be added before a re-render, so this works on the latest session.
+  const addPlain = (items: Item[]) => {
+    const cur = current.current;
+    if (!cur || !target) return;
+    const has = cur.blocks.some((b) => b.id === target.id);
+    const grow = (b: Block): Block => ({ ...b, kind: b.kind === "list" && items.some((i) => i.sets.length) ? "sets" : b.kind, items: [...b.items, ...items] });
+    update({ ...cur, blocks: has ? cur.blocks.map((b) => (b.id === target.id ? grow(b) : b)) : [...cur.blocks, grow(target)] });
+  };
+
+  const startSection = (section: Section) => setBlocks([...s.blocks, { id: uid(), kind: "sets", section, title: "", items: [] }]);
 
   const duplicateBlock = (b: Block) => {
     const i = s.blocks.findIndex((x) => x.id === b.id);
@@ -94,11 +121,9 @@ export default function SessionPage({ id }: { id: string }) {
     alert(`Template «${name}» guardado.`);
   };
 
-  const applyPaste = () => {
-    const p = parseSessionText(pasteText);
+  const applyText = (text: string) => {
+    const p = parseSessionText(text);
     update({ ...s, title: s.title || p.title, date: p.date ?? s.date, blocks: [...s.blocks, ...p.blocks] });
-    setPasteText("");
-    setPaste(false);
   };
 
   const text = fmtSession(s);
@@ -162,7 +187,34 @@ export default function SessionPage({ id }: { id: string }) {
             ↑ Progressão
           </button>
         )}
+        <button type="button" className={`btn-ghost px-2 ${menu ? "text-accent" : "text-muted"}`} onClick={() => setMenu(!menu)} aria-label="Opções da sessão">
+          ⋯
+        </button>
       </div>
+
+      {menu && (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn" onClick={copy}>
+            {copied ? "✓ Copiado" : "Copiar texto"}
+          </button>
+          {"share" in navigator && (
+            <button type="button" className="btn" onClick={share}>
+              Partilhar
+            </button>
+          )}
+          <button type="button" className="btn" onClick={duplicate}>
+            Duplicar para hoje
+          </button>
+          {s.blocks.length > 0 && (
+            <button type="button" className="btn" onClick={saveDay}>
+              ☆ Template de dia
+            </button>
+          )}
+          <button type="button" className="btn text-danger ml-auto" onClick={del}>
+            Apagar
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-[auto_1fr] gap-2">
         <input type="date" className="input w-auto" value={s.date} onChange={(e) => update({ ...s, date: e.target.value })} />
@@ -188,100 +240,67 @@ export default function SessionPage({ id }: { id: string }) {
         </div>
       )}
 
-      {reorder.ordered.map((b, i, all) => (
-        <div key={b.id} ref={reorder.ref(b.id)} className={`flex flex-col gap-1 ${reorder.dragging === b.id ? "opacity-60" : ""}`}>
-          {b.section && b.section !== all[i - 1]?.section && <h2 className="label text-accent mt-2">{b.section}</h2>}
-          <BlockCard
-            block={b}
-            onChange={(nb) => setBlocks(s.blocks.map((x) => (x.id === b.id ? nb : x)))}
-            onDelete={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))}
-            onMove={(d) => moveBlock(i, d)}
-            onDuplicate={() => duplicateBlock(b)}
-            handle={s.blocks.length > 1 ? <DragHandle {...reorder.handle(b.id)} /> : undefined}
-            autoPick={b.id === newBlock}
-          />
-        </div>
-      ))}
-
-      <div className="card p-3 flex flex-col gap-2">
-        <span className="label">Adicionar bloco</span>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn" onClick={() => addBlock("list")}>
-            + Lista / mobilidade
-          </button>
-          <button type="button" className="btn" onClick={() => addBlock("sets")}>
-            + Séries
-          </button>
-          <button type="button" className="btn" onClick={() => addBlock("superset")}>
-            + Superset
-          </button>
-          <button type="button" className="btn" onClick={() => addBlock("circuit")}>
-            + Circuito / HIIT
-          </button>
-          <button type="button" className="btn" onClick={() => addBlock("emom")}>
-            + EMOM
-          </button>
-          <button type="button" className="btn" onClick={() => addBlock("amrap")}>
-            + AMRAP
-          </button>
-          {s.blocks.length > 0 &&
-            days.map((t) => (
-              <button key={t.id} type="button" className="btn text-accent2" onClick={() => confirm(`Juntar os blocos de «${t.name}» a esta sessão?`) && applyDay(t)}>
-                📅 {t.name}
-              </button>
-            ))}
-          {blockTemplates.map((t) => (
-            <button key={t.id} type="button" className="btn text-accent2" onClick={() => setBlocks([...s.blocks, copyBlock(t.block)])}>
-              ☆ {t.name}
-            </button>
-          ))}
-          <button type="button" className="btn-accent" onClick={() => setPaste(!paste)}>
-            ✎ Escrever / colar texto
-          </button>
-        </div>
-        {paste && (
-          <div className="flex flex-col gap-2">
-            <textarea
-              className="input min-h-[220px] py-2 font-mono text-sm"
-              autoFocus
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder={"Flexibilidade e mobilidade\nElephant wall\nThread the needle\n\nBack squat 4x8 47,5kg\n(Russian twist, side bends)\nStep up 3x8 2x8kg E+1\n\n40\"/20\" x3 | 1:30 rest\nDevil press\nWall ball"}
+      {reorder.ordered.map((b, i, all) => {
+        const heading = b.section && b.section !== all[i - 1]?.section;
+        const empty = isPlain(b) && !b.items.length && !b.title;
+        return (
+          <div key={b.id} ref={reorder.ref(b.id)} className={`flex flex-col gap-1 ${reorder.dragging === b.id ? "opacity-60" : ""}`}>
+            {heading && (
+              <h2 className="label text-accent mt-2 flex items-center gap-2">
+                {b.section}
+                {empty && (
+                  <button type="button" className="text-muted" onClick={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))} aria-label="Tirar secção">
+                    ✕
+                  </button>
+                )}
+              </h2>
+            )}
+            <BlockCard
+              block={b}
+              plain={isPlain(b)}
+              onChange={(nb) => setBlocks(s.blocks.map((x) => (x.id === b.id ? nb : x)))}
+              onDelete={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))}
+              onMove={(d) => moveBlock(i, d)}
+              onDuplicate={() => duplicateBlock(b)}
+              handle={s.blocks.length > 1 ? <DragHandle {...reorder.handle(b.id)} /> : undefined}
+              autoPick={b.id === newBlock}
             />
-            <p className="text-xs text-muted">Uma linha por exercício. Linha em branco = novo bloco. (entre parênteses) = intercalado.</p>
-            <button type="button" className="btn-accent" onClick={applyPaste} disabled={!pasteText.trim()}>
-              Adicionar à sessão
-            </button>
           </div>
-        )}
+        );
+      })}
+
+      <div className="grid grid-cols-[1fr_auto] gap-2">
+        <button type="button" className="btn-accent h-12 text-base" onClick={openPicker}>
+          + Exercício
+        </button>
+        <button type="button" className="btn h-12" onClick={() => setExtras(true)}>
+          ⊞ Blocos
+        </button>
       </div>
 
-      <label className="flex flex-col gap-1">
-        <span className="label">Notas da sessão</span>
-        <textarea className="input py-2 min-h-[70px]" value={s.notes} onChange={(e) => update({ ...s, notes: e.target.value })} />
-      </label>
+      {(s.notes || showNotes) && (
+        <label className="flex flex-col gap-1">
+          <span className="label">Notas da sessão</span>
+          <textarea className="input py-2 min-h-[70px]" autoFocus={showNotes && !s.notes} value={s.notes} onChange={(e) => update({ ...s, notes: e.target.value })} />
+        </label>
+      )}
 
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn" onClick={copy}>
-          {copied ? "✓ Copiado" : "Copiar texto"}
-        </button>
-        {"share" in navigator && (
-          <button type="button" className="btn" onClick={share}>
-            Partilhar
-          </button>
-        )}
-        <button type="button" className="btn" onClick={duplicate}>
-          Duplicar para hoje
-        </button>
-        {s.blocks.length > 0 && (
-          <button type="button" className="btn" onClick={saveDay}>
-            ☆ Template de dia
-          </button>
-        )}
-        <button type="button" className="btn text-danger ml-auto" onClick={del}>
-          Apagar
-        </button>
-      </div>
+      {target && (
+        <PrescribeSheet block={s.blocks.find((b) => b.id === target.id) ?? target} onAddText={(t) => addPlain(itemsFromLine(t))} onAdd={(it) => addPlain([it])} onClose={() => setTarget(null)} />
+      )}
+
+      {extras && (
+        <ExtrasSheet
+          days={days}
+          blocks={blockTemplates}
+          onGroup={addBlock}
+          onSection={startSection}
+          onTemplate={(t) => (t.blocks?.length ? applyDay(t) : setBlocks([...s.blocks, copyBlock(t.block)]))}
+          onText={applyText}
+          onNote={() => setShowNotes(true)}
+          onClose={() => setExtras(false)}
+        />
+      )}
     </div>
     </SessionCtx.Provider>
   );

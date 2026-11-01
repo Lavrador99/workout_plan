@@ -38,6 +38,16 @@ export function emptyItem(name: string): Item {
   return { id: uid(), name, role: "main", repsUnit: "r", loadMode: "abs", note: "", sets: [] };
 }
 
+/** One typed line as items: "(Russian twist, side bends)" gives fillers. */
+export function itemsFromLine(text: string): Item[] {
+  const paren = text.trim().match(/^\((.*)\)$/);
+  if (!paren) return [parseItemLine(text)];
+  return paren[1]
+    .split(/\s*[,;]\s*/)
+    .filter(Boolean)
+    .map((t) => ({ ...parseItemLine(t), role: "filler" as const }));
+}
+
 /** Is this token the start of the prescription (not part of the name)? */
 function isRxToken(t: string): boolean {
   return /^[x+]?\d/i.test(t);

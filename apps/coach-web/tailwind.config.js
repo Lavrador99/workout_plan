@@ -14,6 +14,7 @@ export default {
         accent: '#e8ff47',
         accent2: '#47c4ff',
         danger: '#ff4747',
+        warn: '#ffad47',
         success: '#47ff8a',
         muted: '#888888',
       },

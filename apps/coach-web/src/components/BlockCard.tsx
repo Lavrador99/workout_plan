@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { copyBlock, save } from "../lib/db";
 import { fmtCircuitHeader } from "../lib/format";
-import { parseItemLine } from "../lib/parser";
+import { itemsFromLine } from "../lib/parser";
 import { useReorder } from "../lib/reorder";
 import { uid } from "../lib/text";
 import type { Block, BlockKind, Item, Section, Template } from "../lib/types";
@@ -23,6 +23,8 @@ interface Props {
   handle?: React.ReactNode;
   /** Open the exercise picker straight away (block just created). */
   autoPick?: boolean;
+  /** Plain exercises in sequence: no block header, exercises are added from the session. */
+  plain?: boolean;
 }
 
 const KINDS: [BlockKind, string][] = [
@@ -50,7 +52,7 @@ export const KIND_DEFAULTS: Partial<Record<BlockKind, Partial<Block>>> = {
   amrap: { work: 600, rest: null, rounds: null, roundRest: null },
 };
 
-export default function BlockCard({ block, onChange, onDelete, onMove, onDuplicate, handle, autoPick }: Props) {
+export default function BlockCard({ block, onChange, onDelete, onMove, onDuplicate, handle, autoPick, plain }: Props) {
   const [settings, setSettings] = useState(false);
   const [picking, setPicking] = useState(!!autoPick);
   const [timer, setTimer] = useState(false);
@@ -86,21 +88,20 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
     onChange(latest.current);
   };
 
-  const add = (text: string) => {
-    // "(Russian twist, side bends)" → fillers
-    const paren = text.match(/^\((.*)\)$/);
-    const parts = paren ? paren[1].split(/\s*[,;]\s*/) : [text];
-    addItems(
-      parts.filter(Boolean).map((t) => {
-        const it = parseItemLine(t);
-        if (paren) it.role = "filler";
-        return it;
-      }),
-    );
-  };
+  if (plain && !block.items.length && !block.title) return null;
 
   return (
-    <section className="card p-3">
+    <section className={plain ? "card px-3 py-1" : "card p-3"}>
+      {plain ? (
+        block.title && (
+          <header className="flex items-center gap-2 pt-2">
+            <span className="label flex-1">{block.title}</span>
+            <button type="button" className="btn-ghost text-muted" onClick={() => setSettings(!settings)} aria-label="Opções do bloco">
+              ⋯
+            </button>
+          </header>
+        )
+      ) : (
       <header className="flex items-center gap-2 mb-1">
         {handle}
         <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setSettings(!settings)}>
@@ -127,6 +128,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
           ⋯
         </button>
       </header>
+      )}
 
       {settings && (
         <div className="flex flex-col gap-3 p-3 mb-2 rounded-lg bg-bg border border-border">
@@ -212,11 +214,13 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
         ))}
       </div>
 
-      <button type="button" className="btn w-full mt-2 border-dashed text-accent" onClick={() => setPicking(true)}>
-        + Exercício
-      </button>
+      {!plain && (
+        <button type="button" className="btn w-full mt-2 border-dashed text-accent" onClick={() => setPicking(true)}>
+          + Exercício
+        </button>
+      )}
 
-      {picking && <PrescribeSheet block={block} onAddText={add} onAdd={(it) => addItems([it])} onClose={() => setPicking(false)} />}
+      {picking && <PrescribeSheet block={block} onAddText={(t) => addItems(itemsFromLine(t))} onAdd={(it) => addItems([it])} onClose={() => setPicking(false)} />}
 
       {timer && <CircuitTimer block={block} onClose={() => setTimer(false)} />}
     </section>

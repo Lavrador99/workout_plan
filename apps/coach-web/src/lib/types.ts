@@ -28,6 +28,10 @@ export interface Exercise extends SyncMeta {
   tags: string[];
   /** Movement patterns; unset = guessed from the name (movement.ts). */
   patterns?: string[];
+  /** Muscles worked; unset = guessed from the tags, names and patterns (movement.ts). */
+  muscles?: string[];
+  /** Exercises the coach said are not duplicates of this one. */
+  distinct?: string[];
   demoUrl?: string;
 }
 
