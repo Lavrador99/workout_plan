@@ -14,6 +14,20 @@ export default function Chips({ options, value, onChange }: { options: string[];
   );
 }
 
+/** Chips under a small heading per group (body region). */
+export function ChipGroups({ groups, value, onChange }: { groups: [string, string[]][]; value: string[]; onChange: (v: string[]) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {groups.map(([label, options]) => (
+        <div key={label} className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted">{label}</span>
+          <Chips options={options} value={value} onChange={onChange} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ChipPick({ options, value, onChange }: { options: string[]; value?: string; onChange: (v: string | undefined) => void }) {
   return <Chips options={options} value={value ? [value] : []} onChange={(v) => onChange(v.find((x) => x !== value))} />;
 }

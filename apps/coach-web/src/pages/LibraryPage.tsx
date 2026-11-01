@@ -3,10 +3,10 @@ import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
 import { fmtBlock } from "../lib/format";
 import { useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
-import { inferMuscles, inferPatterns, missingInfo, MUSCLES, musclesOf, PATTERNS, patternsOf } from "../lib/movement";
+import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
 import { uid } from "../lib/text";
-import Chips from "../components/Chips";
+import { ChipGroups } from "../components/Chips";
 import { CATEGORIES, levelDots } from "../components/PrescribeSheet";
 import type { Exercise, Template } from "../lib/types";
 
@@ -294,11 +294,11 @@ function Editor({ ex, all, onClose }: { ex: Exercise; all: Exercise[]; onClose: 
       <span className={`label ${patterns.length ? "" : "text-warn"}`}>
         Padrões de movimento{!patterns.length ? " · ⚠ escolhe pelo menos um" : ex.patterns ? "" : " (sugeridos pelo nome)"}
       </span>
-      <Chips options={PATTERNS} value={patterns} onChange={setPatterns} />
+      <ChipGroups groups={PATTERN_GROUPS} value={patterns} onChange={setPatterns} />
       <span className={`label ${muscles.length ? "" : "text-warn"}`}>
         Músculos{!muscles.length ? " · ⚠ escolhe pelo menos um" : ex.muscles ? "" : " (sugeridos)"}
       </span>
-      <Chips options={MUSCLES} value={muscles} onChange={setMuscles} />
+      <ChipGroups groups={MUSCLE_CHIP_GROUPS} value={muscles} onChange={setMuscles} />
       <input className="input" value={demo} placeholder="Link de vídeo (opcional)" onChange={(e) => setDemo(e.target.value)} />
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-accent" onClick={submit}>

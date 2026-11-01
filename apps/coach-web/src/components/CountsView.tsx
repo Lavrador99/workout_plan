@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FOCUS_KINDS, groupByPeriod, tally, type Period } from "../lib/movement";
+import { canonPatterns, FOCUS_KINDS, groupByPeriod, tally, type Period } from "../lib/movement";
 import type { Exercise, Focus, Session } from "../lib/types";
 import Seg from "./Seg";
 
@@ -23,7 +23,7 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
   if (!group || !t) return <p className="text-sm text-muted">As contagens aparecem quando o aluno tiver sessões.</p>;
 
   // patterns the client's focuses ask for but this period did not train
-  const wanted = [...new Set(focuses.flatMap((f) => f.patterns))];
+  const wanted = canonPatterns(focuses.flatMap((f) => f.patterns));
   const patterns = [...t.patterns.entries(), ...wanted.filter((p) => !t.patterns.has(p)).map((p) => [p, 0] as [string, number])];
 
   return (

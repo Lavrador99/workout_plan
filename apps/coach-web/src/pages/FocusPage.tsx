@@ -1,10 +1,10 @@
 import { useState } from "react";
-import Chips from "../components/Chips";
+import { ChipGroups } from "../components/Chips";
 import ExerciseInput from "../components/ExerciseInput";
 import Seg from "../components/Seg";
 import { matchExercise, newFocus, remove, save } from "../lib/db";
 import { go, useClients, useExercises, useFocuses } from "../lib/hooks";
-import { FOCUS_KINDS, PATTERNS } from "../lib/movement";
+import { canonMuscles, canonPatterns, FOCUS_KINDS, PATTERN_GROUPS } from "../lib/movement";
 import { parseItemLine } from "../lib/parser";
 import type { Client, Exercise, Focus, FocusKind } from "../lib/types";
 
@@ -76,8 +76,8 @@ export default function FocusPage() {
 }
 
 function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercises: Exercise[]; clients: Client[]; onClose: () => void }) {
-  const [f, setF] = useState(focus);
-  const [muscles, setMuscles] = useState(focus.muscles.join(", "));
+  const [f, setF] = useState(() => ({ ...focus, patterns: canonPatterns(focus.patterns) }));
+  const [muscles, setMuscles] = useState(canonMuscles(focus.muscles).join(", "));
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const label = FOCUS_KINDS.find(([k]) => k === f.kind)?.[2] ?? "";
 
@@ -98,11 +98,11 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
       <input className="input font-semibold" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
       <div className="flex flex-col gap-1">
         <span className="label">Padrões de movimento</span>
-        <Chips options={PATTERNS} value={f.patterns} onChange={(patterns) => setF({ ...f, patterns })} />
+        <ChipGroups groups={PATTERN_GROUPS} value={f.patterns} onChange={(patterns) => setF({ ...f, patterns })} />
       </div>
       <label className="flex flex-col gap-1">
         <span className="label">Músculos (separados por vírgula)</span>
-        <input className="input" value={muscles} placeholder="posteriores, adutores, glúteo médio" onChange={(e) => setMuscles(e.target.value)} />
+        <input className="input" value={muscles} placeholder="isquiotibiais, adutores, glúteo médio" onChange={(e) => setMuscles(e.target.value)} />
         <span className="text-xs text-muted">Contam os exercícios com estes músculos nas etiquetas ou no nome.</span>
       </label>
       <div className="flex flex-col gap-1">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupByPeriod, inferPatterns, tally, weekStart } from "./movement";
+import { groupByPeriod, inferMuscles, inferPatterns, musclesOf, patternsOf, tally, weekStart } from "./movement";
 import { seedExercises, seedProfiles } from "./seed";
 import type { Block, Exercise, Item, Session } from "./types";
 
@@ -31,10 +31,36 @@ describe("inferPatterns", () => {
     expect(inferPatterns(ex("Side Plank"))).toEqual(["anti-flexão lateral"]);
   });
 
+  it("knows the hip thrust, ankle and hip rotation patterns", () => {
+    expect(inferPatterns(ex("Hip Thrust"))).toEqual(["elevação pélvica"]);
+    expect(inferPatterns(ex("Romanian Deadlift"))).toEqual(["dobradiça da anca"]);
+    expect(inferPatterns(ex("Tibialis Raise"))).toEqual(["dorsiflexão"]);
+    expect(inferPatterns(ex("Banded Ankle Eversion"))).toEqual(["eversão do pé"]);
+    expect(inferPatterns(ex("Clamshell"))).toEqual(["abdução da anca", "rotação externa da anca"]);
+    expect(inferPatterns(ex("Rotação externa da anca com elástico"))).toEqual(["rotação externa da anca"]);
+    expect(inferPatterns(ex("Cable External Rotation"))).toEqual(["rotação do ombro"]);
+  });
+
+  it("reads patterns and muscles saved under their old names", () => {
+    const old = { ...ex("x"), patterns: ["adução", "mobilidade"], muscles: ["posteriores", "oblíquos"] };
+    expect(patternsOf(old)).toEqual(["adução da anca", "mobilidade / controlo motor"]);
+    expect(musclesOf(old)).toEqual(["isquiotibiais", "oblíquo externo", "oblíquo interno"]);
+  });
+
   it("finds a pattern for most of the base library", () => {
     const list = seedExercises();
     const none = list.filter((e) => !inferPatterns(e).length);
     expect(none.length / list.length).toBeLessThan(0.2);
+  });
+});
+
+describe("inferMuscles", () => {
+  it("tells apart muscles with shared words", () => {
+    expect(inferMuscles(ex("Hammer Curl"))).toEqual(["braquiorradial"]);
+    expect(inferMuscles(ex("x", ["bíceps femoral"]))).toEqual(["isquiotibiais"]);
+    expect(inferMuscles(ex("x", ["bíceps braquial"]))).toEqual(["bíceps braquial"]);
+    expect(inferMuscles(ex("Seated Calf Raise"))).toEqual(["gémeos", "sóleo"]);
+    expect(inferMuscles(ex("x", ["tibial posterior"]))).toEqual(["tibial posterior"]);
   });
 });
 
@@ -60,7 +86,7 @@ describe("tally", () => {
     expect(t.grips.get("supinada")).toBe(2);
     expect(t.stances.get("largura dos ombros")).toBe(1);
     expect(t.extraLeft).toBe(1);
-    expect(t.patterns.get("adução")).toBe(3);
+    expect(t.patterns.get("adução da anca")).toBe(3);
   });
 
   it("counts towards a focus by key exercise, pattern or muscle", () => {
