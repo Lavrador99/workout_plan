@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "./db";
 import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
-import type { Client, Exercise, Focus, Session, Template } from "./types";
+import type { Assessment, Client, Exercise, Focus, Session, Template, TestDef } from "./types";
 
 // ── Hash router: #/client/abc → ["client", "abc"] ──────────────────────────
 
@@ -27,6 +27,8 @@ export function useRoute(): string[] {
 export function go(...parts: string[]) {
   location.hash = "/" + parts.map(encodeURIComponent).join("/");
 }
+
+const NO_VERSIONS = new Map<string, Set<number>>();
 
 // ── Data ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +61,38 @@ export function useTemplates(): Template[] | undefined {
 
 export function useFocuses(): Focus[] | undefined {
   return useLiveQuery(async () => (await db.focuses.toArray()).filter((f) => !f.deleted).sort((a, b) => a.name.localeCompare(b.name, "pt")), []);
+}
+
+export function useTests(): TestDef[] | undefined {
+  return useLiveQuery(async () => (await db.tests.toArray()).filter((t) => !t.deleted).sort((a, b) => a.name.localeCompare(b.name, "pt")), []);
+}
+
+export function useAssessments(clientId: string): Assessment[] | undefined {
+  return useLiveQuery(async () => {
+    const list = await db.assessments.where("clientId").equals(clientId).toArray();
+    return list.filter((a) => !a.deleted).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
+  }, [clientId]);
+}
+
+/** The protocol versions of each test that already have results, in any client's assessment. */
+export function useUsedVersions(): Map<string, Set<number>> {
+  const used = useLiveQuery(async () => {
+    const m = new Map<string, Set<number>>();
+    for (const a of await db.assessments.toArray()) {
+      if (a.deleted) continue;
+      for (const r of a.results) {
+        if (!r.trials.some((t) => t.value != null)) continue;
+        if (!m.has(r.testId)) m.set(r.testId, new Set());
+        m.get(r.testId)!.add(r.version);
+      }
+    }
+    return m;
+  }, []);
+  return used ?? NO_VERSIONS;
+}
+
+export function useAssessment(id: string): Assessment | null | undefined {
+  return useLiveQuery(async () => (await db.assessments.get(id)) ?? null, [id]);
 }
 
 /** How many times each exercise was prescribed (all clients). */

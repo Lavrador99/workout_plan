@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { remove, save } from "../lib/db";
+import { exportClient, purgeClient, remove, save } from "../lib/db";
+import { downloadText } from "../lib/exportExercises";
 import { fmtLoad } from "../lib/format";
-import Chips from "../components/Chips";
+import AssessmentsTab from "../components/AssessmentsTab";
+import Chips, { ChipPick } from "../components/Chips";
 import CountsView from "../components/CountsView";
 import { go, useClient, useExercises, useFocuses, useSessions } from "../lib/hooks";
 import { FOCUS_KINDS } from "../lib/movement";
-import { fmtDate, num } from "../lib/text";
-import type { Client, Item, Session } from "../lib/types";
+import { fmtDate, num, todayISO } from "../lib/text";
+import type { Client, Item, Session, Side } from "../lib/types";
 import { openNewSession } from "./SessionPage";
 
 interface Best {
@@ -34,13 +36,26 @@ function bestMarks(sessions: Session[], names: Map<string, string>): Best[] {
   return [...best.values()].sort((a, b) => a.name.localeCompare(b.name, "pt"));
 }
 
-export default function ClientPage({ id }: { id: string }) {
+type Tab = "sessions" | "info" | "records" | "counts" | "assessments";
+type Handed = Side | "both";
+
+const GOALS = ["Saúde", "Força", "Performance", "Reabilitação"];
+const LEVELS = ["recreativo", "competitivo", "elite"] as const;
+const HANDED: [Handed, string][] = [
+  ["right", "Direita"],
+  ["left", "Esquerda"],
+  ["both", "Ambas"],
+];
+const handedLabel = (v: Handed | null | undefined) => HANDED.find(([k]) => k === v)?.[1];
+const handedValue = (label: string | undefined) => HANDED.find(([, l]) => l === label)?.[0] ?? null;
+
+export default function ClientPage({ id, initialTab }: { id: string; initialTab?: string }) {
   const stored = useClient(id);
   const sessions = useSessions(id);
   const exercises = useExercises();
   const focuses = useFocuses();
   const [c, setC] = useState<Client | null>(null);
-  const [tab, setTab] = useState<"sessions" | "info" | "records" | "counts">("sessions");
+  const [tab, setTab] = useState<Tab>(initialTab === "assessments" || initialTab === "info" ? initialTab : "sessions");
 
   useEffect(() => {
     if (stored) setC(stored);
@@ -56,6 +71,12 @@ export default function ClientPage({ id }: { id: string }) {
 
   const edit = (patch: Partial<Client>) => setC({ ...c, ...patch });
   const persist = () => void save("clients", c);
+  /** Choices are stored straight away, typed fields when they lose focus. */
+  const choose = (patch: Partial<Client>) => {
+    const next = { ...c, ...patch };
+    setC(next);
+    void save("clients", next);
+  };
   const age = c.birthYear ? new Date().getFullYear() - c.birthYear : null;
 
   return (
@@ -83,10 +104,11 @@ export default function ClientPage({ id }: { id: string }) {
             ["sessions", `Sessões (${sessions?.length ?? 0})`],
             ["records", "Marcas"],
             ["counts", "Contagens"],
+            ["assessments", "Avaliar"],
             ["info", "Ficha"],
           ] as const
         ).map(([k, label]) => (
-          <button key={k} type="button" className={`flex-1 py-2 text-sm font-semibold border-b-2 ${tab === k ? "border-accent text-accent" : "border-transparent text-muted"}`} onClick={() => setTab(k)}>
+          <button key={k} type="button" className={`flex-auto px-1 py-2 text-sm font-semibold whitespace-nowrap border-b-2 ${tab === k ? "border-accent text-accent" : "border-transparent text-muted"}`} onClick={() => setTab(k)}>
             {label}
           </button>
         ))}
@@ -144,6 +166,8 @@ export default function ClientPage({ id }: { id: string }) {
 
       {tab === "counts" && <CountsView sessions={sessions ?? []} exercises={exercises ?? []} focuses={mine} />}
 
+      {tab === "assessments" && <AssessmentsTab clientId={id} />}
+
       {tab === "info" && (
         <div className="card p-3 flex flex-col gap-3" onBlur={persist}>
           <Field label="Nome">
@@ -159,6 +183,36 @@ export default function ClientPage({ id }: { id: string }) {
             <Field label="FC repouso">
               <input className="input" inputMode="numeric" value={c.hrRest ?? ""} onChange={(e) => edit({ hrRest: num(e.target.value) })} />
             </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Altura (cm)">
+              <input className="input" inputMode="numeric" value={c.heightCm ?? ""} onChange={(e) => edit({ heightCm: num(e.target.value) })} />
+            </Field>
+            <Field label="Anos de prática">
+              <input className="input" inputMode="numeric" value={c.sportYears ?? ""} onChange={(e) => edit({ sportYears: num(e.target.value) })} />
+            </Field>
+            <Field label="Treinos / sem.">
+              <input className="input" inputMode="numeric" value={c.weeklyFrequency ?? ""} onChange={(e) => edit({ weeklyFrequency: num(e.target.value) })} />
+            </Field>
+          </div>
+          <Field label="Posição">
+            <input className="input" value={c.position ?? ""} placeholder="ex: Lateral direito" onChange={(e) => edit({ position: e.target.value })} />
+          </Field>
+          <div className="flex flex-col gap-1">
+            <span className="label">Nível</span>
+            <ChipPick options={[...LEVELS]} value={c.level ?? undefined} onChange={(v) => choose({ level: (v as Client["level"]) ?? null })} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label">Mão dominante</span>
+            <ChipPick options={HANDED.map(([, l]) => l)} value={handedLabel(c.dominantHand)} onChange={(v) => choose({ dominantHand: handedValue(v) })} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label">Pé dominante</span>
+            <ChipPick options={HANDED.map(([, l]) => l)} value={handedLabel(c.dominantFoot)} onChange={(v) => choose({ dominantFoot: handedValue(v) })} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label">Objetivos</span>
+            <Chips options={GOALS} value={c.goals ?? []} onChange={(goals) => choose({ goals })} />
           </div>
           <Field label="Lesões / cuidados">
             <input className="input" value={c.injuries} placeholder="ex: Glúteo médio esquerdo" onChange={(e) => edit({ injuries: e.target.value })} />
@@ -192,17 +246,51 @@ export default function ClientPage({ id }: { id: string }) {
           <Field label="Notas e records">
             <textarea className="input py-2 min-h-[180px]" value={c.notes} placeholder={"Front Squat - 8x50kg\nDeadlift - 20x50kg"} onChange={(e) => edit({ notes: e.target.value })} />
           </Field>
-          <button
-            type="button"
-            className="btn text-danger self-start"
-            onClick={async () => {
-              if (!confirm(`Apagar ${c.name}? As sessões ficam guardadas mas escondidas.`)) return;
-              await remove("clients", c.id);
-              go("");
-            }}
-          >
-            Apagar cliente
-          </button>
+          <div className="flex flex-col gap-1">
+            <span className="label">Consentimento para guardar os dados</span>
+            <div className="flex gap-2">
+              <input className="input" type="date" value={c.consentAt ?? ""} aria-label="Data do consentimento" onChange={(e) => choose({ consentAt: e.target.value || null })} />
+              {!c.consentAt && (
+                <button type="button" className="btn shrink-0" onClick={() => choose({ consentAt: todayISO() })}>
+                  Dado hoje
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn"
+              onClick={async () => {
+                downloadText(JSON.stringify(await exportClient(c.id), null, 2), `atleta-${todayISO()}.json`, "application/json");
+              }}
+            >
+              Exportar dados
+            </button>
+            <button
+              type="button"
+              className="btn text-danger"
+              onClick={async () => {
+                if (!confirm(`Apagar ${c.name}? As sessões ficam guardadas mas escondidas.`)) return;
+                await remove("clients", c.id);
+                go("");
+              }}
+            >
+              Apagar cliente
+            </button>
+            <button
+              type="button"
+              className="btn text-danger"
+              onClick={async () => {
+                const typed = prompt(`Apagar definitivamente ${c.name}, com todas as sessões e avaliações? Não dá para desfazer. Escreve o nome para confirmar.`);
+                if (typed?.trim() !== c.name.trim()) return;
+                await purgeClient(c.id);
+                go("");
+              }}
+            >
+              Apagar definitivamente
+            </button>
+          </div>
         </div>
       )}
     </div>

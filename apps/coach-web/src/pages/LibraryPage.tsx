@@ -3,7 +3,7 @@ import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
 import { downloadText, exercisesCsv } from "../lib/exportExercises";
 import { fmtBlock } from "../lib/format";
-import { useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
+import { go, useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
 import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
 import { todayISO, uid } from "../lib/text";
@@ -66,6 +66,11 @@ export default function LibraryPage() {
         <ViewTab on={view === "dups"} onClick={() => setView("dups")} n={dups.length} label="Duplicados" warn />
         <ViewTab on={view === "prog"} onClick={() => setView("prog")} n={familyCount} label="Progressões" />
       </div>
+
+      <button type="button" className="btn justify-between" onClick={() => go("tests")}>
+        <span>📏 Testes de avaliação</span>
+        <span className="text-muted">›</span>
+      </button>
 
       {view === "dups" ? (
         <Duplicates pairs={dups} usage={usage} />

@@ -19,6 +19,17 @@ export interface Client extends SyncMeta {
   notes: string; // free text, e.g. records copied from the old notes
   /** Sports, pathologies and asymmetries (Focus ids) this client works on. */
   focusIds?: string[];
+  heightCm?: number | null;
+  dominantHand?: Side | "both" | null;
+  dominantFoot?: Side | "both" | null;
+  position?: string; // in the sport, when it has one
+  level?: "recreativo" | "competitivo" | "elite" | null;
+  sportYears?: number | null;
+  weeklyFrequency?: number | null;
+  goals?: string[]; // saúde, força, performance, reabilitação
+  /** Goal per test (testId → value), read in the test's direction. */
+  targets?: Record<string, number>;
+  consentAt?: string | null; // YYYY-MM-DD, when the client consented to their data being kept
 }
 
 export interface Exercise extends SyncMeta {
@@ -155,4 +166,83 @@ export interface Focus extends SyncMeta {
   notes: string;
 }
 
-export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses";
+export type TestCategory =
+  | "antropometria"
+  | "mobilidade"
+  | "estabilidade"
+  | "movimento"
+  | "força"
+  | "potência"
+  | "velocidade"
+  | "agilidade"
+  | "resistência"
+  | "controlo motor";
+
+/** Which result is better. neutral = neither (body weight, girths). */
+export type Direction = "higher" | "lower" | "neutral";
+
+/** How the valid trials become the final value. */
+export type Aggregate = "best" | "mean" | "last";
+
+/** Ordinal score (FMS 0–3, quality 1–5): differences are points, never a %. */
+export interface Scale {
+  min: number;
+  max: number;
+}
+
+/** A test the coach can use in assessments. testId + version say what is comparable. */
+export interface TestDef extends SyncMeta {
+  name: string;
+  category: TestCategory;
+  unit: string; // "cm", "kg", "s", "°", "pts"
+  direction: Direction;
+  sided: boolean; // measured on each side
+  scale?: Scale | null;
+  trials: number; // default number of trials
+  aggregate: Aggregate;
+  version: number; // goes up when the protocol changes
+  groups: string[]; // batteries: "FMS", "Y-Balance", "Pré-época futebol"
+  purpose: string;
+  equipment: string;
+  instructions: string;
+  validity: string; // what makes a trial valid
+  demoUrl?: string;
+  /** For the body map (phase 2): not used in any calculation yet. */
+  muscles?: string[];
+  patterns?: string[];
+}
+
+export type Side = "left" | "right";
+
+export interface Trial {
+  side?: Side; // unset on tests without sides
+  value: number | null;
+  invalid?: boolean; // kept, but does not count towards the result
+}
+
+/** A copy of the test as it was that day: editing the test never rewrites history. */
+export interface TestResult {
+  id: string;
+  testId: string;
+  version: number;
+  name: string;
+  unit: string;
+  direction: Direction;
+  sided: boolean;
+  scale?: Scale | null;
+  aggregate: Aggregate;
+  trials: Trial[];
+  instrument?: string;
+  note?: string;
+}
+
+export interface Assessment extends SyncMeta {
+  clientId: string;
+  date: string; // YYYY-MM-DD
+  title: string;
+  conditions: string; // time of day, surface, fatigue, who assessed
+  notes: string;
+  results: TestResult[];
+}
+
+export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments";

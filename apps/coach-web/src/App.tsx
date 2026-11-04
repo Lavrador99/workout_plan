@@ -2,14 +2,18 @@ import { UpdateBar } from "./components/PwaBanners";
 import { useMemo } from "react";
 import { go, useExercises, useRoute, useSyncStatus } from "./lib/hooks";
 import { missingInfo } from "./lib/movement";
+import AssessmentPage from "./pages/AssessmentPage";
 import ClientPage from "./pages/ClientPage";
 import ClientsPage from "./pages/ClientsPage";
+import ComparePage from "./pages/ComparePage";
+import EvolutionPage from "./pages/EvolutionPage";
 import FocusPage from "./pages/FocusPage";
 import HistoryPage from "./pages/HistoryPage";
 import ImportPage from "./pages/ImportPage";
 import LibraryPage from "./pages/LibraryPage";
 import SessionPage from "./pages/SessionPage";
 import SettingsPage from "./pages/SettingsPage";
+import TestsPage from "./pages/TestsPage";
 
 const TABS = [
   ["", "Clientes", "👥"],
@@ -19,11 +23,11 @@ const TABS = [
 ] as const;
 
 export default function App() {
-  const [page = "", id = "", sub = ""] = useRoute();
+  const [page = "", id = "", sub = "", sub2 = ""] = useRoute();
   const sync = useSyncStatus();
   const exercises = useExercises();
   const toReview = useMemo(() => exercises?.filter((e) => missingInfo(e).length).length ?? 0, [exercises]);
-  const tab = page === "client" || page === "session" || page === "import" || page === "history" ? "" : page;
+  const tab = ["client", "session", "import", "history", "assessment", "evolution", "compare"].includes(page) ? "" : page === "tests" ? "library" : page;
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto safe-top">
@@ -40,11 +44,19 @@ export default function App() {
       )}
       <main className="pb-20">
         {page === "client" ? (
-          <ClientPage key={id} id={id} />
+          <ClientPage key={id} id={id} initialTab={sub} />
         ) : page === "session" ? (
           <SessionPage key={id} id={id} />
         ) : page === "history" ? (
           <HistoryPage key={id + sub} clientId={id} exKey={sub} />
+        ) : page === "assessment" ? (
+          <AssessmentPage key={id} id={id} />
+        ) : page === "evolution" ? (
+          <EvolutionPage key={id + sub} clientId={id} testId={sub} />
+        ) : page === "compare" ? (
+          <ComparePage key={id + sub + sub2} clientId={id} a={sub} b={sub2} />
+        ) : page === "tests" ? (
+          <TestsPage />
         ) : page === "import" ? (
           <ImportPage clientId={id} />
         ) : page === "library" ? (

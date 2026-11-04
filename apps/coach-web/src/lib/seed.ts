@@ -1,15 +1,17 @@
 import { changed, db, matchExercise, save } from "./db";
 import { parseItemLine } from "./parser";
 import { SEED_GROUPS } from "./seedData";
+import { DEMO_CLIENT_ID, demoData } from "./seedDemo";
 import { SEED_DAYS } from "./seedTemplates";
+import { SEED_TESTS } from "./seedTests";
 import { norm } from "./text";
-import type { Block, Exercise, Focus, Template } from "./types";
+import type { Block, Exercise, Focus, Template, TestDef } from "./types";
 
 // Base library, merged once per device. Seed records get a fixed id
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 3; // 2: the 4-day templates, 3: the football profile
+const SEED_VERSION = 5; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste"
 
 export interface SeedExercise {
   id: string;
@@ -67,6 +69,8 @@ export async function seedLibrary(force = false): Promise<number> {
   }
   n += await seedTemplates(all);
   n += await seedFocuses(all);
+  n += await seedTestLibrary();
+  n += await seedDemoClient(all);
   await db.meta.put({ key: "seedVersion", value: SEED_VERSION });
   if (n) changed();
   return n;
@@ -123,4 +127,29 @@ async function seedFocuses(library: Exercise[]): Promise<number> {
     n++;
   }
   return n;
+}
+
+/** The base assessment tests, ready to store. */
+export function seedTests(): TestDef[] {
+  return SEED_TESTS.map((t) => ({ direction: "higher", sided: false, scale: null, trials: 3, aggregate: "best", groups: [], ...t, version: 1, updatedAt: 1 }));
+}
+
+async function seedTestLibrary(): Promise<number> {
+  let n = 0;
+  for (const t of seedTests()) {
+    if (await db.tests.get(t.id)) continue; // already here (or deleted on purpose)
+    await db.tests.put({ ...t, dirty: 1 });
+    n++;
+  }
+  return n;
+}
+
+/** The made-up client with a long history. Once erased it stays erased: its tombstone is still here. */
+async function seedDemoClient(library: Exercise[]): Promise<number> {
+  if (await db.clients.get(DEMO_CLIENT_ID)) return 0;
+  const { client, assessments, sessions } = demoData(seedTests(), library);
+  await db.sessions.bulkPut(sessions.map((s) => ({ ...s, dirty: 1 as const })));
+  await db.assessments.bulkPut(assessments.map((a) => ({ ...a, dirty: 1 as const })));
+  await db.clients.put({ ...client, dirty: 1 });
+  return 1;
 }

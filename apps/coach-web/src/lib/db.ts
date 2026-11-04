@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Block, Client, Exercise, Focus, Item, Session, SyncMeta, TableName, Template } from "./types";
+import type { Assessment, Block, Client, Exercise, Focus, Item, Session, SyncMeta, TableName, Template, TestDef } from "./types";
 import { norm, todayISO, uid } from "./text";
 
 // Local-first storage: everything lives in IndexedDB so the app works in the
@@ -11,6 +11,8 @@ class CoachDB extends Dexie {
   sessions!: Table<Session, string>;
   templates!: Table<Template, string>;
   focuses!: Table<Focus, string>;
+  tests!: Table<TestDef, string>;
+  assessments!: Table<Assessment, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
 
   constructor() {
@@ -23,10 +25,26 @@ class CoachDB extends Dexie {
     });
     this.version(2).stores({ templates: "id, name, updatedAt, dirty" });
     this.version(3).stores({ focuses: "id, kind, name, updatedAt, dirty" });
+    // Every new record kind does this: an older version of the app skipped the
+    // kinds it did not know while lastSeq moved on, so pull everything once.
+    this.version(4)
+      .stores({ tests: "id, name, category, updatedAt, dirty", assessments: "id, clientId, date, updatedAt, dirty" })
+      .upgrade((tx) => tx.table("meta").delete("lastSeq"));
   }
 }
 
 export const db = new CoachDB();
+
+/** Fields the UI relies on, in case a record arrives incomplete (or was erased). */
+export const DEFAULTS: Record<TableName, object> = {
+  clients: { name: "", injuries: "", notes: "" },
+  exercises: { name: "", aliases: [], tags: [] },
+  sessions: { title: "", notes: "", blocks: [] },
+  templates: { name: "", block: { id: "", kind: "list", title: "", items: [] } },
+  focuses: { kind: "sport", name: "", patterns: [], muscles: [], exerciseIds: [], notes: "" },
+  tests: { name: "", category: "mobilidade", unit: "", direction: "higher", sided: false, trials: 1, aggregate: "best", version: 1, groups: [], purpose: "", equipment: "", instructions: "", validity: "" },
+  assessments: { title: "", conditions: "", notes: "", results: [] },
+};
 
 type Listener = () => void;
 const changeListeners = new Set<Listener>();
@@ -146,6 +164,65 @@ export function duplicateSession(s: Session): Session {
   return { ...newSession(s.clientId), title: s.title, blocks: s.blocks.map(copyBlock) };
 }
 
+// ── Tests and assessments ───────────────────────────────────────────────────
+
+export function newTest(name: string): TestDef {
+  return {
+    id: uid(),
+    updatedAt: 0,
+    name,
+    category: "mobilidade",
+    unit: "",
+    direction: "higher",
+    sided: false,
+    scale: null,
+    trials: 1,
+    aggregate: "best",
+    version: 1,
+    groups: [],
+    purpose: "",
+    equipment: "",
+    instructions: "",
+    validity: "",
+  };
+}
+
+export function newAssessment(clientId: string): Assessment {
+  return { id: uid(), updatedAt: 0, clientId, date: todayISO(), title: "", conditions: "", notes: "", results: [] };
+}
+
+// ── A client's data ─────────────────────────────────────────────────────────
+
+/** Everything kept about a client, for handing it over to them. */
+export async function exportClient(id: string) {
+  const [client, sessions, assessments] = await Promise.all([db.clients.get(id), db.sessions.where("clientId").equals(id).toArray(), db.assessments.where("clientId").equals(id).toArray()]);
+  const clean = <T extends SyncMeta>({ dirty: _d, ...rec }: T) => rec;
+  return {
+    app: "coach",
+    exportedAt: new Date().toISOString(),
+    client: client && clean(client),
+    sessions: sessions.filter((s) => !s.deleted).map(clean),
+    assessments: assessments.filter((a) => !a.deleted).map(clean),
+  };
+}
+
+async function erase(table: TableName, id: string) {
+  await (db[table] as unknown as Table<SyncMeta, string>).put({ ...DEFAULTS[table], id, updatedAt: Date.now(), deleted: true, dirty: 1 });
+}
+
+/**
+ * Erase a client for good: unlike remove(), no content stays behind, here or
+ * (after the next sync) on the server. Only empty tombstones remain, which is
+ * what carries the deletion to the other devices.
+ */
+export async function purgeClient(id: string): Promise<void> {
+  const [sessions, assessments] = await Promise.all([db.sessions.where("clientId").equals(id).primaryKeys(), db.assessments.where("clientId").equals(id).primaryKeys()]);
+  for (const s of sessions) await erase("sessions", s);
+  for (const a of assessments) await erase("assessments", a);
+  await erase("clients", id);
+  changed();
+}
+
 // ── Backup ──────────────────────────────────────────────────────────────────
 
 export interface Backup {
@@ -157,23 +234,27 @@ export interface Backup {
   sessions: Session[];
   templates?: Template[];
   focuses?: Focus[];
+  tests?: TestDef[];
+  assessments?: Assessment[];
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [clients, exercises, sessions, templates, focuses] = await Promise.all([
+  const [clients, exercises, sessions, templates, focuses, tests, assessments] = await Promise.all([
     db.clients.toArray(),
     db.exercises.toArray(),
     db.sessions.toArray(),
     db.templates.toArray(),
     db.focuses.toArray(),
+    db.tests.toArray(),
+    db.assessments.toArray(),
   ]);
-  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses };
+  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses, tests, assessments };
 }
 
 /** Merge a backup in: newer record wins, so importing twice is harmless. */
 export async function importBackup(b: Backup): Promise<number> {
   let n = 0;
-  for (const table of ["clients", "exercises", "sessions", "templates", "focuses"] as const) {
+  for (const table of ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments"] as const) {
     const t = db[table] as unknown as Table<SyncMeta, string>;
     for (const rec of (b[table] ?? []) as SyncMeta[]) {
       const cur = await t.get(rec.id);

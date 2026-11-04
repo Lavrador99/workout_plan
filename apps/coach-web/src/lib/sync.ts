@@ -5,22 +5,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Table } from "dexie";
-import { db, onLocalChange } from "./db";
+import { db, DEFAULTS, onLocalChange } from "./db";
 import type { SyncMeta, TableName } from "./types";
 
 const CFG_KEY = "coach_api_cfg";
-const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses"];
-const KIND: Record<TableName, string> = { clients: "client", exercises: "exercise", sessions: "session", templates: "template", focuses: "focus" };
-const TABLE_OF: Record<string, TableName> = { client: "clients", exercise: "exercises", session: "sessions", template: "templates", focus: "focuses" };
-const PUSH_CHUNK = 200;
-/** Fields the UI relies on, in case a record arrives incomplete. */
-const DEFAULTS: Record<TableName, object> = {
-  clients: { name: "", injuries: "", notes: "" },
-  exercises: { name: "", aliases: [], tags: [] },
-  sessions: { title: "", notes: "", blocks: [] },
-  templates: { name: "", block: { id: "", kind: "list", title: "", items: [] } },
-  focuses: { kind: "sport", name: "", patterns: [], muscles: [], exerciseIds: [], notes: "" },
+const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments"];
+const KIND: Record<TableName, string> = {
+  clients: "client",
+  exercises: "exercise",
+  sessions: "session",
+  templates: "template",
+  focuses: "focus",
+  tests: "test",
+  assessments: "assessment",
 };
+const TABLE_OF = Object.fromEntries(TABLES.map((t) => [KIND[t], t])) as Record<string, TableName>;
+const PUSH_CHUNK = 200;
 
 export interface SyncConfig {
   url: string;

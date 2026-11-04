@@ -7,15 +7,32 @@ export interface Point {
   detail: string; // tooltip line, e.g. "4x8 47,5kg"
 }
 
-/** Single-series line over time: 2px line, 8px markers, tap/hover tooltip. */
-export default function LineChart({ points, unit }: { points: Point[]; unit: string }) {
-  const [active, setActive] = useState<number | null>(null);
-  if (points.length < 2) return null;
+interface Props {
+  points: Point[];
+  unit: string;
+  /** Second line (dashed, so it does not rely on colour), e.g. the other side. */
+  second?: Point[];
+  /** Tooltip names of the two lines. */
+  names?: [string, string];
+  goal?: number | null;
+}
+
+const LINES = [
+  { color: "#e8ff47", dash: undefined },
+  { color: "#47c4ff", dash: "5 4" },
+];
+
+/** Line over time, with an optional second line and goal: 2px line, 8px markers, tap/hover tooltip. */
+export default function LineChart({ points, unit, second = [], names, goal }: Props) {
+  const [active, setActive] = useState<string | null>(null);
+  const dates = [...new Set([...points, ...second].map((p) => p.date))].sort();
+  if (dates.length < 2) return null;
 
   const W = 340;
   const H = 170;
   const pad = { l: 34, r: 12, t: 14, b: 22 };
-  const vals = points.map((p) => p.value);
+  const vals = [...points, ...second].map((p) => p.value);
+  if (goal != null) vals.push(goal);
   let lo = Math.min(...vals);
   let hi = Math.max(...vals);
   if (lo === hi) {
@@ -25,23 +42,21 @@ export default function LineChart({ points, unit }: { points: Point[]; unit: str
   const span = hi - lo;
   lo = Math.max(0, lo - span * 0.15);
   hi += span * 0.15;
-  const t0 = Date.parse(points[0].date);
-  const t1 = Date.parse(points[points.length - 1].date);
+  const t0 = Date.parse(dates[0]);
+  const t1 = Date.parse(dates[dates.length - 1]);
   const x = (d: string) => pad.l + ((Date.parse(d) - t0) / Math.max(1, t1 - t0)) * (W - pad.l - pad.r);
   const y = (v: number) => pad.t + (1 - (v - lo) / (hi - lo)) * (H - pad.t - pad.b);
-  const ticks = [lo, (lo + hi) / 2, hi].map((v) => Math.round(v * 2) / 2);
-  const path = points.map((p, i) => `${i ? "L" : "M"}${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
+  // half units read well on loads; a small range (sprint times) needs the decimals
+  const ticks = [lo, (lo + hi) / 2, hi].map((v) => (hi - lo >= 5 ? Math.round(v * 2) / 2 : Math.round(v * 100) / 100));
+  const pathOf = (list: Point[]) => list.map((p, i) => `${i ? "L" : "M"}${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
 
   const nearest = (clientX: number, rect: DOMRect) => {
     const vx = ((clientX - rect.left) / rect.width) * W;
-    let best = 0;
-    points.forEach((p, i) => {
-      if (Math.abs(x(p.date) - vx) < Math.abs(x(points[best].date) - vx)) best = i;
-    });
-    setActive(best);
+    setActive(dates.reduce((best, d) => (Math.abs(x(d) - vx) < Math.abs(x(best) - vx) ? d : best), dates[0]));
   };
 
-  const a = active != null ? points[active] : null;
+  const series = second.length ? [points, second] : [points];
+  const shown = active ? series.flatMap((list, i) => list.filter((p) => p.date === active).map((p) => ({ ...p, name: names?.[i] }))) : [];
 
   return (
     <div className="relative">
@@ -54,8 +69,8 @@ export default function LineChart({ points, unit }: { points: Point[]; unit: str
         onPointerDown={(e) => nearest(e.clientX, e.currentTarget.getBoundingClientRect())}
         onPointerLeave={() => setActive(null)}
       >
-        {ticks.map((v) => (
-          <g key={v}>
+        {ticks.map((v, i) => (
+          <g key={i}>
             <line x1={pad.l} x2={W - pad.r} y1={y(v)} y2={y(v)} stroke="#2a2a2a" strokeWidth="1" />
             <text x={pad.l - 6} y={y(v) + 4} fontSize="10" textAnchor="end" fill="#888">
               {fmtNum(v)}
@@ -63,27 +78,44 @@ export default function LineChart({ points, unit }: { points: Point[]; unit: str
           </g>
         ))}
         <text x={pad.l} y={H - 6} fontSize="10" fill="#888">
-          {fmtDate(points[0].date).slice(0, 5)}
+          {fmtDate(dates[0]).slice(0, 5)}
         </text>
         <text x={W - pad.r} y={H - 6} fontSize="10" textAnchor="end" fill="#888">
-          {fmtDate(points[points.length - 1].date).slice(0, 5)}
+          {fmtDate(dates[dates.length - 1]).slice(0, 5)}
         </text>
-        {a && <line x1={x(a.date)} x2={x(a.date)} y1={pad.t} y2={H - pad.b} stroke="#888" strokeWidth="1" strokeDasharray="3 3" />}
-        <path d={path} fill="none" stroke="#e8ff47" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {points.map((p, i) => (
-          <circle key={i} cx={x(p.date)} cy={y(p.value)} r={active === i ? 5 : 4} fill="#e8ff47" stroke="#1a1a1a" strokeWidth="2" />
+        {goal != null && (
+          <g>
+            <line x1={pad.l} x2={W - pad.r} y1={y(goal)} y2={y(goal)} stroke="#47ff8a" strokeWidth="1" strokeDasharray="2 3" />
+            <text x={W - pad.r} y={y(goal) - 4} fontSize="10" textAnchor="end" fill="#47ff8a">
+              objetivo
+            </text>
+          </g>
+        )}
+        {active && <line x1={x(active)} x2={x(active)} y1={pad.t} y2={H - pad.b} stroke="#888" strokeWidth="1" strokeDasharray="3 3" />}
+        {series.map((list, i) => (
+          <g key={i}>
+            <path d={pathOf(list)} fill="none" stroke={LINES[i].color} strokeWidth="2" strokeDasharray={LINES[i].dash} strokeLinejoin="round" strokeLinecap="round" />
+            {list.map((p, j) => (
+              <circle key={j} cx={x(p.date)} cy={y(p.value)} r={active === p.date ? 5 : 4} fill={LINES[i].color} stroke="#1a1a1a" strokeWidth="2" />
+            ))}
+          </g>
         ))}
       </svg>
-      {a && (
+      {active && shown.length > 0 && (
         <div
           className="absolute top-0 pointer-events-none card px-2 py-1 text-xs shadow-lg whitespace-nowrap"
-          style={{ left: `${(x(a.date) / W) * 100}%`, transform: `translateX(${x(a.date) > W / 2 ? "-105%" : "5%"})` }}
+          style={{ left: `${(x(active) / W) * 100}%`, transform: `translateX(${x(active) > W / 2 ? "-105%" : "5%"})` }}
         >
-          <div className="text-muted">{fmtDate(a.date)}</div>
-          <div className="font-semibold">
-            {fmtNum(a.value)} {unit}
-          </div>
-          <div className="text-muted">{a.detail}</div>
+          <div className="text-muted">{fmtDate(active)}</div>
+          {shown.map((p) => (
+            <div key={p.name ?? ""}>
+              <div className="font-semibold">
+                {p.name ? `${p.name} ` : ""}
+                {fmtNum(p.value)} {unit}
+              </div>
+              {p.detail && <div className="text-muted">{p.detail}</div>}
+            </div>
+          ))}
         </div>
       )}
     </div>
