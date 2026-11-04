@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ResultCard from "../components/ResultCard";
 import TestPicker from "../components/TestPicker";
-import { newResult, previousResult } from "../lib/assessment";
+import { bodyMassAt, newResult, previousResult } from "../lib/assessment";
 import { remove, save } from "../lib/db";
 import { go, useAssessment, useAssessments, useClient, useTests } from "../lib/hooks";
 import type { Assessment, TestDef, TestResult } from "../lib/types";
@@ -98,7 +98,9 @@ export default function AssessmentPage({ id }: { id: string }) {
               key={r.id}
               result={r}
               previous={previousResult(assessments ?? [], a, r.testId)}
+              date={a.date}
               test={tests.find((t) => t.id === r.testId)}
+              bodyMass={bodyMassAt(assessments ?? [], a)}
               onChange={setResult}
               onRemove={() => removeResult(r)}
             />

@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import Chips, { ChipGroups, ChipPick } from "../components/Chips";
+import { NumberField } from "../components/ResultCard";
 import Seg from "../components/Seg";
-import { TEST_CATEGORIES } from "../lib/assessment";
+import { mdc95, TEST_CATEGORIES } from "../lib/assessment";
 import { newTest, remove, save } from "../lib/db";
 import { go, useTests, useUsedVersions } from "../lib/hooks";
 import { canonMuscles, canonPatterns, MUSCLE_CHIP_GROUPS, PATTERN_GROUPS } from "../lib/movement";
-import { norm, num, uid } from "../lib/text";
-import type { Aggregate, Direction, TestCategory, TestDef } from "../lib/types";
+import { fmtNum, norm, num, uid } from "../lib/text";
+import type { Aggregate, Direction, Strength, TestCategory, TestDef } from "../lib/types";
 
 export const DIRECTIONS: [Direction, string][] = [
   ["higher", "Mais é melhor"],
@@ -156,6 +157,21 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
           </div>
           <Seg
             options={[
+              ["", "Outro"],
+              ["direct", "1RM medido"],
+              ["estimated", "e1RM"],
+            ]}
+            value={t.strength ?? ""}
+            onChange={(v) => choose(v ? { strength: v as Strength, unit: "kg", direction: "higher", aggregate: "best", scale: null, distanceM: null } : { strength: null })}
+          />
+          {t.strength === "estimated" && <p className="text-xs text-muted">Regista carga e repetições. Fica sempre identificado como estimado.</p>}
+          {t.category === "velocidade" && (
+            <Field label="Distância (m)">
+              <NumberField value={t.distanceM ?? null} label="Distância em metros" onChange={(distanceM) => edit({ distanceM })} />
+            </Field>
+          )}
+          <Seg
+            options={[
               ["measure", "Medida"],
               ["scale", "Escala"],
             ]}
@@ -178,6 +194,15 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
             Nova versão do protocolo
           </button>
         )}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="label">Erro de medição</span>
+        <div className="grid grid-cols-[6rem_1fr] gap-2">
+          <NumberField value={t.sem ?? null} label={`SEM em ${t.unit}`} onChange={(sem) => edit({ sem })} />
+          <input className="input" value={t.semSource ?? ""} placeholder="Fonte do SEM" onChange={(e) => edit({ semSource: e.target.value })} />
+        </div>
+        <p className="text-xs text-muted">{mdc95(t.sem) != null ? `MDC95: ${fmtNum(mdc95(t.sem))} ${t.unit}. ` : ""}Usa um SEM do mesmo protocolo e de uma população semelhante. Vale só para a versão atual.</p>
       </div>
 
       <Field label="Objetivo do teste">

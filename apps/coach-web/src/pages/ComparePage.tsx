@@ -1,5 +1,6 @@
-import { compare, fmtChange, SIDE_SHORT, type CompareRow } from "../lib/assessment";
-import { go, useAssessment, useClient } from "../lib/hooks";
+import { changeTone, compare, fmtChange, SIDE_SHORT, testMdc, type CompareRow } from "../lib/assessment";
+import { TONE_CLASS } from "../components/ResultCard";
+import { go, useAssessment, useClient, useTests } from "../lib/hooks";
 import { fmtDate, fmtNum } from "../lib/text";
 
 const NOTE: Partial<Record<CompareRow["status"], string>> = { "different-protocol": "Protocolo diferente: não comparável" };
@@ -11,7 +12,7 @@ function Row({ row }: { row: CompareRow }) {
       <td className="py-1 text-muted font-semibold">{row.side ? SIDE_SHORT[row.side] : ""}</td>
       <td className="py-1 pr-2 text-right whitespace-nowrap">{fmtNum(row.older) || "—"}</td>
       <td className="py-1 pr-2 text-right whitespace-nowrap font-semibold">{fmtNum(row.newer) || "—"}</td>
-      <td className={`py-1 text-right ${c?.improved == null ? "text-muted" : c.improved ? "text-success" : "text-danger"}`}>{c ? fmtChange(c, row.unit) : ""}</td>
+      <td className={`py-1 text-right ${c ? TONE_CLASS[changeTone(c)] : ""}`}>{c ? fmtChange(c, row.unit) : ""}</td>
     </tr>
   );
 }
@@ -21,11 +22,12 @@ export default function ComparePage({ clientId, a, b }: { clientId: string; a: s
   const client = useClient(clientId);
   const first = useAssessment(a);
   const second = useAssessment(b);
+  const library = useTests() ?? [];
   if (first === null || second === null) return <p className="p-4 text-muted">Avaliação não encontrada.</p>;
   if (!first || !second) return null;
 
   const [older, newer] = first.date < second.date || (first.date === second.date && first.updatedAt <= second.updatedAt) ? [first, second] : [second, first];
-  const rows = compare(older, newer);
+  const rows = compare(older, newer, (r) => testMdc(library.find((t) => t.id === r.testId), r.version));
   const tests = [...new Map(rows.map((r) => [r.testId, rows.filter((x) => x.testId === r.testId)])).values()];
 
   return (
@@ -44,6 +46,8 @@ export default function ComparePage({ clientId, a, b }: { clientId: string; a: s
         {older.title ? ` · ${older.title}` : ""} → <span className="font-semibold">{fmtDate(newer.date)}</span>
         {newer.title ? ` · ${newer.title}` : ""}
       </p>
+
+      {rows.some((r) => r.change?.improved != null && r.change.confirmed == null) && <p className="text-xs text-muted">Sem cor: o erro de medição do teste não está definido, ou a mudança não o ultrapassa.</p>}
 
       {tests.length === 0 ? (
         <p className="text-sm text-muted">Estas avaliações ainda não têm testes.</p>

@@ -1,23 +1,23 @@
 import { useState } from "react";
-import { asymmetry, change, finalValue, fmtAsymmetry, previousResult, repeatResults } from "../lib/assessment";
+import { asymmetry, change, changeTone, finalValue, fmtAsymmetry, previousResult, repeatResults, testMdc } from "../lib/assessment";
 import { newAssessment, save } from "../lib/db";
 import { go, useAssessments, useTests } from "../lib/hooks";
 import { fmtDate, fmtNum } from "../lib/text";
-import type { Assessment, TestResult } from "../lib/types";
-import { fmtFinal } from "./ResultCard";
+import type { Assessment, TestDef, TestResult } from "../lib/types";
+import { fmtFinal, TONE_CLASS } from "./ResultCard";
 
 async function open(a: Assessment) {
   const saved = await save("assessments", a);
   go("assessment", saved.id);
 }
 
-/** What moved since the last result of a test without sides: "+2,1", green when better. */
-function Change({ result, previous }: { result: TestResult; previous: TestResult | undefined }) {
+/** What moved since the last result of a test without sides: "+2,1", coloured only beyond the measurement error. */
+function Change({ result, previous, test }: { result: TestResult; previous: TestResult | undefined; test: TestDef | undefined }) {
   if (result.sided || !previous || previous.version !== result.version) return null;
   const [before, now] = [finalValue(previous), finalValue(result)];
   if (before == null || now == null) return null;
-  const c = change(before, now, result.direction);
-  return <span className={c.improved == null ? "text-muted" : c.improved ? "text-success" : "text-danger"}>{`${c.delta > 0 ? "+" : ""}${fmtNum(c.delta)}`}</span>;
+  const c = change(before, now, result.direction, result.scale, testMdc(test, result.version));
+  return <span className={TONE_CLASS[changeTone(c)]}>{`${c.delta > 0 ? "+" : ""}${fmtNum(c.delta)}`}</span>;
 }
 
 /** The client's assessments: the latest one at a glance, then all of them. */
@@ -54,7 +54,7 @@ export default function AssessmentsTab({ clientId }: { clientId: string }) {
                     <span className="flex items-baseline gap-2 w-full">
                       <span className="flex-1 min-w-0 truncate">{r.name}</span>
                       <span className="font-semibold shrink-0">{fmtFinal(r)}</span>
-                      <Change result={r} previous={previousResult(list, last, r.testId)?.result} />
+                      <Change result={r} previous={previousResult(list, last, r.testId)?.result} test={tests.find((t) => t.id === r.testId)} />
                     </span>
                     {asym && <span className="text-xs text-muted">{fmtAsymmetry(asym, r.unit)}</span>}
                   </button>

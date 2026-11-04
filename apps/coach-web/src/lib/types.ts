@@ -19,6 +19,7 @@ export interface Client extends SyncMeta {
   notes: string; // free text, e.g. records copied from the old notes
   /** Sports, pathologies and asymmetries (Focus ids) this client works on. */
   focusIds?: string[];
+  sex?: "female" | "male" | null; // only for choosing reference populations
   heightCm?: number | null;
   dominantHand?: Side | "both" | null;
   dominantFoot?: Side | "both" | null;
@@ -190,6 +191,9 @@ export interface Scale {
   max: number;
 }
 
+/** Maximal strength: measured directly, or estimated from a set of several reps. Never mixed. */
+export type Strength = "direct" | "estimated";
+
 /** A test the coach can use in assessments. testId + version say what is comparable. */
 export interface TestDef extends SyncMeta {
   name: string;
@@ -198,6 +202,8 @@ export interface TestDef extends SyncMeta {
   direction: Direction;
   sided: boolean; // measured on each side
   scale?: Scale | null;
+  strength?: Strength | null;
+  distanceM?: number | null; // timed distance, for the average speed
   trials: number; // default number of trials
   aggregate: Aggregate;
   version: number; // goes up when the protocol changes
@@ -206,6 +212,9 @@ export interface TestDef extends SyncMeta {
   equipment: string;
   instructions: string;
   validity: string; // what makes a trial valid
+  /** Standard error of measurement, in the test's unit, for this protocol and a similar population. */
+  sem?: number | null;
+  semSource?: string; // where it comes from
   demoUrl?: string;
   /** For the body map (phase 2): not used in any calculation yet. */
   muscles?: string[];
@@ -216,7 +225,8 @@ export type Side = "left" | "right";
 
 export interface Trial {
   side?: Side; // unset on tests without sides
-  value: number | null;
+  value: number | null; // on estimated strength tests, the load lifted
+  reps?: number | null; // estimated strength tests only
   invalid?: boolean; // kept, but does not count towards the result
 }
 
@@ -230,6 +240,7 @@ export interface TestResult {
   direction: Direction;
   sided: boolean;
   scale?: Scale | null;
+  strength?: Strength | null;
   aggregate: Aggregate;
   trials: Trial[];
   instrument?: string;

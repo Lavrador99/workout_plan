@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asymmetry, change, compare, finalValue, fmtAsymmetry, fmtChange, goalProgress, newResult, previousResult, repeatResults, series } from "./assessment";
+import { asymmetry, averageSpeed, bodyMassAt, BODY_MASS_TEST, change, changeTone, compare, e1rm, finalValue, fmtAsymmetry, fmtChange, goalProgress, mdc95, newResult, previousResult, relativeStrength, repeatResults, series, testMdc } from "./assessment";
 import type { Assessment, Side, TestDef, TestResult, Trial } from "./types";
 
 const test_ = (over: Partial<TestDef> = {}): TestDef => ({
@@ -120,11 +120,11 @@ describe("change", () => {
   it("knows that less time is better", () => {
     expect(change(2, 1.8, "lower").improved).toBe(true);
     expect(change(2, 2.2, "lower").improved).toBe(false);
-    expect(change(10, 12, "higher")).toEqual({ delta: 2, pct: 20, improved: true });
+    expect(change(10, 12, "higher")).toEqual({ delta: 2, pct: 20, improved: true, confirmed: null });
   });
 
   it("has no % from a first value of 0", () => {
-    expect(change(0, 5, "higher")).toEqual({ delta: 5, pct: null, improved: true });
+    expect(change(0, 5, "higher")).toEqual({ delta: 5, pct: null, improved: true, confirmed: null });
   });
 
   it("does not judge neutral tests or no change", () => {
@@ -137,6 +137,11 @@ describe("fmtChange", () => {
   it("shows the difference and the %", () => {
     expect(fmtChange(change(10, 12, "higher"), "cm")).toBe("+2 cm (+20%)");
     expect(fmtChange(change(2, 1.84, "lower"), "s")).toBe("-0,16 s (-8%)");
+  });
+
+  it("says when the change is within the measurement error", () => {
+    expect(fmtChange(change(10, 11, "higher", null, 2), "kg")).toBe("+1 kg (+10%) · dentro do erro");
+    expect(fmtChange(change(10, 13, "higher", null, 2), "kg")).toBe("+3 kg (+30%)");
   });
 
   it("leaves the % out on scores, from 0 and with no change", () => {
@@ -193,7 +198,7 @@ describe("compare", () => {
   it("gives the difference between the two dates", () => {
     const [row] = compare(assessment("a", "2026-01-01", [result({}, [{ value: 10 }])]), assessment("b", "2026-02-01", [result({}, [{ value: 12 }])]));
     expect(row).toMatchObject({ status: "ok", older: 10, newer: 12 });
-    expect(row.change).toEqual({ delta: 2, pct: 20, improved: true });
+    expect(row.change).toEqual({ delta: 2, pct: 20, improved: true, confirmed: null });
   });
 
   it("gives no difference between protocol versions", () => {
@@ -212,7 +217,7 @@ describe("compare", () => {
 
   it("has no % on scores", () => {
     const [row] = compare(assessment("a", "2026-01-01", [result({ scale: { min: 0, max: 3 } }, [{ value: 1 }])]), assessment("b", "2026-02-01", [result({ scale: { min: 0, max: 3 } }, [{ value: 2 }])]));
-    expect(row.change).toEqual({ delta: 1, pct: null, improved: true });
+    expect(row.change).toEqual({ delta: 1, pct: null, improved: true, confirmed: null });
   });
 
   it("leaves a missing value without a difference", () => {
@@ -282,5 +287,90 @@ describe("previousResult", () => {
     const now = assessment("c", "2026-03-01", []);
     expect(previousResult([a, empty, deleted, later, now], now, "t1")?.assessment.id).toBe("a");
     expect(previousResult([now], now, "t1")).toBeNull();
+  });
+});
+
+describe("estimated strength", () => {
+  const est = (trials: Trial[]) => result({ strength: "estimated", unit: "kg" }, trials);
+
+  it("uses Epley, and a single rep is the load itself", () => {
+    expect(e1rm(80, 8)).toBeCloseTo(101.33, 2);
+    expect(e1rm(100, 1)).toBe(100);
+  });
+
+  it("gives no estimate past 10 reps or from nonsense", () => {
+    expect(e1rm(80, 11)).toBeNull();
+    expect(e1rm(80, 0)).toBeNull();
+    expect(e1rm(80, 2.5)).toBeNull();
+    expect(e1rm(0, 5)).toBeNull();
+  });
+
+  it("the final value is the best estimate, and a trial with no reps does not count", () => {
+    expect(finalValue(est([{ value: 80, reps: 8 }, { value: 90, reps: 3 }, { value: 200 }]))).toBeCloseTo(101.33, 2);
+    expect(finalValue(est([{ value: 80 }]))).toBeNull();
+  });
+
+  it("keeps the kind of test in the result", () => {
+    expect(newResult(test_({ strength: "estimated" })).strength).toBe("estimated");
+    expect("strength" in newResult(test_())).toBe(false);
+  });
+});
+
+describe("derived values", () => {
+  const weigh = (v: number) => ({ ...result({ direction: "neutral", aggregate: "last" }, [{ value: v }]), testId: BODY_MASS_TEST });
+
+  it("relative strength and average speed", () => {
+    expect(relativeStrength(120, 75)).toBe(1.6);
+    expect(relativeStrength(120, null)).toBeNull();
+    expect(relativeStrength(null, 75)).toBeNull();
+    expect(averageSpeed(20, 3.2)).toBe(6.25);
+    expect(averageSpeed(null, 3.2)).toBeNull();
+    expect(averageSpeed(20, 0)).toBeNull();
+  });
+
+  it("takes the weight of that day first", () => {
+    const now = assessment("b", "2026-03-01", [weigh(80)]);
+    expect(bodyMassAt([assessment("a", "2026-02-20", [weigh(70)]), now], now)).toEqual({ value: 80, date: "2026-03-01" });
+  });
+
+  it("falls back to a recent weight, but not to an old or later one", () => {
+    const now = assessment("c", "2026-03-01", []);
+    expect(bodyMassAt([assessment("a", "2026-02-01", [weigh(70)]), now], now)?.value).toBe(70);
+    expect(bodyMassAt([assessment("a", "2025-12-01", [weigh(70)]), now], now)).toBeNull();
+    expect(bodyMassAt([assessment("a", "2026-03-02", [weigh(70)]), now], now)).toBeNull();
+  });
+});
+
+describe("measurement error", () => {
+  it("MDC95 follows the SEM", () => {
+    expect(mdc95(1)).toBeCloseTo(2.77, 2);
+    expect(mdc95(null)).toBeNull();
+    expect(mdc95(0)).toBeNull();
+  });
+
+  it("only holds for its own protocol version", () => {
+    const t = test_({ sem: 1, version: 2 });
+    expect(testMdc(t, 2)).toBeCloseTo(2.77, 2);
+    expect(testMdc(t, 1)).toBeNull();
+    expect(testMdc(undefined, 1)).toBeNull();
+  });
+
+  it("is good or bad only beyond the error", () => {
+    expect(changeTone(change(10, 12, "higher", null, 1))).toBe("good");
+    expect(changeTone(change(12, 10, "higher", null, 1))).toBe("bad");
+    expect(changeTone(change(2, 1.8, "lower", null, 0.1))).toBe("good");
+  });
+
+  it("stays neutral within the error, when the error is unknown, and on neutral tests", () => {
+    const within = change(10, 12, "higher", null, 3);
+    expect(within.confirmed).toBe(false);
+    expect(changeTone(within)).toBe("neutral");
+    expect(changeTone(change(10, 12, "higher"))).toBe("neutral");
+    expect(changeTone(change(80, 70, "neutral", null, 1))).toBe("neutral");
+  });
+
+  it("compare passes the error on", () => {
+    const [row] = compare(assessment("a", "2026-01-01", [result({}, [{ value: 10 }])]), assessment("b", "2026-02-01", [result({}, [{ value: 11 }])]), () => 2);
+    expect(row.change?.confirmed).toBe(false);
   });
 });

@@ -4,7 +4,7 @@ import type { TestDef } from "./types";
 // FMS keeps only the pattern names and the 0–3 score (it is a proprietary system).
 
 type SeedTest = Pick<TestDef, "id" | "name" | "category" | "unit" | "purpose" | "equipment" | "instructions" | "validity"> &
-  Partial<Pick<TestDef, "direction" | "sided" | "scale" | "trials" | "aggregate" | "groups" | "muscles" | "patterns">>;
+  Partial<Pick<TestDef, "direction" | "sided" | "scale" | "strength" | "distanceM" | "trials" | "aggregate" | "groups" | "muscles" | "patterns">>;
 
 const QUALITY = { min: 1, max: 5 };
 const FMS = { min: 0, max: 3 };
@@ -237,6 +237,61 @@ export const SEED_TESTS: SeedTest[] = [
     muscles: ["glúteo médio", "glúteo mínimo"],
   },
 
+  ...(
+    [
+      ["agachamento", "Back Squat", "barra às costas", ["agachamento"], ["quadríceps", "glúteo máximo"]],
+      ["supino", "Bench Press", "supino com barra", ["empurrar horizontal"], ["peitoral maior", "tríceps braquial"]],
+      ["peso-morto", "Deadlift", "peso morto com barra", ["dobradiça da anca"], ["glúteo máximo", "isquiotibiais"]],
+      ["press", "Overhead Press", "press de pé com barra", ["empurrar vertical"], ["deltoides", "tríceps braquial"]],
+    ] as const
+  ).flatMap(([id, name, how, patterns, muscles]): SeedTest[] => [
+    {
+      id: `seed-test-1rm-${id}`,
+      name: `${name} 1RM`,
+      category: "força",
+      unit: "kg",
+      strength: "direct",
+      groups: ["1RM"],
+      purpose: `Medir diretamente a carga máxima numa repetição (${how}).`,
+      equipment: "Barra, discos e ajudas de segurança",
+      instructions: "Aquecer em séries progressivas e subir a carga até à maior repetição completa, com 3 a 5 minutos entre tentativas.",
+      validity: "Amplitude e técnica iguais entre avaliações, sem ajuda. Regista o equipamento usado (cinto, por exemplo).",
+      patterns: [...patterns],
+      muscles: [...muscles],
+    },
+    {
+      id: `seed-test-e1rm-${id}`,
+      name: `${name} e1RM`,
+      category: "força",
+      unit: "kg",
+      strength: "estimated",
+      trials: 1,
+      groups: ["e1RM"],
+      purpose: `Estimar a carga máxima a partir de uma série (${how}). É uma estimativa, não um 1RM medido.`,
+      equipment: "Barra e discos",
+      instructions: "Fazer uma série até perto da falha, com 10 repetições no máximo, e registar a carga e as repetições.",
+      validity: "Só repetições completas. A precisão baixa com mais repetições e varia com o exercício e a pessoa.",
+      patterns: [...patterns],
+      muscles: [...muscles],
+    },
+  ]),
+  {
+    id: "seed-test-e1rm-bulgaro",
+    name: "Bulgarian Split Squat e1RM",
+    category: "força",
+    unit: "kg",
+    sided: true,
+    strength: "estimated",
+    trials: 1,
+    groups: ["e1RM"],
+    purpose: "Estimar a força unilateral a partir de uma série. É uma estimativa, não um 1RM medido.",
+    equipment: "Banco e halteres ou barra",
+    instructions: "Fazer uma série até perto da falha, com 10 repetições no máximo. Registar a carga total e as repetições de cada lado.",
+    validity: "Mesma altura do banco, amplitude e posição entre avaliações. O lado registado é o da perna da frente.",
+    patterns: ["afundo / unilateral"],
+    muscles: ["quadríceps", "glúteo máximo"],
+  },
+
   // ── Potência ──────────────────────────────────────────────────────────────
   {
     id: "seed-test-cmj",
@@ -292,6 +347,7 @@ export const SEED_TESTS: SeedTest[] = [
       category: "velocidade",
       unit: "s",
       direction: "lower",
+      distanceM: m,
       groups: ["Sprint"],
       purpose: `Medir a velocidade em ${m} m.`,
       equipment: "Células fotoelétricas ou cronómetro",

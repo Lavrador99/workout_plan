@@ -46,6 +46,10 @@ const HANDED: [Handed, string][] = [
   ["left", "Esquerda"],
   ["both", "Ambas"],
 ];
+const SEXES: ["female" | "male", string][] = [
+  ["female", "Feminino"],
+  ["male", "Masculino"],
+];
 const handedLabel = (v: Handed | null | undefined) => HANDED.find(([k]) => k === v)?.[1];
 const handedValue = (label: string | undefined) => HANDED.find(([, l]) => l === label)?.[0] ?? null;
 
@@ -198,6 +202,10 @@ export default function ClientPage({ id, initialTab }: { id: string; initialTab?
           <Field label="Posição">
             <input className="input" value={c.position ?? ""} placeholder="ex: Lateral direito" onChange={(e) => edit({ position: e.target.value })} />
           </Field>
+          <div className="flex flex-col gap-1">
+            <span className="label">Sexo (para as referências científicas)</span>
+            <ChipPick options={SEXES.map(([, l]) => l)} value={SEXES.find(([k]) => k === c.sex)?.[1]} onChange={(v) => choose({ sex: SEXES.find(([, l]) => l === v)?.[0] ?? null })} />
+          </div>
           <div className="flex flex-col gap-1">
             <span className="label">Nível</span>
             <ChipPick options={[...LEVELS]} value={c.level ?? undefined} onChange={(v) => choose({ level: (v as Client["level"]) ?? null })} />

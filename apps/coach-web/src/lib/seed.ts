@@ -11,7 +11,7 @@ import type { Block, Exercise, Focus, Template, TestDef } from "./types";
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 5; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste"
+const SEED_VERSION = 6; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests
 
 export interface SeedExercise {
   id: string;
@@ -137,19 +137,31 @@ export function seedTests(): TestDef[] {
 async function seedTestLibrary(): Promise<number> {
   let n = 0;
   for (const t of seedTests()) {
-    if (await db.tests.get(t.id)) continue; // already here (or deleted on purpose)
+    const cur = await db.tests.get(t.id);
+    if (cur) {
+      // already here (or deleted on purpose): only give the sprints their distance
+      if (t.distanceM && cur.distanceM == null && !cur.deleted) await save("tests", { ...cur, distanceM: t.distanceM });
+      continue;
+    }
     await db.tests.put({ ...t, dirty: 1 });
     n++;
   }
   return n;
 }
 
-/** The made-up client with a long history. Once erased it stays erased: its tombstone is still here. */
+/**
+ * The made-up client with a long history. Once erased it stays erased: its
+ * tombstone is still here. Records nobody edited (updatedAt 1) get newer data.
+ */
 async function seedDemoClient(library: Exercise[]): Promise<number> {
-  if (await db.clients.get(DEMO_CLIENT_ID)) return 0;
+  const cur = await db.clients.get(DEMO_CLIENT_ID);
+  if (cur?.deleted) return 0;
   const { client, assessments, sessions } = demoData(seedTests(), library);
-  await db.sessions.bulkPut(sessions.map((s) => ({ ...s, dirty: 1 as const })));
-  await db.assessments.bulkPut(assessments.map((a) => ({ ...a, dirty: 1 as const })));
-  await db.clients.put({ ...client, dirty: 1 });
-  return 1;
+  if (!cur) await db.sessions.bulkPut(sessions.map((s) => ({ ...s, dirty: 1 as const })));
+  for (const a of assessments) {
+    const old = await db.assessments.get(a.id);
+    if (!old || old.updatedAt === 1) await db.assessments.put({ ...a, dirty: 1 });
+  }
+  if (!cur || cur.updatedAt === 1) await db.clients.put({ ...client, dirty: 1 });
+  return cur ? 0 : 1;
 }

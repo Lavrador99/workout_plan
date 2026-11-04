@@ -67,6 +67,21 @@ describe("seed tests", () => {
     }
   });
 
+  it("keeps measured and estimated strength apart", () => {
+    const strength = list.filter((t) => t.strength);
+    expect(strength.filter((t) => t.strength === "direct")).toHaveLength(4);
+    expect(strength.filter((t) => t.strength === "estimated")).toHaveLength(5);
+    for (const t of strength) {
+      expect(t.unit, t.id).toBe("kg");
+      expect(t.direction, t.id).toBe("higher");
+      expect(t.groups, t.id).toEqual([t.strength === "direct" ? "1RM" : "e1RM"]);
+    }
+  });
+
+  it("sprints know their distance", () => {
+    expect(list.filter((t) => t.distanceM).map((t) => t.distanceM)).toEqual([5, 10, 20]);
+  });
+
   it("has the seven FMS patterns, five of them per side", () => {
     const fms = list.filter((t) => t.groups.includes("FMS"));
     expect(fms).toHaveLength(7);
@@ -117,6 +132,12 @@ describe("made-up client Teste", () => {
       expect(it.sets.every((x) => x.done)).toBe(true);
     }
     expect(sessions.some((s) => s.date >= "2026-03-16" && s.date < "2026-04-13")).toBe(false);
+  });
+
+  it("has measured and estimated strength, kept apart", () => {
+    expect(series(assessments, "seed-test-1rm-agachamento")[0].both.map((p) => p.value)).toEqual([100, 110, 105, 120]);
+    expect(series(assessments, "seed-test-e1rm-supino")[0].both[0].value).toBeCloseTo(70);
+    expect(series(assessments, "seed-test-e1rm-bulgaro")[0].left).toHaveLength(7);
   });
 
   it("targets and profile point at things that exist", () => {

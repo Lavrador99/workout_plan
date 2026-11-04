@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { asymmetry, finalValue, fmtAsymmetry, SIDE_SHORT, SIDES } from "../lib/assessment";
+import { asymmetry, averageSpeed, finalValue, fmtAsymmetry, MAX_E1RM_REPS, relativeStrength, SIDE_SHORT, SIDES, type changeTone } from "../lib/assessment";
 import { fmtDate, fmtNum, num } from "../lib/text";
 import type { Assessment, Side, TestDef, TestResult, Trial } from "../lib/types";
+
+export const TONE_CLASS: Record<ReturnType<typeof changeTone>, string> = { good: "text-success", bad: "text-danger", neutral: "text-muted" };
 
 /** Keeps what is typed ("10,") while the stored value is already 10. */
 export function NumberField({ value, disabled, onChange, label }: { value: number | null; disabled?: boolean; onChange: (v: number | null) => void; label: string }) {
@@ -23,10 +25,18 @@ export function NumberField({ value, disabled, onChange, label }: { value: numbe
   );
 }
 
-function TrialCell({ trial, label, onChange }: { trial: Trial; label: string; onChange: (t: Trial) => void }) {
+function TrialCell({ trial, label, estimated, onChange }: { trial: Trial; label: string; estimated: boolean; onChange: (t: Trial) => void }) {
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
-      <NumberField value={trial.value} disabled={trial.invalid} label={label} onChange={(value) => onChange({ ...trial, value })} />
+      {estimated ? (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+          <NumberField value={trial.value} disabled={trial.invalid} label={`${label}, carga`} onChange={(value) => onChange({ ...trial, value })} />
+          <span className="text-xs text-muted">kg ×</span>
+          <NumberField value={trial.reps ?? null} disabled={trial.invalid} label={`${label}, repetições`} onChange={(reps) => onChange({ ...trial, reps })} />
+        </div>
+      ) : (
+        <NumberField value={trial.value} disabled={trial.invalid} label={label} onChange={(value) => onChange({ ...trial, value })} />
+      )}
       <button
         type="button"
         className={`text-[11px] leading-5 ${trial.invalid ? "text-danger font-semibold" : "text-muted"}`}
@@ -59,21 +69,33 @@ const fmtSide = (r: TestResult, side: Side) => `${SIDE_SHORT[side]} ${fmtNum(fin
 
 /** "E 8,5  D 10,5 cm" or "34,5 cm"; empty when nothing was recorded. */
 export function fmtFinal(r: TestResult): string {
-  if (r.sided) return SIDES.some((s) => finalValue(r, s) != null) ? `${fmtSide(r, "left")}  ${fmtSide(r, "right")} ${r.unit}` : "";
+  const tag = r.strength === "estimated" ? " (estimado)" : "";
+  if (r.sided) return SIDES.some((s) => finalValue(r, s) != null) ? `${fmtSide(r, "left")}  ${fmtSide(r, "right")} ${r.unit}${tag}` : "";
   const v = finalValue(r);
-  return v == null ? "" : `${fmtNum(v)} ${r.unit}`;
+  return v == null ? "" : `${fmtNum(v)} ${r.unit}${tag}`;
+}
+
+/** "1,6 × peso" or "E 0,5  D 0,6 × peso"; empty with no result or no weight. */
+export function fmtRelative(r: TestResult, bodyMass: number | null | undefined): string {
+  if (!r.strength) return "";
+  const rel = (side?: Side) => relativeStrength(finalValue(r, side), bodyMass);
+  if (r.sided) return SIDES.some((s) => rel(s) != null) ? `${SIDES.map((s) => `${SIDE_SHORT[s]} ${fmtNum(rel(s)) || "—"}`).join("  ")} × peso` : "";
+  const v = rel();
+  return v == null ? "" : `${fmtNum(v)} × peso`;
 }
 
 interface Props {
   result: TestResult;
   previous: { assessment: Assessment; result: TestResult } | null;
+  date: string; // of this assessment
   test?: TestDef;
+  bodyMass: { value: number; date: string } | null;
   onChange: (r: TestResult) => void;
   onRemove: () => void;
 }
 
 /** One test in an assessment: its trials per side, the final values and the last result. */
-export default function ResultCard({ result: r, previous, test, onChange, onRemove }: Props) {
+export default function ResultCard({ result: r, previous, date, test, bodyMass, onChange, onRemove }: Props) {
   const [info, setInfo] = useState(false);
 
   const setTrial = (i: number, t: Trial) => onChange({ ...r, trials: r.trials.map((x, j) => (j === i ? t : x)) });
@@ -88,6 +110,10 @@ export default function ResultCard({ result: r, previous, test, onChange, onRemo
   const final = fmtFinal(r);
   const asym = asymmetry(r);
   const sameProtocol = previous?.result.version === r.version;
+  const estimated = r.strength === "estimated";
+  const tooManyReps = estimated && r.trials.some((t) => (t.reps ?? 0) > MAX_E1RM_REPS);
+  const relative = fmtRelative(r, bodyMass?.value);
+  const speed = averageSpeed(test?.version === r.version ? test.distanceM : null, finalValue(r));
 
   return (
     <li className="card p-3 flex flex-col gap-2">
@@ -136,7 +162,7 @@ export default function ResultCard({ result: r, previous, test, onChange, onRemo
               return r.scale ? (
                 <ScoreCell key={i} trial={trial} label={label} min={r.scale.min} max={r.scale.max} onChange={(t) => setTrial(i, t)} />
               ) : (
-                <TrialCell key={i} trial={trial} label={label} onChange={(t) => setTrial(i, t)} />
+                <TrialCell key={i} trial={trial} label={label} estimated={estimated} onChange={(t) => setTrial(i, t)} />
               );
             })}
           </div>
@@ -160,6 +186,15 @@ export default function ResultCard({ result: r, previous, test, onChange, onRemo
           </button>
         )}
       </div>
+      {tooManyReps && <p className="text-xs text-warn">Sem estimativa acima de {MAX_E1RM_REPS} repetições.</p>}
+      {relative && (
+        <p className="text-sm">
+          Força relativa: {relative}
+          {bodyMass?.date !== date && <span className="text-xs text-muted"> (peso de {fmtDate(bodyMass?.date ?? "")})</span>}
+        </p>
+      )}
+      {r.strength && final && !bodyMass && <p className="text-xs text-muted">Sem peso recente para calcular a força relativa.</p>}
+      {speed != null && <p className="text-sm">Velocidade média: {fmtNum(speed)} m/s</p>}
       {asym && <p className="text-sm">Assimetria: {fmtAsymmetry(asym, r.unit)}</p>}
       {previous && (
         <p className="text-xs text-muted">

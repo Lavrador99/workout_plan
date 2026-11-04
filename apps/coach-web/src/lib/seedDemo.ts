@@ -30,6 +30,9 @@ const RESULTS: [testId: string, values: Values, right?: Values][] = [
   ["seed-test-single-leg-squat", [2, 3, 3, 2, 3, 3, 4], [3, 3, 4, 4, 4, 4, 4]],
   ["seed-test-handgrip", [46, 47, 48, 48, 49, 50, 50], [50, 51, 52, 52, 53, 53, 54]],
   ["seed-test-dinamometria-abducao", [18, 19, 19.5, 18, 20, 21.5, 22.5], [23, 23.5, 24, 24, 24.5, 25, 25]],
+  ["seed-test-1rm-agachamento", [100, null, 110, null, 105, null, 120]],
+  ["seed-test-e1rm-supino", [60, 62.5, 65, 62.5, 65, 70, 72.5]],
+  ["seed-test-e1rm-bulgaro", [20, 22, 24, 18, 22, 26, 28], [24, 26, 28, 28, 28, 30, 32]],
   ["seed-test-cmj", [33.2, 34.5, 35.6, 32.1, 34.8, 37, 38.4]],
   ["seed-test-cmj-unilateral", [15.1, 15.8, 16.2, 13.4, 15.2, 17, 17.6], [17.4, 17.8, 18.4, 18.5, 18.6, 19.1, 19.3]],
   ["seed-test-sprint-10", [1.92, 1.9, 1.87, 1.96, 1.91, 1.84, 1.81]],
@@ -42,6 +45,7 @@ const round = (n: number) => Math.round(n * 100) / 100;
 /** The best trial is the given value; the others are a little worse. */
 function trialsOf(t: TestDef, value: number, side?: "left" | "right"): Trial[] {
   const base = side ? { side } : {};
+  if (t.strength === "estimated") return [{ ...base, value, reps: 5 }]; // the load of a set of 5
   return Array.from({ length: t.trials }, (_, i) => ({ ...base, value: round(value * (t.direction === "lower" ? 1 + i * 0.015 : 1 - i * 0.015)) }));
 }
 
@@ -113,6 +117,7 @@ export function demoData(tests: TestDef[], library: Exercise[]): { client: Clien
     id: DEMO_CLIENT_ID,
     updatedAt: 1,
     name: "Teste",
+    sex: "male",
     birthYear: 2001,
     hrMax: 192,
     hrRest: 54,
