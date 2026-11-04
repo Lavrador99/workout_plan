@@ -1,3 +1,4 @@
+import BenchmarkCard from "../components/BenchmarkCard";
 import LineChart, { type Point } from "../components/LineChart";
 import { fmtRelative, NumberField, TONE_CLASS } from "../components/ResultCard";
 import { averageSpeed, bodyMassAt, change, changeTone, fmtAsymmetry, fmtChange, goalProgress, series, testMdc, type SeriesPoint, type VersionSeries } from "../lib/assessment";
@@ -30,7 +31,7 @@ function Summary({ label, list, v, target, mdc }: { label?: string; list: Series
   );
 }
 
-function VersionSection({ v, showVersion, assessments, target, test, testId }: { v: VersionSeries; showVersion: boolean; assessments: Assessment[]; target: number | null; test: TestDef | undefined; testId: string }) {
+function VersionSection({ v, showVersion, assessments, target, test, testId, client, latest }: { v: VersionSeries; showVersion: boolean; assessments: Assessment[]; target: number | null; test: TestDef | undefined; testId: string; client: Client; latest: boolean }) {
   const mdc = testMdc(test, v.version);
   const distance = test?.version === v.version ? test.distanceM : null;
   const ids = new Set([...v.both, ...v.left, ...v.right].map((p) => p.assessmentId));
@@ -53,6 +54,8 @@ function VersionSection({ v, showVersion, assessments, target, test, testId }: {
         {v.strength === "estimated" && <p className="text-xs text-warn">Valores estimados, não medidos.</p>}
         {v.direction !== "neutral" && (mdc == null ? <p className="text-xs text-muted">Erro de medição por definir: não dá para saber se a mudança é real.</p> : <p className="text-xs text-muted">Mudança mínima detetável (MDC95): {fmtNum(mdc)} {v.unit}</p>)}
       </div>
+
+      {latest && <BenchmarkCard client={client} testId={testId} v={v} />}
 
       {dates.size >= 2 ? (
         <div className="card p-3 flex flex-col gap-1">
@@ -134,7 +137,7 @@ export default function EvolutionPage({ clientId, testId }: { clientId: string; 
           ) : null}
           {versions.length > 1 && <p className="text-xs text-warn">Este teste mudou de protocolo. As versões ficam separadas e o objetivo aplica-se à mais recente.</p>}
           {versions.map((v, i) => (
-            <VersionSection key={v.version} v={v} showVersion={versions.length > 1} assessments={assessments} target={i === 0 ? target : null} test={test} testId={testId} />
+            <VersionSection key={v.version} v={v} showVersion={versions.length > 1} assessments={assessments} target={i === 0 ? target : null} test={test} testId={testId} client={client} latest={i === 0} />
           ))}
         </>
       )}
