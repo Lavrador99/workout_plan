@@ -36,7 +36,10 @@ Módulo para comparar cada atleta com referências publicadas, sem perder a evol
 ## Passo 3: dados
 
 - **Yo-Yo IR1 (feito):** Schmitz et al. 2018, Figura 2, CC BY 4.0. Lido duas vezes do PDF da editora. Publica média e desvio-padrão; não há percentis reais. Ficaram de fora grupos pouco relevantes (árbitros, críquete, râguebi misturado com futebol gaélico).
-- **Por fazer:** handgrip e WBLT, depois de confirmar licença e tabelas.
+- **Handgrip feito:** Tomkinson et al. (2025), CC BY 4.0, Tabela 2 completa, com percentis publicados por sexo e idade a partir dos 20 anos. É população geral, sem atletas, por isso aparece como "População geral".
+- **Regra dos testes por lado:** cada referência diz que valor usa. No handgrip é o melhor valor das duas mãos, e por isso só compara avaliações com os dois lados medidos. Um teste por lado sem esta regra fica sem referência.
+- **Protocolo do handgrip:** a referência assume o protocolo de Southampton. O cartão diz isto, mas o texto do teste na app ainda não o pede.
+- **Por fazer, WBLT:** McBride et al. (2026), DOI 10.1016/j.msksp.2026.103525, CC BY 4.0 segundo a Crossref. O ScienceDirect recusa o acesso automático e o Europe PMC só tem o resumo. Falta a tabela original, a partir do PDF. O resumo diz que não há diferença relevante entre pernas, mas não indica que valor usar em cada lado: isso tem de vir da tabela.
 
 ## Próximos passos
 

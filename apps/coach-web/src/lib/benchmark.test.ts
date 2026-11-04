@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { benchmark, clientContext, DATASETS, evidenceOf, fmtPosition, positionIn, SOURCES, type ClientContext, type ReferenceDataset } from "./benchmark";
+import type { VersionSeries } from "./assessment";
+import { benchmark, clientContext, DATASETS, evidenceOf, fmtPosition, latestComparable, positionIn, SOURCES, type ClientContext, type ReferenceDataset } from "./benchmark";
 import { seedTests } from "./seed";
 import type { Client, Focus } from "./types";
 
@@ -157,5 +158,44 @@ describe("clientContext", () => {
 
   it("has no age without a birth year", () => {
     expect(clientContext({ ...client, birthYear: null }, [], "2026-03-01").age).toBeNull();
+  });
+});
+
+describe("tests measured per side", () => {
+  const HANDGRIP = { testId: "seed-test-handgrip", version: 1, direction: "higher" as const, sided: true };
+  const point = (date: string, value: number) => ({ date, value, assessmentId: date });
+  const grip = (left: VersionSeries["left"], right: VersionSeries["right"]): VersionSeries => ({ version: 1, unit: "kg", direction: "higher", sided: true, both: [], left, right, asymmetries: [] });
+
+  it("uses the best side of the last assessment with both", () => {
+    const v = grip([point("2026-01-01", 50)], [point("2026-01-01", 54), point("2026-02-01", 60)]);
+    expect(latestComparable(v)).toEqual({ date: "2026-01-01", value: 54 });
+  });
+
+  it("does not compare a single side", () => {
+    expect(latestComparable(grip([], [point("2026-01-01", 54)]))).toBeNull();
+  });
+
+  it("reads the handgrip table by sex and age, as the general population", () => {
+    const o = benchmark(HANDGRIP, 54, ctx());
+    expect(labels(o)).toEqual([["População geral, homens 25–29 anos", 4]]);
+    expect(o.status === "ok" && Math.round(o.benchmarks[0].position.percentile)).toBe(70);
+    expect(o.status === "ok" && o.benchmarks[0].evidence).toBe("A");
+    expect(labels(benchmark(HANDGRIP, 30, ctx({ sex: "female", age: 102 })))).toEqual([["População geral, mulheres 100+ anos", 4]]);
+  });
+
+  it("has no reference under 20 and keeps sides and no-sides apart", () => {
+    expect(benchmark(HANDGRIP, 54, ctx({ age: 19 })).status).toBe("no_compatible_reference");
+    expect(benchmark({ ...HANDGRIP, sided: false }, 54, ctx()).status).toBe("no_compatible_reference");
+    expect(benchmark({ ...YOYO, sided: true }, 1000, ctx()).status).toBe("no_compatible_reference");
+  });
+
+  it("has a full and rising table for every age and sex", () => {
+    const grips = DATASETS.filter((d) => d.testId === HANDGRIP.testId);
+    expect(grips).toHaveLength(34);
+    for (const d of grips) {
+      const values = d.percentiles!.map(([, v]) => v);
+      expect(values, d.id).toHaveLength(11);
+      expect([...values].sort((a, b) => a - b), d.id).toEqual(values);
+    }
   });
 });

@@ -1,7 +1,9 @@
 // Compares a result with published reference data. When no population fits, it
 // says so: a percentile is only ever shown with the group it refers to.
 
+import type { VersionSeries } from "./assessment";
 import { SCHMITZ_2018, SCHMITZ_2018_DATASETS } from "./references/schmitz2018";
+import { TOMKINSON_2025, TOMKINSON_2025_DATASETS } from "./references/tomkinson2025";
 import { norm } from "./text";
 import type { Client, Direction, Focus, Strength } from "./types";
 
@@ -34,11 +36,13 @@ export interface ReferenceDataset {
   sd?: number;
   /** Published percentiles, [percentile, value]: preferred over mean and SD. */
   percentiles?: [number, number][];
+  /** Tests measured per side: the best of both sides is the value the reference uses. */
+  sides?: "best";
   limitations: string;
 }
 
-export const SOURCES: ReferenceSource[] = [SCHMITZ_2018];
-export const DATASETS: ReferenceDataset[] = SCHMITZ_2018_DATASETS;
+export const SOURCES: ReferenceSource[] = [SCHMITZ_2018, TOMKINSON_2025];
+export const DATASETS: ReferenceDataset[] = [...SCHMITZ_2018_DATASETS, ...TOMKINSON_2025_DATASETS];
 
 /** Our own rating of how much a dataset can bear, not a universal scientific scale. */
 export type Evidence = "A" | "B" | "C" | "D";
@@ -138,16 +142,27 @@ interface Measured {
   testId: string;
   version: number;
   direction: Direction;
+  sided?: boolean;
   strength?: Strength | null;
 }
 
 const PROFESSIONAL: ReferenceLevel[] = ["top-elite", "elite"];
 
+/** The latest value to compare: on sided tests, the best side of the last assessment with both. */
+export function latestComparable(v: VersionSeries): { date: string; value: number } | null {
+  if (!v.sided) return v.both[v.both.length - 1] ?? null;
+  for (const left of [...v.left].reverse()) {
+    const right = v.right.find((p) => p.assessmentId === left.assessmentId);
+    if (right) return { date: left.date, value: v.direction === "lower" ? Math.min(left.value, right.value) : Math.max(left.value, right.value) };
+  }
+  return null;
+}
+
 /** The closest athlete group and, if there is one, the closest non-athlete group. */
 export function benchmark(result: Measured, value: number, ctx: ClientContext, datasets: ReferenceDataset[] = DATASETS): BenchmarkOutcome {
   const none = { status: "no_compatible_reference" } as const;
   // estimates are not comparable with measured references
-  const forTest = result.strength === "estimated" ? [] : datasets.filter((d) => d.testId === result.testId && d.version === result.version);
+  const forTest = result.strength === "estimated" ? [] : datasets.filter((d) => d.testId === result.testId && d.version === result.version && !!d.sides === !!result.sided);
   if (!forTest.length) return none;
 
   const missing = [...(ctx.sex ? [] : (["sexo"] as const)), ...(ctx.age == null ? (["idade"] as const) : [])];

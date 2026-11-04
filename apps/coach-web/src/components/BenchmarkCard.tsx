@@ -1,4 +1,4 @@
-import { benchmark, clientContext, fmtPosition, type Benchmark, type Tier } from "../lib/benchmark";
+import { benchmark, clientContext, fmtPosition, latestComparable, type Benchmark, type Tier } from "../lib/benchmark";
 import type { VersionSeries } from "../lib/assessment";
 import { go, useFocuses } from "../lib/hooks";
 import { fmtDate, fmtNum } from "../lib/text";
@@ -8,11 +8,12 @@ const TIER: Record<Tier, string> = {
   1: "Mesma modalidade, sexo e nível",
   2: "Mesma modalidade e sexo, outro nível",
   3: "Pessoas ativas",
-  4: "Fora do desporto",
+  4: "População geral",
 };
 
 function Row({ b, unit }: { b: Benchmark; unit: string }) {
   const d = b.dataset;
+  const median = d.percentiles?.find(([p]) => p === 50)?.[1];
   return (
     <li className="flex flex-col gap-0.5">
       <div className="flex items-baseline gap-2">
@@ -23,12 +24,10 @@ function Row({ b, unit }: { b: Benchmark; unit: string }) {
         {TIER[b.tier]} · evidência {b.evidence}
         {b.evidence === "D" ? " (só indicativa)" : ""}
       </p>
-      {d.mean != null && (
-        <p className="text-xs text-muted">
-          Média {fmtNum(d.mean)} {unit}
-          {d.sd ? `, desvio-padrão ${fmtNum(d.sd)}` : ""} · {d.subjects} pessoas, {d.studies} {d.studies === 1 ? "estudo" : "estudos"}
-        </p>
-      )}
+      <p className="text-xs text-muted">
+        {d.mean != null ? `Média ${fmtNum(d.mean)} ${unit}${d.sd ? `, desvio-padrão ${fmtNum(d.sd)}` : ""} · ` : median != null ? `Mediana ${fmtNum(median)} ${unit} · ` : ""}
+        {d.subjects.toLocaleString("pt-PT")} pessoas, {d.studies} {d.studies === 1 ? "estudo" : "estudos"}
+      </p>
     </li>
   );
 }
@@ -36,11 +35,10 @@ function Row({ b, unit }: { b: Benchmark; unit: string }) {
 /** The latest result against published references, or why there is no comparison. */
 export default function BenchmarkCard({ client, testId, v }: { client: Client; testId: string; v: VersionSeries }) {
   const focuses = useFocuses() ?? [];
-  const last = v.both[v.both.length - 1];
-  const value = v.sided ? null : last?.value;
+  const last = latestComparable(v);
 
-  if (value == null) return <NoReference />;
-  const outcome = benchmark({ testId, version: v.version, direction: v.direction, strength: v.strength }, value, clientContext(client, focuses, last.date));
+  if (!last) return <NoReference />;
+  const outcome = benchmark({ testId, version: v.version, direction: v.direction, sided: v.sided, strength: v.strength }, last.value, clientContext(client, focuses, last.date));
 
   if (outcome.status === "no_compatible_reference") return <NoReference />;
   if (outcome.status === "missing_data")
@@ -54,7 +52,8 @@ export default function BenchmarkCard({ client, testId, v }: { client: Client; t
   return (
     <section className="card p-3 flex flex-col gap-3">
       <h2 className="label">
-        Comparação científica · {fmtDate(last.date)} · {fmtNum(value)} {v.unit}
+        Comparação científica · {fmtDate(last.date)} · {fmtNum(last.value)} {v.unit}
+        {v.sided ? ", melhor lado" : ""}
       </h2>
       <ul className="flex flex-col gap-3">
         {outcome.benchmarks.map((b) => (
