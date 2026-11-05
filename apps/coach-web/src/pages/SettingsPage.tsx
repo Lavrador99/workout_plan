@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHeader from "../components/PageHeader";
 import { InstallCard } from "../components/PwaBanners";
 import { exportBackup, importBackup, type Backup } from "../lib/db";
 import { useSyncStatus } from "../lib/hooks";
@@ -57,7 +58,9 @@ export default function SettingsPage() {
           : `Sincronizado${status.at ? ` às ${new Date(status.at).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}` : ""}.`;
 
   return (
-    <div className="flex flex-col gap-4 p-3 pb-28">
+    <>
+    <PageHeader title="Definições" />
+    <div className="page">
       <section className="card p-3 flex flex-col gap-2">
         <h2 className="font-bold">Sincronização (telemóvel ↔ PC)</h2>
         <p className={`text-sm ${status.state === "error" ? "text-danger" : "text-muted"}`}>{statusText}</p>
@@ -137,5 +140,6 @@ export default function SettingsPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

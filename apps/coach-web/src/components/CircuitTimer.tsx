@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useBackClose } from "../lib/hooks";
 import type { Block } from "../lib/types";
 
 interface Phase {
@@ -51,6 +52,7 @@ export function beep(freq: number, ms = 180) {
 /** Full-screen interval timer for 40"/20" style circuits. */
 export default function CircuitTimer({ block, onClose }: { block: Block; onClose: () => void }) {
   const phases = useMemo(() => buildPhases(block), [block]);
+  useBackClose(onClose);
   const [idx, setIdx] = useState(0);
   const [left, setLeft] = useState(phases[0].sec);
   const [paused, setPaused] = useState(false);

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { ChipGroups } from "../components/Chips";
 import ExerciseInput from "../components/ExerciseInput";
-import Seg from "../components/Seg";
+import PageHeader from "../components/PageHeader";
+import Sheet, { SheetFooter } from "../components/Sheet";
+import Tabs from "../components/Tabs";
 import { matchExercise, newFocus, remove, save } from "../lib/db";
 import { go, useClients, useExercises, useFocuses } from "../lib/hooks";
 import { canonMuscles, canonPatterns, FOCUS_KINDS, PATTERN_GROUPS } from "../lib/movement";
@@ -30,6 +32,7 @@ export default function FocusPage() {
   const [editing, setEditing] = useState<string | null>(null);
 
   const list = focuses.filter((f) => f.kind === kind);
+  const open = focuses.find((f) => f.id === editing);
   const add = async () => {
     if (!name.trim()) return;
     const f = await save("focuses", newFocus(kind, name.trim()));
@@ -38,9 +41,12 @@ export default function FocusPage() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 pb-28">
-      <Seg options={FOCUS_KINDS.map(([k, label]) => [k, label])} value={kind} onChange={(k) => setKind(k as FocusKind)} />
-      <p className="text-xs text-muted">{HINT[kind]} Associa-os a cada aluno na ficha; as contagens aparecem no separador Contagens do aluno.</p>
+    <>
+    <PageHeader title="Perfis">
+      <Tabs options={FOCUS_KINDS.map(([k, label]) => [k, label] as const)} value={kind} onChange={setKind} />
+    </PageHeader>
+    <div className="page">
+      <p className="text-xs text-muted">{HINT[kind]} Liga-os a cada cliente na ficha; as contagens aparecem no separador Contagens.</p>
       <div className="flex gap-2">
         <input className="input" placeholder={PLACEHOLDER[kind]} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
         <button type="button" className="btn-accent shrink-0" onClick={add} disabled={!name.trim()}>
@@ -55,23 +61,21 @@ export default function FocusPage() {
             const linked = clients.filter((c) => c.focusIds?.includes(f.id));
             return (
               <li key={f.id}>
-                {editing === f.id ? (
-                  <Editor focus={f} exercises={exercises} clients={linked} onClose={() => setEditing(null)} />
-                ) : (
-                  <button type="button" className="w-full text-left px-3 py-2.5 flex items-center gap-2" onClick={() => setEditing(f.id)}>
-                    <span className="flex-1 min-w-0">
-                      <span className="font-medium">{f.name}</span>
-                      <span className="block text-xs text-muted truncate">{[...f.patterns, ...f.muscles].join(" · ") || "sem padrões nem músculos"}</span>
-                    </span>
-                    <span className="text-xs text-muted tabular-nums">{linked.length} aluno(s)</span>
-                  </button>
-                )}
+                <button type="button" className="row" onClick={() => setEditing(f.id)}>
+                  <span className="flex-1 min-w-0">
+                    <span className="font-medium">{f.name}</span>
+                    <span className="block text-xs text-muted truncate">{[...f.patterns, ...f.muscles].join(" · ") || "sem padrões nem músculos"}</span>
+                  </span>
+                  <span className="text-xs text-muted tabular-nums">{linked.length === 1 ? "1 cliente" : `${linked.length} clientes`}</span>
+                </button>
               </li>
             );
           })}
         </ul>
       )}
+      {open && <Editor key={open.id} focus={open} exercises={exercises} clients={clients.filter((c) => c.focusIds?.includes(open.id))} onClose={() => setEditing(null)} />}
     </div>
+    </>
   );
 }
 
@@ -94,8 +98,8 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
   };
 
   return (
-    <div className="p-3 flex flex-col gap-3 bg-bg">
-      <input className="input font-semibold" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+    <Sheet title={focus.name} subtitle={label} tall persistent onClose={onClose}>
+      <input className="input font-semibold" aria-label="Nome" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
       <div className="flex flex-col gap-1">
         <span className="label">Padrões de movimento</span>
         <ChipGroups groups={PATTERN_GROUPS} value={f.patterns} onChange={(patterns) => setF({ ...f, patterns })} />
@@ -124,7 +128,7 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
       </label>
       {clients.length > 0 && (
         <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="label mr-1">Alunos</span>
+          <span className="label mr-1">Clientes</span>
           {clients.map((c) => (
             <button key={c.id} type="button" className="chip" onClick={() => go("client", c.id)}>
               {c.name}
@@ -132,23 +136,22 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
           ))}
         </div>
       )}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-accent" onClick={submit}>
+      <SheetFooter>
+        <button type="button" className="btn-accent flex-1" onClick={submit}>
           Guardar
-        </button>
-        <button type="button" className="btn" onClick={onClose}>
-          Cancelar
         </button>
         <button
           type="button"
-          className="btn text-danger ml-auto"
+          className="btn text-danger"
           onClick={async () => {
-            if (confirm(`Apagar a ${label.toLowerCase()} «${focus.name}»?`)) await remove("focuses", focus.id);
+            if (!confirm(`Apagar a ${label.toLowerCase()} «${focus.name}»?`)) return;
+            await remove("focuses", focus.id);
+            onClose();
           }}
         >
           Apagar
         </button>
-      </div>
-    </div>
+      </SheetFooter>
+    </Sheet>
   );
 }

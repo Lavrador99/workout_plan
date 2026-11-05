@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { fmtCircuitHeader, fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
 import { history, loadStep } from "../lib/history";
+import { useBackClose } from "../lib/hooks";
 import { addSet, buildSteps, editSet, isDone, nextOpen, restAfter, sameStep, setDone, setItem, type Step } from "../lib/live";
 import { SessionCtx } from "../lib/sessionContext";
 import { fmtNum, fmtSec, num } from "../lib/text";
@@ -57,6 +58,7 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
   const [cursor, setCursor] = useState<Step | undefined>(() => nextOpen(s, steps));
   const [restEnd, setRestEnd] = useState<number | null>(null);
   const [timer, setTimer] = useState(false);
+  useBackClose(onMinimize);
 
   const idx = steps.findIndex((x) => sameStep(x, cursor));
   const cur = idx >= 0 ? steps[idx] : nextOpen(s, steps);

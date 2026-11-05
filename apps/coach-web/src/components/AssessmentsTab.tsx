@@ -86,7 +86,7 @@ export default function AssessmentsTab({ clientId }: { clientId: string }) {
         </ul>
       )}
       {list.length > 1 && (
-        <button type="button" className="btn" disabled={picked.length !== 2} onClick={() => go("compare", clientId, picked[0], picked[1])}>
+        <button type="button" className={`${picked.length === 2 ? "btn-accent" : "btn"} sticky bottom-20`} disabled={picked.length !== 2} onClick={() => go("compare", clientId, picked[0], picked[1])}>
           {picked.length === 2 ? "Comparar selecionadas" : "Escolhe duas avaliações para comparar"}
         </button>
       )}

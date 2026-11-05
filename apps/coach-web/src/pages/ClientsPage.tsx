@@ -2,6 +2,7 @@ import { useState } from "react";
 import { InstallCard } from "../components/PwaBanners";
 import { newClient, save } from "../lib/db";
 import { go, useClients, useSessions } from "../lib/hooks";
+import PageHeader from "../components/PageHeader";
 import { fmtDate, norm } from "../lib/text";
 
 export default function ClientsPage() {
@@ -22,7 +23,9 @@ export default function ClientsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <>
+    <PageHeader title="Clientes" />
+    <div className="page">
       <div className="flex gap-2">
         <input className="input" placeholder="Procurar ou novo cliente…" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && list.length === 0 && add()} />
         <button type="button" className="btn-accent shrink-0" onClick={add}>
@@ -50,5 +53,6 @@ export default function ClientsPage() {
         ))}
       </ul>
     </div>
+    </>
   );
 }

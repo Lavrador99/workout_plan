@@ -1,7 +1,7 @@
 /** Segmented control: one of a few options. */
 export default function Seg({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="inline-flex rounded-lg border border-border overflow-hidden">
+    <div className="inline-flex self-start max-w-full rounded-lg border border-border overflow-hidden">
       {options.map(([v, label]) => (
         <button
           key={v}

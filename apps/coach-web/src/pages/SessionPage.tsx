@@ -3,15 +3,17 @@ import BlockCard, { KIND_DEFAULTS } from "../components/BlockCard";
 import DragHandle from "../components/DragHandle";
 import ExtrasSheet from "../components/ExtrasSheet";
 import LiveView, { fmtClock, useNow } from "../components/LiveView";
+import PageHeader, { NotFound } from "../components/PageHeader";
 import PrescribeSheet from "../components/PrescribeSheet";
+import { Menu } from "../components/Sheet";
 import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
 import { fmtSession } from "../lib/format";
 import { history, suggest } from "../lib/history";
-import { go, useClient, useSession, useSessions, useTemplates } from "../lib/hooks";
+import { back, go, useClient, useSession, useSessions, useTemplates } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { itemsFromLine, parseSessionText } from "../lib/parser";
 import { useReorder } from "../lib/reorder";
-import { uid } from "../lib/text";
+import { fmtDate, uid } from "../lib/text";
 import type { Block, Item, Section, Session, Template } from "../lib/types";
 
 const TITLES = ["Fullbody", "Superiores", "Inferiores", "Hyrox Sim", "Core", "Mobilidade"];
@@ -37,7 +39,6 @@ export default function SessionPage({ id }: { id: string }) {
   const templates = useTemplates();
   const [s, setS] = useState<Session | null>(null);
   const [extras, setExtras] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   /** Where "+ Exercício" adds: the last plain block, or a new one made on the first add. */
   const [target, setTarget] = useState<Block | null>(null);
@@ -77,7 +78,7 @@ export default function SessionPage({ id }: { id: string }) {
     pending.current = setTimeout(() => void flush(), 400);
   };
 
-  if (stored === null) return <p className="p-4 text-muted">Sessão não encontrada.</p>;
+  if (stored === null) return <NotFound title="Sessão" back={[""]} />;
   if (!s) return null;
   current.current = s;
 
@@ -160,7 +161,7 @@ export default function SessionPage({ id }: { id: string }) {
     clearTimeout(pending.current);
     latest.current = null;
     await remove("sessions", s.id);
-    go("client", s.clientId);
+    back("client", s.clientId);
   };
 
   const ctx = { clientId: s.clientId, sessionId: s.id, date: s.date, sessions: clientSessions ?? [] };
@@ -200,46 +201,31 @@ export default function SessionPage({ id }: { id: string }) {
 
   return (
     <SessionCtx.Provider value={ctx}>
-    <div className="flex flex-col gap-3 p-3 pb-28">
-      <div className="flex items-center gap-2">
-        <button type="button" className="btn-ghost -ml-2" onClick={() => void flush().then(() => go("client", s.clientId))}>
-          ← {client?.name ?? ""}
-        </button>
-        <span className="ml-auto text-xs text-muted tabular-nums">{total > 0 && `${done}/${total} séries`}</span>
-        {total > 0 && done === 0 && (
-          <button type="button" className="btn text-accent" onClick={progressAll}>
-            ↑ Progressão
-          </button>
-        )}
-        <button type="button" className={`btn-ghost px-2 ${menu ? "text-accent" : "text-muted"}`} onClick={() => setMenu(!menu)} aria-label="Opções da sessão">
-          ⋯
-        </button>
-      </div>
-
-      {menu && (
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn" onClick={copy}>
-            {copied ? "✓ Copiado" : "Copiar texto"}
-          </button>
-          {"share" in navigator && (
-            <button type="button" className="btn" onClick={share}>
-              Partilhar
+    <PageHeader
+      title={s.title || "Sessão"}
+      subtitle={[client?.name, fmtDate(s.date), total > 0 && `${done}/${total} séries`].filter(Boolean).join(" · ")}
+      back={["client", s.clientId]}
+      actions={
+        <>
+          {total > 0 && done === 0 && (
+            <button type="button" className="btn text-accent shrink-0" onClick={progressAll}>
+              ↑ Progressão
             </button>
           )}
-          <button type="button" className="btn" onClick={duplicate}>
-            Duplicar para hoje
-          </button>
-          {s.blocks.length > 0 && (
-            <button type="button" className="btn" onClick={saveDay}>
-              ☆ Template de dia
-            </button>
-          )}
-          <button type="button" className="btn text-danger ml-auto" onClick={del}>
-            Apagar
-          </button>
-        </div>
-      )}
-
+          <Menu
+            title="Opções da sessão"
+            items={[
+              { label: copied ? "✓ Copiado" : "Copiar texto", onClick: copy, keepOpen: true },
+              "share" in navigator && { label: "Partilhar", onClick: share },
+              { label: "Duplicar para hoje", onClick: duplicate },
+              s.blocks.length > 0 && { label: "☆ Guardar como template de dia", onClick: saveDay },
+              { label: "Apagar sessão", onClick: del, danger: true },
+            ]}
+          />
+        </>
+      }
+    />
+    <div className="page">
       <div className="grid grid-cols-[auto_1fr] gap-2">
         <input type="date" className="input w-auto" value={s.date} onChange={(e) => update({ ...s, date: e.target.value })} />
         <input className="input font-bold" list="titles" value={s.title} placeholder="Título (Fullbody, Inferiores…)" onChange={(e) => update({ ...s, title: e.target.value })} />

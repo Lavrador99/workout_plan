@@ -6,42 +6,47 @@ import { families, familyOf, likelyMeant, parseFamilies, saveFamily, setProgress
 import { uid } from "../lib/text";
 import type { Exercise, Item } from "../lib/types";
 import ExerciseInput from "./ExerciseInput";
+import Sheet from "./Sheet";
 
 /** Library tab: every family, and pasting new ones. */
 export function ProgressionsView({ exercises }: { exercises: Exercise[] }) {
   const list = useMemo(() => families(exercises), [exercises]);
   const [open, setOpen] = useState<string | null>(null);
+  const [pasting, setPasting] = useState(false);
+  const family = list.find((f) => f.base.id === open);
   return (
-    <div className="flex flex-col gap-3">
-      <PasteFamilies exercises={exercises} />
+    <>
+      <button type="button" className="btn-accent" onClick={() => setPasting(true)}>
+        + Colar progressões
+      </button>
       {list.length === 0 ? (
-        <p className="text-sm text-muted">Ainda não há progressões. Cola uma lista acima, ou abre um exercício e junta-lhe as versões mais difíceis.</p>
+        <p className="text-sm text-muted">Ainda não há progressões. Cola uma lista, ou abre um exercício e junta-lhe as versões mais difíceis.</p>
       ) : (
         <ul className="card divide-y divide-border">
           {list.map((f) => (
             <li key={f.base.id}>
-              {open === f.base.id ? (
-                <div className="p-3 flex flex-col gap-2 bg-bg">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold flex-1">{f.base.name}</span>
-                    <button type="button" className="btn" onClick={() => setOpen(null)}>
-                      Fechar
-                    </button>
-                  </div>
-                  <FamilyEditor base={f.base} exercises={exercises} />
-                </div>
-              ) : (
-                <button type="button" className="w-full text-left px-3 py-2.5" onClick={() => setOpen(f.base.id)}>
+              <button type="button" className="row py-2.5" onClick={() => setOpen(f.base.id)}>
+                <span className="flex-1 min-w-0">
                   <span className="font-medium">{f.base.name}</span>
-                  <span className="block text-xs text-muted">{f.chain.length} níveis</span>
-                  <ChainLine family={f} />
-                </button>
-              )}
+                  <span className="block text-xs text-muted truncate">até {f.chain[f.chain.length - 1].name}</span>
+                </span>
+                <span className="text-xs text-muted tabular-nums shrink-0">{f.chain.length} níveis</span>
+              </button>
             </li>
           ))}
         </ul>
       )}
-    </div>
+      {family && (
+        <Sheet title={family.base.name} subtitle={`${family.chain.length} níveis`} onClose={() => setOpen(null)}>
+          <FamilyEditor base={family.base} exercises={exercises} />
+        </Sheet>
+      )}
+      {pasting && (
+        <Sheet title="Colar progressões" persistent onClose={() => setPasting(false)}>
+          <PasteFamilies exercises={exercises} onDone={() => setPasting(false)} />
+        </Sheet>
+      )}
+    </>
   );
 }
 
@@ -59,7 +64,7 @@ function ChainLine({ family, current }: { family: Family; current?: string }) {
 }
 
 /** Paste lists: one exercise per line, blank line between families, first line = base. */
-function PasteFamilies({ exercises }: { exercises: Exercise[] }) {
+function PasteFamilies({ exercises, onDone }: { exercises: Exercise[]; onDone: () => void }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const index = useExerciseIndex();
@@ -73,14 +78,14 @@ function PasteFamilies({ exercises }: { exercises: Exercise[] }) {
     const made = new Map<string, Exercise>();
     for (const f of parsed) await saveFamily(f, made);
     setBusy(false);
-    setText("");
+    onDone();
   };
 
   return (
-    <div className="card p-3 flex flex-col gap-2">
-      <span className="label">Colar progressões</span>
+    <>
       <textarea
-        className="input py-2 min-h-[110px] font-mono text-sm"
+        className="input py-2 min-h-[150px] font-mono text-sm"
+        aria-label="Progressões"
         value={text}
         placeholder={"Uma por linha, da mais fácil à mais difícil.\nLinha em branco = nova família.\n\nBird dog\nBird dog em cima da caixa\nBird dog em cima da caixa c/ peso row"}
         onChange={(e) => setText(e.target.value)}
@@ -115,7 +120,7 @@ function PasteFamilies({ exercises }: { exercises: Exercise[] }) {
           Guardar {parsed.length} família(s){created ? ` · cria ${created} exercício(s)` : ""}
         </button>
       )}
-    </div>
+    </>
   );
 }
 

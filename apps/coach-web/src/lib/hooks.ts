@@ -5,28 +5,7 @@ import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
 import type { Assessment, Client, Exercise, Focus, Session, Template, TestDef } from "./types";
 
-// ── Hash router: #/client/abc → ["client", "abc"] ──────────────────────────
-
-function readHash(): string[] {
-  return location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-}
-
-export function useRoute(): string[] {
-  const [route, setRoute] = useState(readHash);
-  useEffect(() => {
-    const f = () => {
-      setRoute(readHash());
-      window.scrollTo(0, 0);
-    };
-    window.addEventListener("hashchange", f);
-    return () => window.removeEventListener("hashchange", f);
-  }, []);
-  return route;
-}
-
-export function go(...parts: string[]) {
-  location.hash = "/" + parts.map(encodeURIComponent).join("/");
-}
+export { back, go, replaceRoute, useBackClose, useRoute } from "./nav";
 
 const NO_VERSIONS = new Map<string, Set<number>>();
 

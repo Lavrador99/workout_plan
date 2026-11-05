@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import LineChart, { type Point } from "../components/LineChart";
+import PageHeader from "../components/PageHeader";
 import { fmtRx } from "../lib/format";
 import { history, topSet } from "../lib/history";
 import { go, useClient, useExercises, useSessions } from "../lib/hooks";
@@ -34,12 +35,9 @@ export default function HistoryPage({ clientId, exKey }: { clientId: string; exK
   }, [occ]);
 
   return (
-    <div className="flex flex-col gap-3 p-3 pb-28">
-      <button type="button" className="btn-ghost -ml-2 self-start" onClick={() => goBack(clientId)}>
-        ← {client?.name}
-      </button>
-      <h1 className="text-xl font-bold">{target.name}</h1>
-
+    <>
+    <PageHeader title={target.name} subtitle={client?.name} back={["client", clientId, "records"]} />
+    <div className="page">
       {points.length >= 2 ? (
         <section className="card p-3">
           <div className="label mb-2">Melhor série por sessão ({unit})</div>
@@ -69,10 +67,6 @@ export default function HistoryPage({ clientId, exKey }: { clientId: string; exK
         })}
       </ul>
     </div>
+    </>
   );
-}
-
-function goBack(clientId: string) {
-  if (window.history.length > 1) window.history.back();
-  else go("client", clientId);
 }

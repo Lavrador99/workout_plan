@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { matchExercise } from "../lib/db";
 import { fmtRx } from "../lib/format";
 import { history } from "../lib/history";
-import { useExerciseIndex, useExercises, useUsage } from "../lib/hooks";
+import { useBackClose, useExerciseIndex, useExercises, useUsage } from "../lib/hooks";
 import { emptyItem, parseItemLine } from "../lib/parser";
 import { SessionCtx } from "../lib/sessionContext";
 import type { Block, Exercise, Item } from "../lib/types";
@@ -57,6 +57,7 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
   const [draft, setDraft] = useState<Item | null>(null);
   const [added, setAdded] = useState<string[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
+  useBackClose(onClose);
 
   useEffect(() => {
     const f = (e: KeyboardEvent) => e.key === "Escape" && onClose();

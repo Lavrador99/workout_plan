@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { asymmetry, averageSpeed, finalValue, fmtAsymmetry, MAX_E1RM_REPS, relativeStrength, SIDE_SHORT, SIDES, type changeTone } from "../lib/assessment";
 import { fmtDate, fmtNum, num } from "../lib/text";
 import type { Assessment, Side, TestDef, TestResult, Trial } from "../lib/types";
@@ -90,13 +90,22 @@ interface Props {
   date: string; // of this assessment
   test?: TestDef;
   bodyMass: { value: number; date: string } | null;
+  /** Only one test is open at a time; the rest stay a line with their result. */
+  open: boolean;
+  onToggle: () => void;
+  /** Move on to the next test. */
+  onNext?: () => void;
   onChange: (r: TestResult) => void;
   onRemove: () => void;
 }
 
 /** One test in an assessment: its trials per side, the final values and the last result. */
-export default function ResultCard({ result: r, previous, date, test, bodyMass, onChange, onRemove }: Props) {
+export default function ResultCard({ result: r, previous, date, test, bodyMass, open, onToggle, onNext, onChange, onRemove }: Props) {
   const [info, setInfo] = useState(false);
+  const card = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (open) card.current?.scrollIntoView({ block: "nearest" });
+  }, [open]);
 
   const setTrial = (i: number, t: Trial) => onChange({ ...r, trials: r.trials.map((x, j) => (j === i ? t : x)) });
   const addTrial = () => {
@@ -115,11 +124,24 @@ export default function ResultCard({ result: r, previous, date, test, bodyMass, 
   const relative = fmtRelative(r, bodyMass?.value);
   const speed = averageSpeed(test?.version === r.version ? test.distanceM : null, finalValue(r));
 
+  if (!open)
+    return (
+      <li className="card">
+        <button type="button" className="w-full text-left px-3 py-2.5 flex items-center gap-2" aria-expanded={false} onClick={onToggle}>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${final ? "bg-success" : "bg-border"}`} />
+          <span className="font-medium flex-1 min-w-0 truncate">{r.name}</span>
+          <span className={`text-sm shrink-0 ${final ? "font-semibold" : "text-muted"}`}>{final || "—"}</span>
+        </button>
+      </li>
+    );
+
   return (
-    <li className="card p-3 flex flex-col gap-2">
+    <li ref={card} className="card border-accent/50 p-3 flex flex-col gap-2 scroll-mt-20 scroll-mb-24">
       <div className="flex items-center gap-1">
-        <h3 className="font-semibold flex-1 min-w-0 truncate">{r.name}</h3>
-        <span className="text-xs text-muted shrink-0">{r.unit}</span>
+        <button type="button" className="flex-1 min-w-0 flex items-baseline gap-1.5 text-left" aria-expanded onClick={onToggle}>
+          <h3 className="font-semibold min-w-0 truncate">{r.name}</h3>
+          <span className="text-xs text-muted shrink-0">{r.unit}</span>
+        </button>
         <button type="button" className="btn-ghost min-h-[32px] px-2 text-muted" aria-label={`Ficha de ${r.name}`} aria-expanded={info} onClick={() => setInfo(!info)}>
           ⓘ
         </button>
@@ -200,6 +222,11 @@ export default function ResultCard({ result: r, previous, date, test, bodyMass, 
         <p className="text-xs text-muted">
           Anterior ({fmtDate(previous.assessment.date)}): {sameProtocol ? fmtFinal(previous.result) : "protocolo diferente"}
         </p>
+      )}
+      {onNext && (
+        <button type="button" className="btn self-end" onClick={onNext}>
+          Seguinte ›
+        </button>
       )}
     </li>
   );

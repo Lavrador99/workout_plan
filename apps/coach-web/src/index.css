@@ -44,6 +44,12 @@ select {
   .label {
     @apply text-xs uppercase tracking-wide text-muted;
   }
+  .page {
+    @apply flex flex-col gap-3 p-3;
+  }
+  .row {
+    @apply w-full text-left px-3 py-3 flex items-center gap-2 active:bg-card2;
+  }
 }
 
 .safe-bottom {
@@ -51,4 +57,43 @@ select {
 }
 .safe-top {
   padding-top: env(safe-area-inset-top);
+}
+.safe-top-strip {
+  height: env(safe-area-inset-top);
+}
+.sticky-top {
+  top: env(safe-area-inset-top);
+}
+/* room for the fixed tab bar */
+.pb-nav {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.sheet-fade {
+  animation: sheet-fade 0.15s ease-out;
+}
+.sheet-rise {
+  animation: sheet-rise 0.2s ease-out;
+}
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-rise {
+  from {
+    transform: translateY(24px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-fade,
+  .sheet-rise {
+    animation: none;
+  }
 }

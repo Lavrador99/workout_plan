@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { benchmark, clientContext, fmtPosition, latestComparable, type Benchmark, type Tier } from "../lib/benchmark";
 import type { VersionSeries } from "../lib/assessment";
 import { go, useFocuses } from "../lib/hooks";
 import { fmtDate, fmtNum } from "../lib/text";
 import type { Client } from "../lib/types";
+import Sheet from "./Sheet";
 
 const TIER: Record<Tier, string> = {
   1: "Mesma modalidade, sexo e nível",
@@ -11,7 +13,7 @@ const TIER: Record<Tier, string> = {
   4: "População geral",
 };
 
-function Row({ b, unit }: { b: Benchmark; unit: string }) {
+function Row({ b, unit, brief }: { b: Benchmark; unit: string; brief?: boolean }) {
   const d = b.dataset;
   const median = d.percentiles?.find(([p]) => p === 50)?.[1];
   return (
@@ -24,10 +26,10 @@ function Row({ b, unit }: { b: Benchmark; unit: string }) {
         {TIER[b.tier]} · evidência {b.evidence}
         {b.evidence === "D" ? " (só indicativa)" : ""}
       </p>
-      <p className="text-xs text-muted">
+      {!brief && <p className="text-xs text-muted">
         {d.mean != null ? `Média ${fmtNum(d.mean)} ${unit}${d.sd ? `, desvio-padrão ${fmtNum(d.sd)}` : ""} · ` : median != null ? `Mediana ${fmtNum(median)} ${unit} · ` : ""}
         {d.subjects.toLocaleString("pt-PT")} pessoas, {d.studies} {d.studies === 1 ? "estudo" : "estudos"}
-      </p>
+      </p>}
     </li>
   );
 }
@@ -36,6 +38,7 @@ function Row({ b, unit }: { b: Benchmark; unit: string }) {
 export default function BenchmarkCard({ client, testId, v }: { client: Client; testId: string; v: VersionSeries }) {
   const focuses = useFocuses() ?? [];
   const last = latestComparable(v);
+  const [details, setDetails] = useState(false);
 
   if (!last) return <NoReference />;
   const outcome = benchmark({ testId, version: v.version, direction: v.direction, sided: v.sided, strength: v.strength }, last.value, clientContext(client, focuses, last.date));
@@ -50,28 +53,38 @@ export default function BenchmarkCard({ client, testId, v }: { client: Client; t
     );
 
   return (
-    <section className="card p-3 flex flex-col gap-3">
+    <section className="card p-3 flex flex-col gap-2">
       <h2 className="label">
         Comparação científica · {fmtDate(last.date)} · {fmtNum(last.value)} {v.unit}
         {v.sided ? ", melhor lado" : ""}
       </h2>
-      <ul className="flex flex-col gap-3">
-        {outcome.benchmarks.map((b) => (
-          <Row key={b.dataset.id} b={b} unit={v.unit} />
-        ))}
+      <ul>
+        <Row b={outcome.benchmarks[0]} unit={v.unit} brief />
       </ul>
-      <div className="flex flex-col gap-1 text-xs text-muted border-t border-border pt-2">
-        {outcome.benchmarks.some((b) => b.position.estimated) && <p>Percentil estimado da média e do desvio-padrão, assumindo distribuição normal.</p>}
-        {[...new Set(outcome.benchmarks.map((b) => b.dataset.limitations))].filter(Boolean).map((text) => (
-          <p key={text}>{text}</p>
-        ))}
-        {[...new Map(outcome.benchmarks.flatMap((b) => (b.source ? [[b.source.id, b.source] as const] : []))).values()].map((source) => (
-          <a key={source.id} className="text-accent2" href={source.url} target="_blank" rel="noreferrer">
-            {source.citation}
-          </a>
-        ))}
-        <p>Compara com grupos publicados. Não é um diagnóstico nem uma nota do atleta.</p>
-      </div>
+      <button type="button" className="text-sm text-accent2 text-left" onClick={() => setDetails(true)}>
+        {outcome.benchmarks.length > 1 ? `Ver as ${outcome.benchmarks.length} referências e fontes ›` : "Ver referência e fonte ›"}
+      </button>
+      {details && (
+        <Sheet title="Comparação científica" subtitle={`${fmtNum(last.value)} ${v.unit}${v.sided ? ", melhor lado" : ""} · ${fmtDate(last.date)}`} onClose={() => setDetails(false)}>
+          <ul className="flex flex-col gap-3">
+            {outcome.benchmarks.map((b) => (
+              <Row key={b.dataset.id} b={b} unit={v.unit} />
+            ))}
+          </ul>
+          <div className="flex flex-col gap-1 text-xs text-muted border-t border-border pt-2">
+            {outcome.benchmarks.some((b) => b.position.estimated) && <p>Percentil estimado da média e do desvio-padrão, assumindo distribuição normal.</p>}
+            {[...new Set(outcome.benchmarks.map((b) => b.dataset.limitations))].filter(Boolean).map((text) => (
+              <p key={text}>{text}</p>
+            ))}
+            {[...new Map(outcome.benchmarks.flatMap((b) => (b.source ? [[b.source.id, b.source] as const] : []))).values()].map((source) => (
+              <a key={source.id} className="text-accent2" href={source.url} target="_blank" rel="noreferrer">
+                {source.citation}
+              </a>
+            ))}
+            <p>Compara com grupos publicados. Não é um diagnóstico nem uma nota do cliente.</p>
+          </div>
+        </Sheet>
+      )}
     </section>
   );
 }

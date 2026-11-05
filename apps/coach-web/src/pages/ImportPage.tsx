@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { linkItems, newSession, save } from "../lib/db";
+import PageHeader from "../components/PageHeader";
 import { fmtBlock } from "../lib/format";
-import { go, useClient } from "../lib/hooks";
+import { back, useClient } from "../lib/hooks";
 import { parseImport } from "../lib/parser";
 import { fmtDate, todayISO } from "../lib/text";
 
@@ -32,17 +33,13 @@ export default function ImportPage({ clientId }: { clientId: string }) {
     }
     setBusy(false);
     alert(`${n} sessões importadas.`);
-    go("client", clientId);
+    back("client", clientId);
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 pb-28">
-      <div className="flex items-center gap-2">
-        <button type="button" className="btn-ghost -ml-2" onClick={() => go("client", clientId)}>
-          ← {client?.name}
-        </button>
-      </div>
-      <h1 className="text-lg font-bold">Importar treinos</h1>
+    <>
+    <PageHeader title="Importar treinos" subtitle={client?.name} back={["client", clientId]} />
+    <div className="page">
       <p className="text-sm text-muted">
         Cola aqui as notas antigas deste cliente. As sessões são separadas por datas (dd/mm/aaaa) ou linhas ———. Revê em baixo e desmarca o que não for treino.
       </p>
@@ -81,5 +78,6 @@ export default function ImportPage({ clientId }: { clientId: string }) {
         </>
       )}
     </div>
+    </>
   );
 }

@@ -3,54 +3,87 @@ import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
 import { downloadText, exercisesCsv } from "../lib/exportExercises";
 import { fmtBlock } from "../lib/format";
-import { go, useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
+import { replaceRoute, useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
 import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
 import { todayISO, uid } from "../lib/text";
 import { ChipGroups } from "../components/Chips";
+import PageHeader from "../components/PageHeader";
 import { FamilySection, ProgressionsView } from "../components/Progressions";
-import { families } from "../lib/progressions";
+import Seg from "../components/Seg";
+import Sheet, { Menu, SheetFooter, SheetTabs } from "../components/Sheet";
+import Tabs from "../components/Tabs";
+import TestsView from "./TestsPage";
 import { CATEGORIES, levelDots } from "../components/PrescribeSheet";
 import type { Exercise, Template } from "../lib/types";
 
-type View = "all" | "review" | "dups" | "prog";
+const VIEWS = [
+  ["exercises", "Exercícios"],
+  ["progressions", "Progressões"],
+  ["tests", "Testes"],
+  ["templates", "Templates"],
+] as const;
+type View = (typeof VIEWS)[number][0];
+type Filter = "all" | "review" | "dups";
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
-export default function LibraryPage() {
+/** Exercises shown at first: the search is the fast way in, the list a fallback. */
+const PAGE = 50;
+
+export default function LibraryPage({ view: routeView }: { view?: string }) {
+  const view: View = VIEWS.find(([k]) => k === routeView)?.[0] ?? "exercises";
   const exercises = useExercises() ?? [];
+  return (
+    <>
+      <PageHeader title="Biblioteca">
+        <Tabs options={VIEWS} value={view} onChange={(v) => replaceRoute("library", v)} />
+      </PageHeader>
+      <div className="page">
+        {view === "exercises" && <ExercisesView exercises={exercises} />}
+        {view === "progressions" && <ProgressionsView exercises={exercises} />}
+        {view === "tests" && <TestsView />}
+        {view === "templates" && <TemplatesView />}
+      </div>
+    </>
+  );
+}
+
+function ExercisesView({ exercises }: { exercises: Exercise[] }) {
   const usage = useUsage();
-  const templates = useTemplates() ?? [];
-  const days = templates.filter((t) => t.blocks?.length);
-  const blocks = templates.filter((t) => !t.blocks?.length);
   const index = useExerciseIndex();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [tag, setTag] = useState("");
-  const [view, setView] = useState<View>("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<string[] | null>(null);
+  const [shown, setShown] = useState(PAGE);
 
   const missing = useMemo(() => new Map(exercises.map((e) => [e.id, missingInfo(e)] as const).filter(([, m]) => m.length)), [exercises]);
   const dups = useMemo(() => findDuplicates(exercises), [exercises]);
-  const familyCount = useMemo(() => families(exercises).length, [exercises]);
 
   const list = useMemo(() => {
-    const found = q.trim() ? index.search(q, tag || view === "review" ? 300 : 50) : exercises;
-    return found.filter((e) => (!tag || e.tags.includes(tag)) && (view !== "review" || missing.has(e.id)));
-  }, [q, tag, view, index, exercises, missing]);
+    const found = q.trim() ? index.search(q, tag || filter === "review" ? 300 : 50) : exercises;
+    return found.filter((e) => (!tag || e.tags.includes(tag)) && (filter !== "review" || missing.has(e.id)));
+  }, [q, tag, filter, index, exercises, missing]);
   const exact = q.trim() ? matchExercise(exercises, q) : undefined;
+  const open = exercises.find((e) => e.id === editing);
 
   const create = async () => {
     const ex = await save<Exercise>("exercises", { id: uid(), updatedAt: 0, name: q.trim(), aliases: [], tags: [] });
     setQ("");
-    setView("all");
+    setFilter("all");
     setEditing(ex.id);
+  };
+  const restore = async () => {
+    const n = await seedLibrary(true);
+    alert(n ? `${n} exercícios/templates da biblioteca base adicionados ou completados.` : "A biblioteca base já está toda cá.");
   };
 
   const toggle = (id: string) => setSelected((sel) => (sel?.includes(id) ? sel.filter((x) => x !== id) : [...(sel ?? []), id]));
 
   return (
-    <div className="flex flex-col gap-3 p-3 pb-28">
+    <>
       <div className="flex gap-2">
         <input className="input" placeholder={`Procurar em ${exercises.length} exercícios (PT/EN)…`} value={q} onChange={(e) => setQ(e.target.value)} />
         {q.trim() && !exact && (
@@ -60,25 +93,33 @@ export default function LibraryPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        <ViewTab on={view === "all"} onClick={() => setView("all")} n={exercises.length} label="Todos" />
-        <ViewTab on={view === "review"} onClick={() => setView("review")} n={missing.size} label="Por rever" warn />
-        <ViewTab on={view === "dups"} onClick={() => setView("dups")} n={dups.length} label="Duplicados" warn />
-        <ViewTab on={view === "prog"} onClick={() => setView("prog")} n={familyCount} label="Progressões" />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
+          <Seg
+            options={[
+              ["all", "Todos"],
+              ["review", `Por rever · ${missing.size}`],
+              ["dups", `Duplicados · ${dups.length}`],
+            ]}
+            value={filter}
+            onChange={(v) => setFilter(v as Filter)}
+          />
+        </div>
+        <Menu
+          title="Exercícios"
+          items={[
+            { label: "☑ Selecionar para juntar", onClick: () => setSelected([]) },
+            { label: "⤓ Exportar para folha de cálculo (CSV)", onClick: () => downloadText(exercisesCsv(exercises, usage), `exercicios-${todayISO()}.csv`, "text/csv") },
+            { label: "↻ Repor exercícios e templates base", onClick: () => void restore() },
+          ]}
+        />
       </div>
 
-      <button type="button" className="btn justify-between" onClick={() => go("tests")}>
-        <span>📏 Testes de avaliação</span>
-        <span className="text-muted">›</span>
-      </button>
-
-      {view === "dups" ? (
+      {filter === "dups" ? (
         <Duplicates pairs={dups} usage={usage} />
-      ) : view === "prog" ? (
-        <ProgressionsView exercises={exercises} />
       ) : (
         <>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-3 px-3">
             <button type="button" className={`chip ${!tag ? "chip-on" : ""}`} onClick={() => setTag("")}>
               Todos
             </button>
@@ -88,51 +129,42 @@ export default function LibraryPage() {
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <p className="text-xs text-muted basis-full">
-              {view === "review"
-                ? "Sem padrão de movimento ou sem músculos, não contam bem nas contagens. Toca para completar."
-                : "Entram aqui sozinhos quando os prescreves. Seleciona vários para os juntar num só."}
-            </p>
-            {!selected && (
-              <button type="button" className="btn shrink-0" onClick={() => downloadText(exercisesCsv(exercises, usage), `exercicios-${todayISO()}.csv`, "text/csv")} title="Todos os exercícios numa folha de cálculo (CSV)">
-                ⤓ Exportar
+          {filter === "review" && <p className="text-xs text-muted">Sem padrão de movimento ou sem músculos não contam bem nas contagens. Toca para completar.</p>}
+          {selected && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm flex-1">{selected.length ? `${selected.length} selecionados` : "Toca nos exercícios a juntar num só"}</span>
+              <button type="button" className="btn shrink-0" onClick={() => setSelected(null)}>
+                Cancelar
               </button>
-            )}
-            <button type="button" className={`btn shrink-0 ${selected ? "text-accent border-accent" : ""}`} onClick={() => setSelected(selected ? null : [])}>
-              {selected ? "Cancelar" : "☑ Selecionar"}
-            </button>
-          </div>
+            </div>
+          )}
           {list.length === 0 ? (
-            <p className="text-sm text-muted">{view === "review" ? "✓ Está tudo completo." : "Nada encontrado."}</p>
+            <p className="text-sm text-muted">{filter === "review" ? "✓ Está tudo completo." : "Nada encontrado."}</p>
           ) : (
             <ul className="card divide-y divide-border">
-              {list.map((ex) => {
+              {list.slice(0, shown).map((ex) => {
                 const miss = missing.get(ex.id);
                 return (
                   <li key={ex.id}>
-                    {editing === ex.id && !selected ? (
-                      <Editor ex={ex} all={exercises} onClose={() => setEditing(null)} onOpen={setEditing} />
-                    ) : (
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2.5 flex items-center gap-2"
-                        onClick={() => (selected ? toggle(ex.id) : setEditing(ex.id))}
-                      >
-                        {selected && <span className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center text-xs ${selected.includes(ex.id) ? "bg-accent border-accent text-black" : "border-border"}`}>{selected.includes(ex.id) && "✓"}</span>}
-                        <span className="flex-1 min-w-0">
-                          <span className="font-medium">{ex.name}</span>
-                          <span className="block text-xs text-muted truncate">{[ex.pt, ...ex.aliases].filter(Boolean).join(" · ")}</span>
-                          {miss && <span className="block text-xs text-warn">⚠ sem {miss.join(" nem ")}</span>}
-                        </span>
-                        <span className="text-xs">{levelDots(ex)}</span>
-                        <span className="text-xs text-muted tabular-nums">{usage.get(ex.id) ?? 0}×</span>
-                      </button>
-                    )}
+                    <button type="button" className="row py-2.5" onClick={() => (selected ? toggle(ex.id) : setEditing(ex.id))}>
+                      {selected && <span className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center text-xs ${selected.includes(ex.id) ? "bg-accent border-accent text-black" : "border-border"}`}>{selected.includes(ex.id) && "✓"}</span>}
+                      <span className="flex-1 min-w-0">
+                        <span className="font-medium">{ex.name}</span>
+                        <span className="block text-xs text-muted truncate">{[ex.pt, ...ex.aliases].filter(Boolean).join(" · ")}</span>
+                        {miss && <span className="block text-xs text-warn">⚠ sem {miss.join(" nem ")}</span>}
+                      </span>
+                      <span className="text-xs">{levelDots(ex)}</span>
+                      <span className="text-xs text-muted tabular-nums">{usage.get(ex.id) ?? 0}×</span>
+                    </button>
                   </li>
                 );
               })}
             </ul>
+          )}
+          {list.length > shown && (
+            <button type="button" className="btn" onClick={() => setShown(shown + PAGE)}>
+              Ver mais ({list.length - shown})
+            </button>
           )}
           {selected && selected.length > 1 && (
             <MergeBar
@@ -144,40 +176,26 @@ export default function LibraryPage() {
         </>
       )}
 
-      <button
-        type="button"
-        className="btn-ghost text-xs text-muted self-start"
-        onClick={async () => {
-          const n = await seedLibrary(true);
-          alert(n ? `${n} exercícios/templates da biblioteca base adicionados ou completados.` : "A biblioteca base já está toda cá.");
-        }}
-      >
-        ↻ Repor exercícios e templates base
-      </button>
-
-      <h2 className="font-bold mt-4">Templates de dias</h2>
-      {days.length === 0 ? (
-        <p className="text-xs text-muted">Numa sessão, toca em ⋯ → ☆ Template de dia para guardar a sessão inteira.</p>
-      ) : (
-        <TemplateList list={days} />
+      {open && (
+        <Sheet title={open.name} subtitle={open.pt} tall persistent onClose={() => setEditing(null)}>
+          <Editor key={open.id} ex={open} all={exercises} onClose={() => setEditing(null)} onOpen={setEditing} />
+        </Sheet>
       )}
-
-      <h2 className="font-bold mt-4">Templates de blocos</h2>
-      {blocks.length === 0 ? (
-        <p className="text-xs text-muted">Numa sessão, abre as opções de um bloco (⋯) e toca em ☆ Template para o reutilizar.</p>
-      ) : (
-        <TemplateList list={blocks} />
-      )}
-    </div>
+    </>
   );
 }
 
-function ViewTab({ on, onClick, n, label, warn }: { on: boolean; onClick: () => void; n: number; label: string; warn?: boolean }) {
+function TemplatesView() {
+  const templates = useTemplates() ?? [];
+  const days = templates.filter((t) => t.blocks?.length);
+  const blocks = templates.filter((t) => !t.blocks?.length);
   return (
-    <button type="button" onClick={onClick} className={`card px-2 py-2 flex flex-col items-center ${on ? "border-accent" : ""}`}>
-      <span className={`text-lg font-bold tabular-nums leading-tight ${warn && n > 0 ? "text-warn" : on ? "text-accent" : ""}`}>{n}</span>
-      <span className="text-xs text-muted">{label}</span>
-    </button>
+    <>
+      <h2 className="label">Dias</h2>
+      {days.length === 0 ? <p className="text-xs text-muted">Numa sessão, toca em ⋯ → Guardar como template de dia para guardar a sessão inteira.</p> : <TemplateList list={days} />}
+      <h2 className="label mt-2">Blocos</h2>
+      {blocks.length === 0 ? <p className="text-xs text-muted">Numa sessão, abre as opções de um bloco (⋯) e toca em ☆ Template para o reutilizar.</p> : <TemplateList list={blocks} />}
+    </>
   );
 }
 
@@ -283,6 +301,7 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
   const [patterns, setPatterns] = useState(() => patternsOf(ex));
   const [muscles, setMuscles] = useState(() => musclesOf(ex));
   const [mergeQ, setMergeQ] = useState("");
+  const [tab, setTab] = useState<"info" | "patterns" | "muscles" | "levels" | "more">("info");
   const split = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
   const others = useMemo(() => {
@@ -301,61 +320,114 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
   };
 
   const video = demo.trim() || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${ex.name} exercise`)}`;
+  const warn = (ok: boolean) => (ok ? "" : " ⚠");
 
   return (
-    <div className="p-3 flex flex-col gap-2 bg-bg">
-      <input className="input font-semibold" value={name} onChange={(e) => setName(e.target.value)} />
-      <input className="input" value={pt} placeholder="Nome em português" onChange={(e) => setPt(e.target.value)} />
-      <input className="input" value={aliases} placeholder="Sinónimos, separados por vírgula" onChange={(e) => setAliases(e.target.value)} />
-      <input className="input" value={tags} placeholder="Etiquetas: core, pliometria, kettlebell…" onChange={(e) => setTags(e.target.value)} />
-      <span className={`label ${patterns.length ? "" : "text-warn"}`}>
-        Padrões de movimento{!patterns.length ? " · ⚠ escolhe pelo menos um" : ex.patterns ? "" : " (sugeridos pelo nome)"}
-      </span>
-      <ChipGroups groups={PATTERN_GROUPS} value={patterns} onChange={setPatterns} />
-      <span className={`label ${muscles.length ? "" : "text-warn"}`}>
-        Músculos{!muscles.length ? " · ⚠ escolhe pelo menos um" : ex.muscles ? "" : " (sugeridos)"}
-      </span>
-      <ChipGroups groups={MUSCLE_CHIP_GROUPS} value={muscles} onChange={setMuscles} />
-      <FamilySection ex={ex} exercises={all} onOpen={onOpen} />
-      <input className="input" value={demo} placeholder="Link de vídeo (opcional)" onChange={(e) => setDemo(e.target.value)} />
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-accent" onClick={submit}>
-          Guardar
-        </button>
-        <a className="btn" href={video} target="_blank" rel="noreferrer">
-          ▶ Vídeo
-        </a>
-        <button type="button" className="btn" onClick={onClose}>
-          Cancelar
-        </button>
-        <button
-          type="button"
-          className="btn text-danger ml-auto"
-          onClick={async () => {
-            if (confirm(`Apagar «${ex.name}» da biblioteca? As sessões antigas mantêm o nome.`)) await remove("exercises", ex.id);
-          }}
-        >
-          Apagar
-        </button>
-      </div>
-      <div className="mt-2 flex flex-col gap-1">
-        <span className="label">Juntar este exercício a outro (fica como sinónimo)</span>
-        <input className="input" value={mergeQ} placeholder="Procurar o exercício principal…" onChange={(e) => setMergeQ(e.target.value)} />
-        {others.map((o) => (
+    <>
+      <SheetTabs>
+        <Tabs
+          options={[
+            ["info", "Geral"],
+            ["patterns", `Padrões${warn(patterns.length > 0)}`],
+            ["muscles", `Músculos${warn(muscles.length > 0)}`],
+            ["levels", "Progressões"],
+            ["more", "Mais"],
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </SheetTabs>
+
+      {tab === "info" && (
+        <>
+          <Labelled label="Nome">
+            <input className="input font-semibold" value={name} onChange={(e) => setName(e.target.value)} />
+          </Labelled>
+          <Labelled label="Nome em português">
+            <input className="input" value={pt} onChange={(e) => setPt(e.target.value)} />
+          </Labelled>
+          <Labelled label="Sinónimos">
+            <input className="input" value={aliases} placeholder="Separados por vírgula" onChange={(e) => setAliases(e.target.value)} />
+          </Labelled>
+          <Labelled label="Etiquetas">
+            <input className="input" value={tags} placeholder="core, pliometria, kettlebell…" onChange={(e) => setTags(e.target.value)} />
+          </Labelled>
+          <Labelled label="Link de vídeo (opcional)">
+            <input className="input" inputMode="url" value={demo} onChange={(e) => setDemo(e.target.value)} />
+          </Labelled>
+          <a className="btn self-start" href={video} target="_blank" rel="noreferrer">
+            ▶ Ver vídeo
+          </a>
+        </>
+      )}
+
+      {tab === "patterns" && (
+        <>
+          <span className={`label ${patterns.length ? "" : "text-warn"}`}>{!patterns.length ? "⚠ Escolhe pelo menos um" : ex.patterns ? "Padrões de movimento" : "Sugeridos pelo nome"}</span>
+          <ChipGroups groups={PATTERN_GROUPS} value={patterns} onChange={setPatterns} />
+        </>
+      )}
+
+      {tab === "muscles" && (
+        <>
+          <span className={`label ${muscles.length ? "" : "text-warn"}`}>{!muscles.length ? "⚠ Escolhe pelo menos um" : ex.muscles ? "Músculos" : "Sugeridos"}</span>
+          <ChipGroups groups={MUSCLE_CHIP_GROUPS} value={muscles} onChange={setMuscles} />
+        </>
+      )}
+
+      {tab === "levels" && <FamilySection ex={ex} exercises={all} onOpen={onOpen} />}
+
+      {tab === "more" && (
+        <>
+          <div className="flex flex-col gap-1">
+            <span className="label">Juntar este exercício a outro (fica como sinónimo)</span>
+            <input className="input" value={mergeQ} placeholder="Procurar o exercício principal…" onChange={(e) => setMergeQ(e.target.value)} />
+            {others.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                className="btn justify-start"
+                onClick={async () => {
+                  if (!confirm(`Juntar «${ex.name}» a «${o.name}»?`)) return;
+                  await mergeExercises(ex.id, o.id);
+                  onClose();
+                }}
+              >
+                → {o.name}
+              </button>
+            ))}
+          </div>
           <button
-            key={o.id}
             type="button"
-            className="btn justify-start"
+            className="btn text-danger self-start"
             onClick={async () => {
-              if (!confirm(`Juntar «${ex.name}» a «${o.name}»?`)) return;
-              await mergeExercises(ex.id, o.id);
+              if (!confirm(`Apagar «${ex.name}» da biblioteca? As sessões antigas mantêm o nome.`)) return;
+              await remove("exercises", ex.id);
               onClose();
             }}
           >
-            → {o.name}
+            Apagar exercício
           </button>
-        ))}
-      </div>
-    </div>
+        </>
+      )}
+
+      <SheetFooter>
+        <button type="button" className="btn-accent flex-1" onClick={submit}>
+          Guardar
+        </button>
+        <button type="button" className="btn" onClick={onClose}>
+          Cancelar
+        </button>
+      </SheetFooter>
+    </>
+  );
+}
+
+function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="label">{label}</span>
+      {children}
+    </label>
   );
 }

@@ -11,6 +11,7 @@ import CircuitTimer from "./CircuitTimer";
 import ItemRow from "./ItemRow";
 import PrescribeSheet from "./PrescribeSheet";
 import Seg from "./Seg";
+import Sheet from "./Sheet";
 import Stepper from "./Stepper";
 
 interface Props {
@@ -96,7 +97,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
         block.title && (
           <header className="flex items-center gap-2 pt-2">
             <span className="label flex-1">{block.title}</span>
-            <button type="button" className="btn-ghost text-muted" onClick={() => setSettings(!settings)} aria-label="Opções do bloco">
+            <button type="button" className="btn-ghost text-muted" onClick={() => setSettings(true)} aria-label="Opções do bloco">
               ⋯
             </button>
           </header>
@@ -104,7 +105,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
       ) : (
       <header className="flex items-center gap-2 mb-1">
         {handle}
-        <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setSettings(!settings)}>
+        <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setSettings(true)}>
           <span className="label">{kindLabel(block)}</span>
           <div className="font-bold">
             {isCircuit ? fmtCircuitHeader(block) : block.title || (block.kind === "superset" ? kindLabel(block) : "")}
@@ -124,14 +125,14 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
             ▶ Timer
           </button>
         )}
-        <button type="button" className="btn-ghost text-muted" onClick={() => setSettings(!settings)} aria-label="Opções do bloco">
+        <button type="button" className="btn-ghost text-muted" onClick={() => setSettings(true)} aria-label="Opções do bloco">
           ⋯
         </button>
       </header>
       )}
 
       {settings && (
-        <div className="flex flex-col gap-3 p-3 mb-2 rounded-lg bg-bg border border-border">
+        <Sheet title="Opções do bloco" subtitle={block.title || kindLabel(block)} onClose={() => setSettings(false)}>
           <input className="input" value={block.title} placeholder="Título do bloco (opcional)" onChange={(e) => onChange({ ...block, title: e.target.value })} />
           <div className="flex flex-col gap-1">
             <span className="label">Secção</span>
@@ -194,7 +195,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
               Apagar bloco
             </button>
           </div>
-        </div>
+        </Sheet>
       )}
 
       {diagram && <BlockDiagram block={block} />}

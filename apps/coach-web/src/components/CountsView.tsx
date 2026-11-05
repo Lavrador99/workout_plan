@@ -20,7 +20,7 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
   const group = groups[Math.min(at, groups.length - 1)];
   const t = useMemo(() => (group ? tally(group.sessions, byId, focuses) : null), [group, byId, focuses]);
 
-  if (!group || !t) return <p className="text-sm text-muted">As contagens aparecem quando o aluno tiver sessões.</p>;
+  if (!group || !t) return <p className="text-sm text-muted">As contagens aparecem quando o cliente tiver sessões.</p>;
 
   // patterns the client's focuses ask for but this period did not train
   const wanted = canonPatterns(focuses.flatMap((f) => f.patterns));
@@ -53,7 +53,7 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
       </div>
 
       {focuses.length > 0 && (
-        <Section title="Perfis do aluno">
+        <Section title="Perfis do cliente">
           {focuses.map((f) => {
             const hit = t.focus.get(f.id);
             return (

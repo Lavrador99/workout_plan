@@ -1,5 +1,6 @@
 import BenchmarkCard from "../components/BenchmarkCard";
 import LineChart, { type Point } from "../components/LineChart";
+import PageHeader from "../components/PageHeader";
 import { fmtRelative, NumberField, TONE_CLASS } from "../components/ResultCard";
 import { averageSpeed, bodyMassAt, change, changeTone, fmtAsymmetry, fmtChange, goalProgress, series, testMdc, type SeriesPoint, type VersionSeries } from "../lib/assessment";
 import { save } from "../lib/db";
@@ -112,16 +113,9 @@ export default function EvolutionPage({ clientId, testId }: { clientId: string; 
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 pb-28">
-      <div className="flex items-center gap-2">
-        <button type="button" className="btn-ghost -ml-2" onClick={() => go("client", clientId, "assessments")}>
-          ←
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold truncate">{name}</h1>
-          <p className="text-xs text-muted truncate">{client.name}</p>
-        </div>
-      </div>
+    <>
+    <PageHeader title={name} subtitle={client.name} back={["client", clientId, "assessments"]} />
+    <div className="page">
 
       {versions.length === 0 ? (
         <p className="text-sm text-muted">Ainda sem resultados neste teste.</p>
@@ -142,5 +136,6 @@ export default function EvolutionPage({ clientId, testId }: { clientId: string; 
         </>
       )}
     </div>
+    </>
   );
 }

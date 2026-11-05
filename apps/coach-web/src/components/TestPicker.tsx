@@ -4,6 +4,7 @@ import { go } from "../lib/hooks";
 import { norm } from "../lib/text";
 import type { TestDef } from "../lib/types";
 import { testGroups } from "../pages/TestsPage";
+import Sheet, { SheetFooter } from "./Sheet";
 
 interface Props {
   tests: TestDef[];
@@ -19,13 +20,8 @@ export default function TestPicker({ tests, picked, onAdd, onClose }: Props) {
   const list = free.filter((t) => !q.trim() || norm(t.name).includes(norm(q)));
 
   return (
-    <div className="card p-3 flex flex-col gap-2">
-      <div className="flex gap-2">
-        <input className="input" placeholder="Procurar teste…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <button type="button" className="btn-accent shrink-0" onClick={onClose}>
-          Fechar
-        </button>
-      </div>
+    <Sheet title="Adicionar testes" tall onClose={onClose}>
+      <input className="input" placeholder="Procurar teste…" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex flex-wrap gap-1.5">
         {testGroups(tests).map((g) => {
           const missing = free.filter((t) => t.groups.includes(g));
@@ -36,7 +32,7 @@ export default function TestPicker({ tests, picked, onAdd, onClose }: Props) {
           );
         })}
       </div>
-      <div className="max-h-72 overflow-y-auto flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         {TEST_CATEGORIES.map((category) => {
           const inCategory = list.filter((t) => t.category === category);
           if (!inCategory.length) return null;
@@ -61,9 +57,14 @@ export default function TestPicker({ tests, picked, onAdd, onClose }: Props) {
         })}
         {list.length === 0 && <p className="text-sm text-muted">Nenhum teste por adicionar.</p>}
       </div>
-      <button type="button" className="btn-ghost text-accent2 self-start -ml-3" onClick={() => go("tests")}>
+      <button type="button" className="btn-ghost text-accent2 self-start -ml-3" onClick={() => go("library", "tests")}>
         Gerir testes →
       </button>
-    </div>
+      <SheetFooter>
+        <button type="button" className="btn-accent flex-1" onClick={onClose}>
+          Concluir
+        </button>
+      </SheetFooter>
+    </Sheet>
   );
 }

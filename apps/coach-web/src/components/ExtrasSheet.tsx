@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { BlockKind, Section, Template } from "../lib/types";
 import { SECTIONS } from "./BlockCard";
+import Sheet from "./Sheet";
 
 // Everything beyond adding exercises one after the other: grouped blocks,
 // sections, templates, typed text and the session note.
@@ -27,33 +28,13 @@ export default function ExtrasSheet({ days, blocks, onGroup, onSection, onTempla
   const [paste, setPaste] = useState(false);
   const [text, setText] = useState("");
 
-  useEffect(() => {
-    const f = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", f);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", f);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
   const pick = (fn: () => void) => {
     fn();
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={onClose}>
-      <div className="max-w-2xl w-full mx-auto max-h-[85vh] overflow-y-auto overscroll-contain bg-card rounded-t-2xl border-t border-border safe-bottom" onClick={(e) => e.stopPropagation()}>
-        <div className="sticky top-0 bg-card flex items-center px-4 pt-3 pb-2">
-          <span className="mx-auto w-10 h-1 rounded-full bg-border absolute left-1/2 -translate-x-1/2 top-1.5" />
-          <span className="font-bold flex-1">Blocos e extras</span>
-          <button type="button" className="btn-ghost text-muted" onClick={onClose} aria-label="Fechar">
-            ✕
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-4 px-4 pb-6">
+    <Sheet title="Blocos e extras" onClose={onClose}>
           <div className="grid grid-cols-2 gap-2">
             {GROUPS.map(([kind, label, hint]) => (
               <button key={kind} type="button" className="card bg-card2 p-3 text-left active:border-accent" onClick={() => pick(() => onGroup(kind))}>
@@ -117,8 +98,6 @@ export default function ExtrasSheet({ days, blocks, onGroup, onSection, onTempla
               </>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

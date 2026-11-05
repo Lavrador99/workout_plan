@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Chips, { ChipGroups, ChipPick } from "../components/Chips";
 import { NumberField } from "../components/ResultCard";
 import Seg from "../components/Seg";
+import Sheet, { SheetFooter, SheetTabs } from "../components/Sheet";
+import Tabs from "../components/Tabs";
 import { mdc95, TEST_CATEGORIES } from "../lib/assessment";
 import { newTest, remove, save } from "../lib/db";
-import { go, useTests, useUsedVersions } from "../lib/hooks";
+import { useTests, useUsedVersions } from "../lib/hooks";
 import { canonMuscles, canonPatterns, MUSCLE_CHIP_GROUPS, PATTERN_GROUPS } from "../lib/movement";
 import { fmtNum, norm, num, uid } from "../lib/text";
 import type { Aggregate, Direction, Strength, TestCategory, TestDef } from "../lib/types";
@@ -27,7 +29,7 @@ export function testGroups(tests: TestDef[]): string[] {
 }
 
 /** Tests that can be used in assessments: base ones and the coach's own. */
-export default function TestsPage() {
+export default function TestsView() {
   const tests = useTests() ?? [];
   const used = useUsedVersions();
   const [q, setQ] = useState("");
@@ -37,6 +39,7 @@ export default function TestsPage() {
   const groups = useMemo(() => testGroups(tests), [tests]);
   const list = tests.filter((t) => (!group || t.groups.includes(group)) && (!q.trim() || norm(t.name).includes(norm(q))));
   const exact = tests.some((t) => norm(t.name) === norm(q));
+  const open = tests.find((t) => t.id === editing);
 
   const create = async () => {
     const t = await save("tests", newTest(q.trim()));
@@ -46,13 +49,7 @@ export default function TestsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 pb-28">
-      <div className="flex items-center gap-2">
-        <button type="button" className="btn-ghost -ml-2" onClick={() => go("library")}>
-          ←
-        </button>
-        <h1 className="text-xl font-bold flex-1">Testes de avaliação</h1>
-      </div>
+    <>
       <div className="flex gap-2">
         <input className="input" placeholder={`Procurar em ${tests.length} testes ou criar um novo…`} value={q} onChange={(e) => setQ(e.target.value)} />
         {q.trim() && !exact && (
@@ -72,18 +69,14 @@ export default function TestsPage() {
             <ul className="card divide-y divide-border">
               {inCategory.map((t) => (
                 <li key={t.id}>
-                  {editing === t.id ? (
-                    <TestEditor test={t} tests={tests} locked={!!used.get(t.id)?.has(t.version)} onClose={() => setEditing(null)} />
-                  ) : (
-                    <button type="button" className="w-full text-left px-3 py-2 flex items-center gap-2" onClick={() => setEditing(t.id)}>
-                      <span className="flex-1 min-w-0 truncate">{t.name}</span>
-                      <span className="text-xs text-muted shrink-0">
-                        {t.unit}
-                        {t.sided ? " · E/D" : ""}
-                        {t.version > 1 ? ` · v${t.version}` : ""}
-                      </span>
-                    </button>
-                  )}
+                  <button type="button" className="row py-2" onClick={() => setEditing(t.id)}>
+                    <span className="flex-1 min-w-0 truncate">{t.name}</span>
+                    <span className="text-xs text-muted shrink-0">
+                      {t.unit}
+                      {t.sided ? " · E/D" : ""}
+                      {t.version > 1 ? ` · v${t.version}` : ""}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -91,13 +84,16 @@ export default function TestsPage() {
         );
       })}
       {list.length === 0 && <p className="text-sm text-muted">Nenhum teste encontrado.</p>}
-    </div>
+      {open && <TestEditor key={open.id} test={open} tests={tests} locked={!!used.get(open.id)?.has(open.version)} onClose={() => setEditing(null)} onOpen={setEditing} />}
+    </>
   );
 }
 
-function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: TestDef[]; locked: boolean; onClose: () => void }) {
+function TestEditor({ test, tests, locked, onClose, onOpen }: { test: TestDef; tests: TestDef[]; locked: boolean; onClose: () => void; onOpen: (id: string) => void }) {
   const [t, setT] = useState(test);
   const [newGroup, setNewGroup] = useState("");
+  const [tab, setTab] = useState<"protocol" | "sheet" | "groups">("protocol");
+  const deleted = useRef(false);
 
   /** Text fields are stored when they lose focus, choices straight away. */
   const edit = (patch: Partial<TestDef>) => setT({ ...t, ...patch });
@@ -106,7 +102,13 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
     setT(next);
     void save("tests", next);
   };
-  const persist = () => void save("tests", t);
+  const persist = () => {
+    if (!deleted.current && JSON.stringify(t) !== JSON.stringify(test)) void save("tests", t);
+  };
+  const close = () => {
+    persist();
+    onClose();
+  };
 
   const addGroup = () => {
     const g = newGroup.trim();
@@ -118,11 +120,26 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
   };
   const duplicate = async () => {
     const copy = await save("tests", { ...t, id: uid(), name: `${t.name} (cópia)`, version: 1, updatedAt: 0 });
-    setT(copy);
+    persist();
+    onOpen(copy.id);
   };
 
   return (
-    <div className="p-3 flex flex-col gap-3" onBlur={persist}>
+    <Sheet title={t.name} subtitle={`${t.category} · versão ${t.version}`} tall onClose={close}>
+      <SheetTabs>
+        <Tabs
+          options={[
+            ["protocol", "Protocolo"],
+            ["sheet", "Ficha"],
+            ["groups", "Baterias"],
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </SheetTabs>
+      <div className="flex flex-col gap-3 flex-1" onBlur={persist}>
+      {tab === "protocol" && (
+      <>
       <Field label="Nome">
         <input className="input" value={t.name} onChange={(e) => edit({ name: e.target.value })} />
       </Field>
@@ -204,7 +221,11 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
         </div>
         <p className="text-xs text-muted">{mdc95(t.sem) != null ? `MDC95: ${fmtNum(mdc95(t.sem))} ${t.unit}. ` : ""}Usa um SEM do mesmo protocolo e de uma população semelhante. Vale só para a versão atual.</p>
       </div>
+      </>
+      )}
 
+      {tab === "sheet" && (
+      <>
       <Field label="Objetivo do teste">
         <textarea className="input py-2" rows={2} value={t.purpose} onChange={(e) => edit({ purpose: e.target.value })} />
       </Field>
@@ -220,7 +241,11 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
       <Field label="Link de demonstração">
         <input className="input" inputMode="url" value={t.demoUrl ?? ""} onChange={(e) => edit({ demoUrl: e.target.value })} />
       </Field>
+      </>
+      )}
 
+      {tab === "groups" && (
+      <>
       <div className="flex flex-col gap-1">
         <span className="label">Baterias</span>
         <Chips options={[...new Set([...testGroups(tests), ...t.groups])]} value={t.groups} onChange={(groups) => choose({ groups })} />
@@ -240,9 +265,13 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
         </div>
       </details>
 
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-accent" onClick={onClose}>
-          Fechar
+      </>
+      )}
+      </div>
+
+      <SheetFooter>
+        <button type="button" className="btn-accent flex-1" onClick={close}>
+          Concluir
         </button>
         <button type="button" className="btn" onClick={duplicate}>
           Copiar teste
@@ -252,14 +281,15 @@ function TestEditor({ test, tests, locked, onClose }: { test: TestDef; tests: Te
           className="btn text-danger"
           onClick={async () => {
             if (!confirm(`Apagar ${t.name}? Os resultados já registados ficam guardados.`)) return;
+            deleted.current = true;
             await remove("tests", t.id);
             onClose();
           }}
         >
           Apagar
         </button>
-      </div>
-    </div>
+      </SheetFooter>
+    </Sheet>
   );
 }
 

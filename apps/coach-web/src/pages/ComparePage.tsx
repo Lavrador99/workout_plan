@@ -1,4 +1,5 @@
 import { changeTone, compare, fmtChange, SIDE_SHORT, testMdc, type CompareRow } from "../lib/assessment";
+import PageHeader, { NotFound } from "../components/PageHeader";
 import { TONE_CLASS } from "../components/ResultCard";
 import { go, useAssessment, useClient, useTests } from "../lib/hooks";
 import { fmtDate, fmtNum } from "../lib/text";
@@ -23,7 +24,7 @@ export default function ComparePage({ clientId, a, b }: { clientId: string; a: s
   const first = useAssessment(a);
   const second = useAssessment(b);
   const library = useTests() ?? [];
-  if (first === null || second === null) return <p className="p-4 text-muted">Avaliação não encontrada.</p>;
+  if (first === null || second === null) return <NotFound title="Comparação" back={["client", clientId, "assessments"]} />;
   if (!first || !second) return null;
 
   const [older, newer] = first.date < second.date || (first.date === second.date && first.updatedAt <= second.updatedAt) ? [first, second] : [second, first];
@@ -31,16 +32,9 @@ export default function ComparePage({ clientId, a, b }: { clientId: string; a: s
   const tests = [...new Map(rows.map((r) => [r.testId, rows.filter((x) => x.testId === r.testId)])).values()];
 
   return (
-    <div className="flex flex-col gap-3 p-3 pb-28">
-      <div className="flex items-center gap-2">
-        <button type="button" className="btn-ghost -ml-2" onClick={() => go("client", clientId, "assessments")}>
-          ←
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold truncate">Comparação</h1>
-          <p className="text-xs text-muted truncate">{client?.name}</p>
-        </div>
-      </div>
+    <>
+    <PageHeader title="Comparação" subtitle={client?.name} back={["client", clientId, "assessments"]} />
+    <div className="page">
       <p className="text-sm">
         {fmtDate(older.date)}
         {older.title ? ` · ${older.title}` : ""} → <span className="font-semibold">{fmtDate(newer.date)}</span>
@@ -84,5 +78,6 @@ export default function ComparePage({ clientId, a, b }: { clientId: string; a: s
         </ul>
       )}
     </div>
+    </>
   );
 }

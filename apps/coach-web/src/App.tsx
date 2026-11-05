@@ -13,7 +13,6 @@ import ImportPage from "./pages/ImportPage";
 import LibraryPage from "./pages/LibraryPage";
 import SessionPage from "./pages/SessionPage";
 import SettingsPage from "./pages/SettingsPage";
-import TestsPage from "./pages/TestsPage";
 
 const TABS = [
   ["", "Clientes", "👥"],
@@ -27,10 +26,11 @@ export default function App() {
   const sync = useSyncStatus();
   const exercises = useExercises();
   const toReview = useMemo(() => exercises?.filter((e) => missingInfo(e).length).length ?? 0, [exercises]);
-  const tab = ["client", "session", "import", "history", "assessment", "evolution", "compare"].includes(page) ? "" : page === "tests" ? "library" : page;
+  const tab = ["client", "session", "import", "history", "assessment", "evolution", "compare"].includes(page) ? "" : page;
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto safe-top">
+      <div className="fixed top-0 inset-x-0 z-40 bg-bg safe-top-strip" />
       <UpdateBar />
       {page !== "settings" && (sync.state === "off" || sync.state === "error") && (
         <button type="button" className="w-full text-xs bg-warn/15 text-warn px-3 py-1.5 text-left flex items-center gap-2" onClick={() => go("settings")}>
@@ -42,9 +42,9 @@ export default function App() {
           <span className="font-semibold shrink-0">{sync.state === "off" ? "Ligar ›" : "Ver ›"}</span>
         </button>
       )}
-      <main className="pb-20">
+      <main className="pb-nav">
         {page === "client" ? (
-          <ClientPage key={id} id={id} initialTab={sub} />
+          <ClientPage key={id} id={id} tab={sub} />
         ) : page === "session" ? (
           <SessionPage key={id} id={id} />
         ) : page === "history" ? (
@@ -55,12 +55,10 @@ export default function App() {
           <EvolutionPage key={id + sub} clientId={id} testId={sub} />
         ) : page === "compare" ? (
           <ComparePage key={id + sub + sub2} clientId={id} a={sub} b={sub2} />
-        ) : page === "tests" ? (
-          <TestsPage />
         ) : page === "import" ? (
           <ImportPage clientId={id} />
         ) : page === "library" ? (
-          <LibraryPage />
+          <LibraryPage view={id} />
         ) : page === "focus" ? (
           <FocusPage />
         ) : page === "settings" ? (
@@ -69,10 +67,10 @@ export default function App() {
           <ClientsPage />
         )}
       </main>
-      <nav className="fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur border-t border-border safe-bottom z-40">
+      <nav aria-label="Principal" className="fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur border-t border-border safe-bottom z-40">
         <div className="max-w-2xl mx-auto flex">
           {TABS.map(([k, label, icon]) => (
-            <button key={k} type="button" onClick={() => go(k)} className={`flex-1 flex flex-col items-center py-2 text-xs ${tab === k ? "text-accent" : "text-muted"}`}>
+            <button key={k} type="button" aria-current={tab === k ? "page" : undefined} onClick={() => go(k)} className={`flex-1 flex flex-col items-center py-2 text-xs ${tab === k ? "text-accent" : "text-muted"}`}>
               <span className="text-lg leading-none relative">
                 {icon}
                 {k === "settings" && (sync.state === "off" || sync.state === "error") && (
