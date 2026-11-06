@@ -87,7 +87,7 @@ function reference(list: SeriesPoint[], r: Range): { base: SeriesPoint; last: Se
   return { base: before[before.length - 1] ?? inside[0], last };
 }
 
-const LISTS = (v: VersionSeries): [SeriesPoint[], Side | undefined][] => (v.sided ? [[v.left, "left"], [v.right, "right"]] : [[v.both, undefined]]);
+export const sideLists = (v: VersionSeries): [SeriesPoint[], Side | undefined][] => (v.sided ? [[v.left, "left"], [v.right, "right"]] : [[v.both, undefined]]);
 
 function nameOf(assessments: Assessment[], testId: string, test: TestDef | undefined): string {
   if (test) return test.name;
@@ -105,11 +105,11 @@ export function testBalance(assessments: Assessment[], tests: TestDef[], targets
     const name = nameOf(assessments, testId, test);
     const versions = series(assessments, testId);
     const newest = versions[versions.length - 1];
-    const active = versions.filter((v) => LISTS(v).some(([list]) => list.some((p) => within(p.date, r))));
+    const active = versions.filter((v) => sideLists(v).some(([list]) => list.some((p) => within(p.date, r))));
     for (const v of active) {
       const mdc = testMdc(test, v.version);
       const target = v === newest ? targets?.[testId] : null; // a goal belongs to the current protocol
-      for (const [list, side] of LISTS(v)) {
+      for (const [list, side] of sideLists(v)) {
         const ref = reference(list, r);
         if (!ref) continue;
         const { base, last } = ref;
@@ -250,7 +250,7 @@ export function goalBalance(assessments: Assessment[], tests: TestDef[], targets
     const v = versions[versions.length - 1];
     if (!v) continue;
     const name = nameOf(assessments, testId, tests.find((t) => t.id === testId));
-    for (const [list, side] of LISTS(v)) {
+    for (const [list, side] of sideLists(v)) {
       const seen = list.filter((p) => p.date <= r.to);
       if (!seen.length) continue;
       const last = seen[seen.length - 1];

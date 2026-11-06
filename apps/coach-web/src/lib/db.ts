@@ -51,7 +51,7 @@ export const DEFAULTS: Record<TableName, object> = {
   tests: { name: "", category: "mobilidade", unit: "", direction: "higher", sided: false, trials: 1, aggregate: "best", version: 1, groups: [], purpose: "", equipment: "", instructions: "", validity: "" },
   assessments: { title: "", conditions: "", notes: "", results: [] },
   goals: { title: "", criteria: "", status: "active" },
-  snapshots: { dimensions: [], interpretation: "" },
+  snapshots: { dimensions: [], interpretation: "", status: "insufficient" },
 };
 
 type Listener = () => void;

@@ -9,6 +9,7 @@ import { fmtDate, fmtNum, todayISO } from "../lib/text";
 import type { Client, Exercise, Focus, Goal, GoalStatus, Session, Side } from "../lib/types";
 import { Bars, Section } from "./CountsView";
 import GoalSheet from "./GoalSheet";
+import ProgressCard from "./ProgressCard";
 import { TONE_CLASS } from "./ResultCard";
 import Seg from "./Seg";
 
@@ -220,6 +221,8 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
 
   return (
     <div className="flex flex-col gap-3">
+      <ProgressCard client={client} />
+
       <Seg options={PRESETS} value={choice.preset} onChange={(p) => pick({ ...choice, preset: p as Preset })} />
 
       {choice.preset === "custom" ? (

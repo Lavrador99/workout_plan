@@ -301,16 +301,23 @@ export interface SnapshotIndicator {
   first: number;
   current: number;
   target: number;
+  improved: boolean | null;
   confirmed: boolean | null; // beyond the measurement error; null = that error is unknown
   score: number;
 }
+
+export type DimensionState = "improving" | "stable" | "regressing";
 
 export interface SnapshotDimension {
   id: DimensionId;
   score: number | null; // null = no data, its weight went to the others
   weight: number; // as used, after that
+  state: DimensionState | null; // null = no results to read it from
+  provisional: boolean; // read from changes with no known measurement error
   indicators: SnapshotIndicator[];
 }
+
+export type ProgressStatus = "positive" | "moderate" | "reduced" | "stagnant" | "regression" | "insufficient";
 
 /** An index as calculated that day, with all it was made from. Never edited: recalculating adds another. */
 export interface ProgressSnapshot extends SyncMeta {
@@ -322,10 +329,16 @@ export interface ProgressSnapshot extends SyncMeta {
   ipi: number | null;
   coverage: number; // % of the weight with data
   icc: number | null;
-  ia: number | null;
+  iccTests: number; // how many tests it rests on
+  ia: number | null; // estimated: there is no session plan
   io: number | null;
+  ioGoals: number; // how many goals it rests on
+  status: ProgressStatus;
+  provisional: boolean;
   dimensions: SnapshotDimension[];
   interpretation: string;
+  /** Made by recalculating the history; the original stays alongside it. */
+  recalculated?: boolean;
 }
 
 export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots";

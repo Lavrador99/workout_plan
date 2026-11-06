@@ -1,6 +1,6 @@
 # Fase 2 — Dados do Índice de Progresso Individual
 
-Desenho técnico para a app `coach-web`. Estado: implementada e por publicar. O cálculo do IPI é a Fase 3.
+Desenho técnico para a app `coach-web`. Estado: implementada e por publicar.
 
 ## 1. Registos
 
@@ -13,7 +13,7 @@ Dois tipos novos, com o mecanismo de sync habitual (JSON + last-write-wins).
 | `progress_weights` | `Client.primaryGoal`, `Client.weights`, `Client.weightLog` |
 | `progress_dimensions`, `progress_calculation_versions` | Constantes em `progress.ts`; a versão fica copiada em cada snapshot |
 
-Nesta fase, nada escreve `ProgressSnapshot` ainda. O tipo já existe para a Fase 3 não obrigar a nova publicação da API, e pode mudar enquanto não houver registos.
+O `ProgressSnapshot` é escrito a partir da Fase 3 (`fase-3-indice.md`).
 
 ## 2. Objetivos
 
