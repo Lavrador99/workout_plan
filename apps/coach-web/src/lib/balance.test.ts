@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adherence, changeSchedule, currentDays, metricRow, monthlyAdherence, plannedSessions, customRange, directionFor, doneIn, goalBalance, markBalance, presetRange, testBalance, type Range } from "./balance";
+import { adherence, changeSchedule, currentDays, metricRow, monthlyAdherence, plannedSessions, customRange, directionFor, doneIn, goalBalance, markBalance, pendingMarks, presetRange, testBalance, type Range } from "./balance";
 import type { Assessment, Item, Session, SetRow, TestDef, TestResult } from "./types";
 
 const test_ = (over: Partial<TestDef> = {}): TestDef => ({
@@ -173,21 +173,43 @@ describe("marks", () => {
     expect(markBalance(list, names, YEAR)[0].status).toBe("below"); // 71,7 against 60,2
   });
 
-  it("needs the reps written down", () => {
-    const list = [session("2025-11-01", [item([{ load: 15, done: true }])]), session("2026-02-01", [item([{ load: 40, done: true }])])];
-    expect(markBalance(list, names, YEAR)).toEqual([]);
+  it("compares the load alone when a session has no reps written down", () => {
+    const list = [session("2025-11-01", [item([set(30, 12)])]), session("2026-02-01", [item([{ load: 35, done: true }])])];
+    expect(markBalance(list, names, YEAR)[0]).toMatchObject({ basis: "load", status: "gain", base: { load: 30 }, best: { load: 35, reps: null } });
   });
 
-  it("skips what Epley cannot read", () => {
-    const skipped = [
-      item([set(200, 5, { done: false })]),
-      item([set(200, 5, { type: "warmup" })]),
-      item([set(200, 5)], { loadMode: "added" }),
-      item([set(200, 5)], { repsUnit: "m" }),
-      item([set(200, 5)], { method: { type: "cluster", clusters: 4, reps: 2, pause: 20 } }),
-    ];
+  it("compares added load by the load, apart from a plain one", () => {
+    const list = [session("2025-11-01", [item([set(20, 12)], { loadMode: "added" })]), session("2026-02-01", [item([set(35, 12)], { loadMode: "added" }), item([set(100, 5)])])];
+    expect(markBalance(list, names, YEAR)).toMatchObject([{ basis: "load", status: "gain" }]);
+  });
+
+  it("uses the estimate when each session has one, even beside sets with no reps", () => {
+    const list = [session("2025-11-01", [item([set(100, 5), { load: 150, done: true }])]), session("2026-02-01", [item([set(110, 5)])])];
+    expect(markBalance(list, names, YEAR)[0]).toMatchObject({ basis: "rm", status: "gain", base: { load: 100 } });
+  });
+
+  it("reads time, distance and methods by the load", () => {
+    const later = (over: object) => [session("2025-11-01", [item([set(100, 5)])]), session("2026-02-01", [item([set(120, 5)], over)])];
+    expect(markBalance(later({ repsUnit: "m" }), names, YEAR)[0]).toMatchObject({ basis: "load" });
+    expect(markBalance(later({ method: { type: "cluster", clusters: 4, reps: 2, pause: 20 } }), names, YEAR)[0]).toMatchObject({ basis: "load", status: "gain" });
+  });
+
+  it("never counts warm-ups or sets not ticked", () => {
+    const skipped = [item([set(200, 5, { done: false })]), item([set(200, 5, { type: "warmup" })])];
     const list = [session("2025-11-01", [item([set(100, 5)])]), session("2026-02-01", [...skipped, item([set(100, 5)])])];
     expect(markBalance(list, names, YEAR)[0].status).toBe("same");
+  });
+
+  it("shows sets with load still to tick, of an exercise with marks", () => {
+    const list = [session("2025-11-01", [item([set(70, 12)])]), session("2026-02-01", [item([set(80, 3, { done: false }), set(85, 1, { done: false })])])];
+    expect(markBalance(list, names, YEAR)).toEqual([]);
+    expect(pendingMarks(list, names, YEAR)).toMatchObject([{ sessionId: "s-2026-02-01", name: "Agachamento", point: { load: 85, reps: 1 } }]);
+  });
+
+  it("leaves out a plan with nothing done yet, and what is outside the period", () => {
+    expect(pendingMarks([session("2026-02-01", [item([set(85, 1, { done: false })])])], names, YEAR)).toEqual([]);
+    const list = [session("2025-02-01", [item([set(70, 5)])]), session("2025-03-01", [item([set(85, 1, { done: false })])])];
+    expect(pendingMarks(list, names, YEAR)).toEqual([]);
   });
 
   it("never compares one dumbbell per hand with a single load", () => {

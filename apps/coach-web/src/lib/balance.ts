@@ -141,9 +141,9 @@ export function testBalance(assessments: Assessment[], tests: TestDef[], targets
 // ── Marks ───────────────────────────────────────────────────────────────────
 
 export interface MarkPoint {
-  e1rm: number;
+  e1rm: number | null; // null when Epley cannot read the set
   load: number;
-  reps: number;
+  reps: number | null;
   date: string;
   item: Item;
 }
@@ -156,57 +156,89 @@ export interface MarkRow {
   name: string;
   base: MarkPoint;
   best: MarkPoint;
-  pct: number; // change in e1RM
+  /** By estimated RM, or by the load alone when any session has no RM to compare. */
+  basis: "rm" | "load";
+  pct: number;
   status: MarkStatus;
 }
 
-/** Only real reps at a load Epley can read: no warm-ups, added load, steps or special methods. */
-function setEstimate(it: Item, set: SetRow): number | null {
-  if (!set.done || set.type === "warmup" || it.repsUnit !== "r" || it.method) return null;
-  return set.load == null ? null : estimatedRm(set.load, set.reps ?? 0);
+/** A loaded set not ticked yet, of an exercise with marks: it may have been done. */
+export interface PendingMark {
+  sessionId: string;
+  name: string;
+  point: MarkPoint;
 }
 
-const stronger = (cur: MarkPoint | undefined, next: MarkPoint) => (!cur || next.e1rm > cur.e1rm ? next : cur);
+/** Real reps at a load Epley can read: no added load, steps or special methods. */
+function setEstimate(it: Item, set: SetRow): number | null {
+  if (it.loadMode === "added" || it.repsUnit !== "r" || it.method) return null;
+  return estimatedRm(set.load as number, set.reps ?? 0);
+}
+
+const isMark = (set: SetRow) => (set.load ?? 0) > 0 && set.type !== "warmup";
+
+const pointOf = (it: Item, set: SetRow, date: string): MarkPoint => ({ e1rm: setEstimate(it, set), load: set.load as number, reps: set.reps ?? null, date, item: it });
 
 interface Group {
   key: string;
   label: string;
-  sessions: Map<string, MarkPoint>; // the best set of each session
+  sessions: Map<string, MarkPoint[]>; // the ticked sets of each session
+  pending: { sessionId: string; point: MarkPoint }[];
 }
 
-export function markBalance(sessions: Session[], names: Map<string, string>, r: Range): MarkRow[] {
+function markGroups(sessions: Session[], names: Map<string, string>, r: Range): Group[] {
   const groups = new Map<string, Group>();
   for (const s of sessions) {
     if (s.deleted || s.date > r.to) continue;
     for (const b of s.blocks)
       for (const it of b.items) {
-        if (it.loadMode === "added") continue;
         const key = it.exerciseId ?? `n:${it.name}`;
-        const id = `${it.exerciseId ?? norm(it.name)}|${it.loadMode}`; // 2×20kg and 40kg are different numbers
+        const id = `${it.exerciseId ?? norm(it.name)}|${it.loadMode}`; // 2×20kg, 40kg and +40kg are different numbers
         for (const set of it.sets) {
-          const estimate = setEstimate(it, set);
-          if (estimate == null) continue;
-          const g = groups.get(id) ?? { key, label: names.get(key) ?? it.name, sessions: new Map() };
+          if (!isMark(set)) continue;
+          const g: Group = groups.get(id) ?? { key, label: names.get(key) ?? it.name, sessions: new Map(), pending: [] };
           groups.set(id, g);
-          const point: MarkPoint = { e1rm: estimate, load: set.load as number, reps: set.reps as number, date: s.date, item: it };
-          g.sessions.set(s.id, stronger(g.sessions.get(s.id), point));
+          const point = pointOf(it, set, s.date);
+          if (set.done) g.sessions.set(s.id, [...(g.sessions.get(s.id) ?? []), point]);
+          else if (within(s.date, r)) g.pending.push({ sessionId: s.id, point });
         }
       }
   }
+  return [...groups.values()];
+}
 
-  const rows: MarkRow[] = [];
-  for (const g of groups.values()) {
-    const points = [...g.sessions.values()].sort((a, b) => a.date.localeCompare(b.date));
-    const inside = points.filter((p) => within(p.date, r));
-    if (!inside.length) continue;
-    const before = points.filter((p) => r.from != null && p.date < r.from);
-    const best = inside.reduce<MarkPoint | undefined>(stronger, undefined) as MarkPoint;
-    const base = before.reduce<MarkPoint | undefined>(stronger, undefined) ?? inside[0];
-    if (!before.length && inside.length < 2) continue; // first time: nothing to compare it with
-    const pct = ((best.e1rm - base.e1rm) / base.e1rm) * 100;
-    rows.push({ key: g.key, name: g.label, base, best, pct, status: pct > 0 ? "gain" : pct < 0 ? "below" : "same" });
-  }
-  return rows.sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name, "pt"));
+const bestBy = (list: MarkPoint[], value: (p: MarkPoint) => number) => list.reduce((a, b) => (value(b) > value(a) ? b : a));
+
+function markRow(g: Group, r: Range): MarkRow | null {
+  const days = [...g.sessions.values()];
+  const basis = days.every((sets) => sets.some((p) => p.e1rm != null)) ? "rm" : "load";
+  const value = (p: MarkPoint) => (basis === "rm" ? (p.e1rm ?? 0) : p.load);
+  const points = days.map((sets) => bestBy(sets, value)).sort((a, b) => a.date.localeCompare(b.date));
+  const inside = points.filter((p) => within(p.date, r));
+  if (!inside.length) return null;
+  const before = points.filter((p) => r.from != null && p.date < r.from);
+  if (!before.length && inside.length < 2) return null; // first time: nothing to compare it with
+  const best = bestBy(inside, value);
+  const base = before.length ? bestBy(before, value) : inside[0];
+  const pct = ((value(best) - value(base)) / value(base)) * 100;
+  return { key: g.key, name: g.label, base, best, basis, pct, status: pct > 0 ? "gain" : pct < 0 ? "below" : "same" };
+}
+
+export function markBalance(sessions: Session[], names: Map<string, string>, r: Range): MarkRow[] {
+  return markGroups(sessions, names, r)
+    .flatMap((g) => markRow(g, r) ?? [])
+    .sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name, "pt"));
+}
+
+/** The heaviest set not ticked per exercise: never counted as done, but not left out of sight. */
+export function pendingMarks(sessions: Session[], names: Map<string, string>, r: Range): PendingMark[] {
+  return markGroups(sessions, names, r)
+    .filter((g) => g.sessions.size > 0 && g.pending.length > 0)
+    .map((g) => {
+      const top = g.pending.reduce((a, b) => (b.point.load > a.point.load ? b : a));
+      return { ...top, name: g.label };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "pt"));
 }
 
 // ── Adherence ───────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { changeTone, fmtChange, SIDE_SHORT } from "../lib/assessment";
-import { adherence, customRange, doneIn, goalBalance, markBalance, metricRow, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
+import { adherence, customRange, doneIn, goalBalance, markBalance, metricRow, pendingMarks, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
 import { fmtLoad } from "../lib/format";
 import { go, useAssessments, useGoals, useTests } from "../lib/hooks";
 import { tally } from "../lib/movement";
@@ -105,9 +105,9 @@ function SingleList({ rows, clientId }: { rows: SingleRow[]; clientId: string })
   );
 }
 
-const fmtRm = (p: MarkPoint) => fmtLoad({ ...p.item, loadMax: null }, Math.round(p.e1rm * 10) / 10);
+const fmtRm = (p: MarkPoint) => fmtLoad({ ...p.item, loadMax: null }, Math.round((p.e1rm as number) * 10) / 10);
 
-const fmtMark = (p: MarkPoint) => `${p.reps} × ${fmtLoad({ ...p.item, loadMax: null }, p.load)}`;
+const fmtMark = (p: MarkPoint) => `${p.reps != null ? `${p.reps} × ` : ""}${fmtLoad({ ...p.item, loadMax: null }, p.load)}`;
 
 function MarkList({ title, rows, clientId }: { title: string; rows: MarkRow[]; clientId: string }) {
   if (!rows.length) return null;
@@ -124,7 +124,7 @@ function MarkList({ title, rows, clientId }: { title: string; rows: MarkRow[]; c
               <span className="text-sm font-semibold shrink-0">{m.status === "same" ? "=" : `${m.pct > 0 ? "+" : ""}${fmtNum(Math.round(m.pct * 10) / 10)}%`}</span>
             </span>
             <span className="text-xs text-muted">
-              {fmtMark(m.base)} ({fmtDate(m.base.date)}) → {fmtMark(m.best)} ({fmtDate(m.best.date)}) · RM {fmtRm(m.base)} → {fmtRm(m.best)}
+              {fmtMark(m.base)} ({fmtDate(m.base.date)}) → {fmtMark(m.best)} ({fmtDate(m.best.date)}) · {m.basis === "rm" ? `RM ${fmtRm(m.base)} → ${fmtRm(m.best)}` : "só pela carga"}
             </span>
           </RowButton>
         ))}
@@ -176,7 +176,7 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
   const goals = useGoals(client.id);
   const [editing, setEditing] = useState<Goal | "new" | null>(null);
   const today = todayISO();
-  const [choice, setChoice] = useState<Choice>(() => chosen.get(client.id) ?? { preset: "3m", from: presetRange("3m", today).from as string, to: today });
+  const [choice, setChoice] = useState<Choice>(() => chosen.get(client.id) ?? { preset: "all", from: presetRange("3m", today).from as string, to: today });
 
   const pick = (next: Choice) => {
     chosen.set(client.id, next);
@@ -193,6 +193,7 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
     return {
       tests: testBalance(assessments, tests, targets, range),
       marks: markBalance(sessions, names, range),
+      pending: pendingMarks(sessions, names, range),
       adherence: adherence(sessions, assessments, client, range),
       goals: goalBalance(assessments, tests, targets, range),
       volume: tally(done, new Map(exercises.map((e) => [e.id, e])), focuses),
@@ -212,7 +213,7 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
   const markSame = data.marks.filter((m) => m.status === "same");
   const a = data.adherence;
   const ordered = [...(goals ?? [])].sort((x, y) => STATUS_ORDER[x.status] - STATUS_ORDER[y.status] || (x.dueDate ?? "9").localeCompare(y.dueDate ?? "9") || x.id.localeCompare(y.id));
-  const empty = !rows.length && !singles.length && !data.marks.length && !a.done && !a.unticked;
+  const empty = !rows.length && !singles.length && !data.marks.length && !data.pending.length && !a.done && !a.unticked;
 
   return (
     <div className="flex flex-col gap-3">
@@ -256,11 +257,26 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
           </Section>
 
           <Section title="Marcas de treino">
-            {data.marks.length === 0 && <p className="text-xs text-muted">Nada para comparar neste período.</p>}
+            {data.marks.length === 0 && data.pending.length === 0 && <p className="text-xs text-muted">Nada para comparar neste período.</p>}
             <MarkList title="Acima da melhor anterior" rows={markGains} clientId={client.id} />
             <MarkList title="Abaixo da melhor anterior" rows={markBelow} clientId={client.id} />
             <MarkList title="Iguais" rows={markSame} clientId={client.id} />
-            <p className="text-xs text-muted">Indicativo: compara o RM estimado da melhor série (Epley). Com muitas repetições é menos preciso, e uma fase mais leve ou um deload também ficam abaixo. Precisa de carga, repetições registadas e pelo menos 2 sessões.</p>
+            {data.pending.length > 0 && (
+              <div className="flex flex-col">
+                <span className="label">Por marcar como feito · {data.pending.length}</span>
+                <ul className="divide-y divide-border">
+                  {data.pending.map((p) => (
+                    <RowButton key={`${p.sessionId}-${p.name}`} onClick={() => go("session", p.sessionId)}>
+                      <span className="text-sm text-accent2">{p.name}</span>
+                      <span className="text-xs text-muted">
+                        {fmtMark(p.point)} ({fmtDate(p.point.date)}) · não conta até marcares a série como feita
+                      </span>
+                    </RowButton>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="text-xs text-muted">Indicativo: compara o RM estimado da melhor série (Epley). Sem repetições registadas ou com carga adicionada, compara só a carga. Com muitas repetições é menos preciso, e uma fase mais leve ou um deload também ficam abaixo. Precisa de pelo menos 2 sessões feitas.</p>
           </Section>
 
           <Section title="Adesão">
