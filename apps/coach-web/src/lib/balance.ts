@@ -10,6 +10,14 @@ import type { Assessment, Direction, Item, Session, SetRow, Side, TestDef } from
 
 export type Preset = "30d" | "3m" | "6m" | "12m" | "all" | "custom";
 
+export const PERIODS: [Exclude<Preset, "custom">, string][] = [
+  ["30d", "30 dias"],
+  ["3m", "3 m"],
+  ["6m", "6 m"],
+  ["12m", "12 m"],
+  ["all", "Tudo"],
+];
+
 /** Both ends included; no `from` means from the very beginning. */
 export interface Range {
   from: string | null;
@@ -227,6 +235,27 @@ export function adherence(sessions: Session[], assessments: Assessment[], weekly
   const days = from == null || from > r.to ? 0 : Math.round((toMs(r.to) - toMs(from)) / DAY) + 1;
   const expected = weeklyFrequency ? Math.round((weeklyFrequency * days) / 7) : null;
   return { done, unticked, expected: expected || null, pct: expected ? (done / expected) * 100 : null, from };
+}
+
+export interface MonthAdherence extends Pick<Adherence, "done" | "expected" | "pct"> {
+  month: string; // YYYY-MM
+}
+
+/** Month by month, each cut to the period and to when the client started. */
+export function monthlyAdherence(sessions: Session[], assessments: Assessment[], weeklyFrequency: number | null | undefined, r: Range): MonthAdherence[] {
+  const start = adherence(sessions, assessments, weeklyFrequency, r).from;
+  if (start == null || start > r.to) return [];
+  const months: MonthAdherence[] = [];
+  let [y, m] = start.split("-").map(Number);
+  while (toIso(Date.UTC(y, m - 1, 1)) <= r.to) {
+    const first = toIso(Date.UTC(y, m - 1, 1));
+    const last = toIso(Date.UTC(y, m, 0));
+    const part = { from: first < start ? start : first, to: last > r.to ? r.to : last };
+    const { done, expected, pct } = adherence(sessions, assessments, weeklyFrequency, part);
+    months.push({ month: first.slice(0, 7), done, expected, pct });
+    [y, m] = m === 12 ? [y + 1, 1] : [y, m + 1];
+  }
+  return months;
 }
 
 // ── Goals ───────────────────────────────────────────────────────────────────

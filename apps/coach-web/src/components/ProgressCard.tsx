@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { save } from "../lib/db";
-import { useAssessments, useFocuses, useGoals, useSessions, useSnapshots, useTests } from "../lib/hooks";
+import { go, useAssessments, useFocuses, useGoals, useSessions, useSnapshots, useTests } from "../lib/hooks";
 import { evolution, pendingSnapshots, recalculate, STATUS_LABEL, type IpiInput } from "../lib/ipi";
 import { DIMENSIONS } from "../lib/progress";
 import { fmtDate, fmtNum } from "../lib/text";
@@ -112,9 +112,14 @@ export default function ProgressCard({ client }: { client: Client }) {
       <p className="text-sm">{s.interpretation}</p>
       <p className="text-xs text-muted">Medida da evolução deste cliente até aos seus objetivos, não uma escala clínica. Só contam testes com objetivo e duas avaliações do mesmo protocolo.</p>
 
-      <button type="button" className="btn self-start" disabled={busy} onClick={() => void redo()}>
-        Recalcular histórico
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-accent" onClick={() => go("progress", client.id)}>
+          Ver evolução
+        </button>
+        <button type="button" className="btn" disabled={busy} onClick={() => void redo()}>
+          Recalcular histórico
+        </button>
+      </div>
     </Section>
   );
 }

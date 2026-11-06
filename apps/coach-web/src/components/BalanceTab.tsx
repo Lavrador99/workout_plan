@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { changeTone, fmtChange, SIDE_SHORT } from "../lib/assessment";
-import { adherence, customRange, doneIn, goalBalance, markBalance, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
+import { adherence, customRange, doneIn, goalBalance, markBalance, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
 import { fmtLoad } from "../lib/format";
 import { go, useAssessments, useGoals, useTests } from "../lib/hooks";
 import { tally } from "../lib/movement";
@@ -13,14 +13,7 @@ import ProgressCard from "./ProgressCard";
 import { TONE_CLASS } from "./ResultCard";
 import Seg from "./Seg";
 
-const PRESETS: [Preset, string][] = [
-  ["30d", "30 dias"],
-  ["3m", "3 m"],
-  ["6m", "6 m"],
-  ["12m", "12 m"],
-  ["all", "Tudo"],
-  ["custom", "Datas"],
-];
+const PRESETS: [Preset, string][] = [...PERIODS, ["custom", "Datas"]];
 
 interface Choice {
   preset: Preset;

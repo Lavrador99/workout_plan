@@ -269,3 +269,63 @@ export function evolution(snapshots: ProgressSnapshot[]): Evolution | null {
   const delta = (s: ProgressSnapshot | undefined) => (s && current.ipi != null ? round(current.ipi - (s.ipi as number)) : null);
   return { current, sincePrevious: delta(lastOf(same)), sinceFirst: delta(same[0]), weightsChanged: same.length < earlier.length };
 }
+
+/**
+ * What can share a line with the latest index, oldest first. Weights only touch
+ * the index: dimensions and goals compare across them, not across methods.
+ */
+export function comparableHistory(snapshots: ProgressSnapshot[]): { list: ProgressSnapshot[]; sameMethod: ProgressSnapshot[]; left: number } {
+  const all = latestByDate(snapshots);
+  const current = lastOf(all);
+  const list = current ? all.filter((s) => comparable(s, current)) : [];
+  return { list, sameMethod: all.filter((s) => s.method === current?.method), left: all.length - list.length };
+}
+
+export interface CompareRow extends SnapshotIndicator {
+  previous: number | null; // the value at the assessment before, when it has one
+}
+
+/** Start, previous, current and goal of every indicator behind the latest index. */
+export function compareRows(snapshots: ProgressSnapshot[]): CompareRow[] {
+  const all = latestByDate(snapshots);
+  const current = lastOf(all);
+  if (!current) return [];
+  const earlier = lastOf(all.slice(0, -1))?.dimensions.flatMap((d) => d.indicators) ?? [];
+  const same = (a: SnapshotIndicator, b: SnapshotIndicator) => a.testId === b.testId && a.side === b.side && a.version === b.version;
+  return current.dimensions.flatMap((d) => d.indicators).map((i) => ({ ...i, previous: earlier.find((e) => same(e, i))?.current ?? null }));
+}
+
+export interface Highlights {
+  /** Dimensions that gained the most since the start of the history given. */
+  gained: { id: DimensionId; points: number }[];
+  regressing: DimensionId[];
+  stable: DimensionId[];
+  reached: string[];
+  furthest: { name: string; score: number }[];
+}
+
+const indicatorName = (i: SnapshotIndicator) => `${i.name}${i.side ? ` (${i.side === "left" ? "esquerdo" : "direito"})` : ""}`;
+
+/** What stands out, for the coach to weigh. Nothing here touches the training plan. */
+export function highlights(list: ProgressSnapshot[]): Highlights | null {
+  const current = lastOf(list);
+  if (!current) return null;
+  const scored = current.dimensions.filter((d) => d.id !== "adesao" && d.score != null);
+  const gained = scored.flatMap((d) => {
+    const start = list.flatMap((s) => s.dimensions).find((x) => x.id === d.id && x.score != null);
+    const points = round((d.score as number) - (start?.score as number));
+    return points > 0 ? [{ id: d.id, points }] : [];
+  });
+  const rows = scored.flatMap((d) => d.indicators);
+  return {
+    gained: gained.sort((a, b) => b.points - a.points).slice(0, 3),
+    regressing: scored.filter((d) => d.state === "regressing").map((d) => d.id),
+    stable: scored.filter((d) => d.state === "stable").map((d) => d.id),
+    reached: rows.filter((r) => r.score >= 100).map(indicatorName),
+    furthest: rows
+      .filter((r) => r.score < 100)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3)
+      .map((r) => ({ name: indicatorName(r), score: r.score })),
+  };
+}

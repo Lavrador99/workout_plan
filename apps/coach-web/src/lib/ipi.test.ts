@@ -1,8 +1,8 @@
 import { describe as group, expect, it } from "vitest";
 import { change } from "./assessment";
-import { assessedDates, calculate, describe, dimensionState, evolution, indicatorScore, latestByDate, pendingSnapshots, recalculate, statusOf, type IpiInput } from "./ipi";
+import { assessedDates, calculate, comparableHistory, compareRows, describe, dimensionState, evolution, highlights, indicatorScore, latestByDate, pendingSnapshots, recalculate, statusOf, type IpiInput } from "./ipi";
 import { PRIMARY_GOALS } from "./progress";
-import type { Assessment, Client, Goal, ProgressSnapshot, Session, TestCategory, TestDef, TestResult } from "./types";
+import type { Assessment, Client, Goal, ProgressSnapshot, Session, SnapshotIndicator, TestCategory, TestDef, TestResult } from "./types";
 
 const test_ = (id: string, category: TestCategory, over: Partial<TestDef> = {}): TestDef => ({ id, updatedAt: 1, name: id, category, unit: "kg", direction: "higher", sided: false, trials: 1, aggregate: "best", version: 1, groups: [], purpose: "", equipment: "", instructions: "", validity: "", ...over });
 const result = (testId: string, value: number | [number, number]): TestResult => ({ id: `${testId}-${String(value)}`, testId, version: 1, name: testId, unit: "kg", direction: "higher", sided: Array.isArray(value), aggregate: "best", trials: Array.isArray(value) ? [{ side: "left", value: value[0] }, { side: "right", value: value[1] }] : [{ value }] });
@@ -187,5 +187,32 @@ group("snapshots", () => {
     expect(evolution([{ ...a, weights: PRIMARY_GOALS[1].weights }, b, c])).toMatchObject({ sincePrevious: 15, sinceFirst: 15, weightsChanged: true });
     expect(evolution([{ ...a, method: 2 }, c])).toMatchObject({ sincePrevious: null, sinceFirst: null, weightsChanged: true });
     expect(evolution([])).toBeNull();
+  });
+});
+
+group("charts", () => {
+  const snap = (date: string, updatedAt: number, over: Partial<ProgressSnapshot> = {}) => ({ id: date, updatedAt, clientId: "c", date, method: 1, primaryGoal: "saude", weights: PRIMARY_GOALS[0].weights, ipi: 40, coverage: 100, icc: null, iccTests: 0, ia: null, io: null, ioGoals: 0, status: "moderate", provisional: false, dimensions: [], interpretation: "", ...over }) as ProgressSnapshot;
+  const row = (over: Partial<SnapshotIndicator> = {}): SnapshotIndicator => ({ testId: "f", name: "Força", unit: "kg", version: 1, origin: "measured", first: 100, current: 150, target: 200, improved: true, confirmed: null, score: 50, ...over });
+  const dim = (id: "forca" | "cardio", score: number, state: "improving" | "stable" | "regressing", indicators: SnapshotIndicator[] = []) => ({ id, score, weight: 50, state, provisional: false, indicators });
+
+  it("keeps out of the line what was made with other weights", () => {
+    const { list, sameMethod, left } = comparableHistory([snap("2025-12-01", 1, { method: 0 }), snap("2026-01-01", 2, { weights: PRIMARY_GOALS[1].weights }), snap("2026-02-01", 3), snap("2026-03-01", 4)]);
+    expect(list.map((s) => s.date)).toEqual(["2026-02-01", "2026-03-01"]);
+    expect(sameMethod.map((s) => s.date)).toEqual(["2026-01-01", "2026-02-01", "2026-03-01"]);
+    expect(left).toBe(2);
+  });
+
+  it("finds the previous value of each indicator", () => {
+    const rows = compareRows([snap("2026-01-01", 1, { dimensions: [dim("forca", 25, "improving", [row({ current: 120 })])] }), snap("2026-02-01", 2, { dimensions: [dim("forca", 50, "improving", [row(), row({ testId: "x" })])] })]);
+    expect(rows.map((r) => [r.testId, r.previous])).toEqual([["f", 120], ["x", null]]);
+  });
+
+  it("picks out what gained, what stalled and what is far", () => {
+    const h = highlights([
+      snap("2026-01-01", 1, { dimensions: [dim("forca", 10, "stable"), dim("cardio", 40, "stable")] }),
+      snap("2026-02-01", 2, { dimensions: [dim("forca", 60, "improving", [row({ score: 100, name: "Salto", side: "left" }), row({ score: 20, name: "Prensa" })]), dim("cardio", 30, "regressing")] }),
+    ]);
+    expect(h).toEqual({ gained: [{ id: "forca", points: 50 }], regressing: ["cardio"], stable: [], reached: ["Salto (esquerdo)"], furthest: [{ name: "Prensa", score: 20 }] });
+    expect(highlights([])).toBeNull();
   });
 });

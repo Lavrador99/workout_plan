@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adherence, customRange, directionFor, doneIn, goalBalance, markBalance, presetRange, testBalance, type Range } from "./balance";
+import { adherence, monthlyAdherence, customRange, directionFor, doneIn, goalBalance, markBalance, presetRange, testBalance, type Range } from "./balance";
 import type { Assessment, Item, Session, SetRow, TestDef, TestResult } from "./types";
 
 const test_ = (over: Partial<TestDef> = {}): TestDef => ({
@@ -200,6 +200,24 @@ describe("adherence", () => {
 
   it("does not count a session that was never done", () => {
     expect(doneIn([done("2026-02-01"), open("2026-02-02")], YEAR)).toHaveLength(1);
+  });
+});
+
+describe("monthly adherence", () => {
+  const done = (date: string) => session(date, [item([set(50, 5)])]);
+
+  it("goes month by month, cut to the client's start and the period's end", () => {
+    const months = monthlyAdherence([done("2026-01-15"), done("2026-02-03"), done("2026-02-10")], [], 1, { from: "2025-06-01", to: "2026-03-14" });
+    expect(months.map((m) => [m.month, m.done, m.expected])).toEqual([["2026-01", 1, 2], ["2026-02", 2, 4], ["2026-03", 0, 2]]);
+  });
+
+  it("crosses a year and works with no frequency", () => {
+    const months = monthlyAdherence([done("2025-12-20"), done("2026-01-02")], [], null, { from: null, to: "2026-01-31" });
+    expect(months).toMatchObject([{ month: "2025-12", done: 1, pct: null }, { month: "2026-01", done: 1, pct: null }]);
+  });
+
+  it("is empty with nothing to go on", () => {
+    expect(monthlyAdherence([], [], 2, { from: null, to: "2026-01-31" })).toEqual([]);
   });
 });
 

@@ -46,7 +46,16 @@ Estes cortes são uma escolha inicial, não limites validados.
 - "Recalcular histórico" acrescenta registos com `recalculated`, sem apagar os originais.
 - As comparações do IPI só usam índices com o mesmo método e os mesmos pesos, e a app avisa quando há outros de fora.
 
-## 4. Limitações
+## 4. Página de evolução
+
+`ProgressPage`, aberta em "Ver evolução" no Balanço, com filtro de 30 dias, 3, 6 e 12 meses e histórico completo.
+
+- A linha do IPI só junta índices com os mesmos pesos e método.
+- As linhas das dimensões e dos objetivos atravessam mudanças de pesos, porque não dependem deles, mas não de método.
+- Cada dimensão lista os indicadores que a compõem.
+- Nas barras de inicial, atual e objetivo, cada teste tem a sua escala a partir de 0, porque as unidades diferem.
+
+## 5. Limitações
 
 - A importância por indicador não está implementada: todos os testes de uma dimensão pesam o mesmo.
 - O IPI compara cada data com o objetivo atual, por isso um histórico recalculado usa os objetivos de hoje.

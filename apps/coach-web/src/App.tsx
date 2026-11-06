@@ -7,6 +7,7 @@ import ClientPage from "./pages/ClientPage";
 import ClientsPage from "./pages/ClientsPage";
 import ComparePage from "./pages/ComparePage";
 import EvolutionPage from "./pages/EvolutionPage";
+import ProgressPage from "./pages/ProgressPage";
 import FocusPage from "./pages/FocusPage";
 import HistoryPage from "./pages/HistoryPage";
 import ImportPage from "./pages/ImportPage";
@@ -26,7 +27,7 @@ export default function App() {
   const sync = useSyncStatus();
   const exercises = useExercises();
   const toReview = useMemo(() => exercises?.filter((e) => missingInfo(e).length).length ?? 0, [exercises]);
-  const tab = ["client", "session", "import", "history", "assessment", "evolution", "compare"].includes(page) ? "" : page;
+  const tab = ["client", "session", "import", "history", "assessment", "evolution", "compare", "progress"].includes(page) ? "" : page;
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto safe-top">
@@ -53,6 +54,8 @@ export default function App() {
           <AssessmentPage key={id} id={id} />
         ) : page === "evolution" ? (
           <EvolutionPage key={id + sub} clientId={id} testId={sub} />
+        ) : page === "progress" ? (
+          <ProgressPage key={id} clientId={id} />
         ) : page === "compare" ? (
           <ComparePage key={id + sub + sub2} clientId={id} a={sub} b={sub2} />
         ) : page === "import" ? (
