@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "./db";
 import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
-import type { Assessment, Client, Exercise, Focus, Session, Template, TestDef } from "./types";
+import type { Assessment, Client, Exercise, Focus, Goal, Session, Template, TestDef } from "./types";
 
 export { back, go, replaceRoute, useBackClose, useRoute } from "./nav";
 
@@ -51,6 +51,10 @@ export function useAssessments(clientId: string): Assessment[] | undefined {
     const list = await db.assessments.where("clientId").equals(clientId).toArray();
     return list.filter((a) => !a.deleted).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
   }, [clientId]);
+}
+
+export function useGoals(clientId: string): Goal[] | undefined {
+  return useLiveQuery(async () => (await db.goals.where("clientId").equals(clientId).toArray()).filter((g) => !g.deleted), [clientId]);
 }
 
 /** The protocol versions of each test that already have results, in any client's assessment. */

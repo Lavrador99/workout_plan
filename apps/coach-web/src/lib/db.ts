@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
-import type { Assessment, Block, Client, Exercise, Focus, Item, Session, SyncMeta, TableName, Template, TestDef } from "./types";
+import { goalsFromTargets, testGoal } from "./progress";
+import type { Assessment, Block, Client, Exercise, Focus, Goal, Item, ProgressSnapshot, Session, SyncMeta, TableName, Template, TestDef } from "./types";
 import { norm, todayISO, uid } from "./text";
 
 // Local-first storage: everything lives in IndexedDB so the app works in the
@@ -13,6 +14,8 @@ class CoachDB extends Dexie {
   focuses!: Table<Focus, string>;
   tests!: Table<TestDef, string>;
   assessments!: Table<Assessment, string>;
+  goals!: Table<Goal, string>;
+  snapshots!: Table<ProgressSnapshot, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
 
   constructor() {
@@ -30,6 +33,9 @@ class CoachDB extends Dexie {
     this.version(4)
       .stores({ tests: "id, name, category, updatedAt, dirty", assessments: "id, clientId, date, updatedAt, dirty" })
       .upgrade((tx) => tx.table("meta").delete("lastSeq"));
+    this.version(5)
+      .stores({ goals: "id, clientId, updatedAt, dirty", snapshots: "id, clientId, date, updatedAt, dirty" })
+      .upgrade((tx) => tx.table("meta").delete("lastSeq"));
   }
 }
 
@@ -44,6 +50,8 @@ export const DEFAULTS: Record<TableName, object> = {
   focuses: { kind: "sport", name: "", patterns: [], muscles: [], exerciseIds: [], notes: "" },
   tests: { name: "", category: "mobilidade", unit: "", direction: "higher", sided: false, trials: 1, aggregate: "best", version: 1, groups: [], purpose: "", equipment: "", instructions: "", validity: "" },
   assessments: { title: "", conditions: "", notes: "", results: [] },
+  goals: { title: "", criteria: "", status: "active" },
+  snapshots: { dimensions: [], interpretation: "" },
 };
 
 type Listener = () => void;
@@ -191,11 +199,43 @@ export function newAssessment(clientId: string): Assessment {
   return { id: uid(), updatedAt: 0, clientId, date: todayISO(), title: "", conditions: "", notes: "", results: [] };
 }
 
+// ── Goals ───────────────────────────────────────────────────────────────────
+
+export function newGoal(clientId: string, testId?: string): Goal {
+  return testId ? testGoal(clientId, testId) : { id: uid(), updatedAt: 0, clientId, title: "", criteria: "", status: "active" };
+}
+
+/**
+ * Move the goals older versions kept on the client to Goal records. Safe to run
+ * any time: test goals have fixed ids, so a goal already here (or deleted on
+ * purpose) stays as it is. Runs after every pull too, as they may still arrive.
+ */
+export async function migrateTargets(): Promise<number> {
+  const clients = (await db.clients.toArray()).filter((c) => c.targets);
+  if (!clients.length) return 0;
+  const existing = new Set(await db.goals.toCollection().primaryKeys());
+  let n = 0;
+  for (const { targets, ...client } of clients) {
+    for (const goal of goalsFromTargets(client.id, targets ?? {}, existing)) {
+      await save("goals", goal);
+      n++;
+    }
+    await save("clients", client);
+  }
+  return n;
+}
+
 // ── A client's data ─────────────────────────────────────────────────────────
 
 /** Everything kept about a client, for handing it over to them. */
 export async function exportClient(id: string) {
-  const [client, sessions, assessments] = await Promise.all([db.clients.get(id), db.sessions.where("clientId").equals(id).toArray(), db.assessments.where("clientId").equals(id).toArray()]);
+  const [client, sessions, assessments, goals, snapshots] = await Promise.all([
+    db.clients.get(id),
+    db.sessions.where("clientId").equals(id).toArray(),
+    db.assessments.where("clientId").equals(id).toArray(),
+    db.goals.where("clientId").equals(id).toArray(),
+    db.snapshots.where("clientId").equals(id).toArray(),
+  ]);
   const clean = <T extends SyncMeta>({ dirty: _d, ...rec }: T) => rec;
   return {
     app: "coach",
@@ -203,6 +243,8 @@ export async function exportClient(id: string) {
     client: client && clean(client),
     sessions: sessions.filter((s) => !s.deleted).map(clean),
     assessments: assessments.filter((a) => !a.deleted).map(clean),
+    goals: goals.filter((g) => !g.deleted).map(clean),
+    snapshots: snapshots.filter((s) => !s.deleted).map(clean),
   };
 }
 
@@ -216,9 +258,9 @@ async function erase(table: TableName, id: string) {
  * what carries the deletion to the other devices.
  */
 export async function purgeClient(id: string): Promise<void> {
-  const [sessions, assessments] = await Promise.all([db.sessions.where("clientId").equals(id).primaryKeys(), db.assessments.where("clientId").equals(id).primaryKeys()]);
-  for (const s of sessions) await erase("sessions", s);
-  for (const a of assessments) await erase("assessments", a);
+  for (const table of ["sessions", "assessments", "goals", "snapshots"] as const) {
+    for (const key of await db[table].where("clientId").equals(id).primaryKeys()) await erase(table, key);
+  }
   await erase("clients", id);
   changed();
 }
@@ -236,10 +278,12 @@ export interface Backup {
   focuses?: Focus[];
   tests?: TestDef[];
   assessments?: Assessment[];
+  goals?: Goal[];
+  snapshots?: ProgressSnapshot[];
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [clients, exercises, sessions, templates, focuses, tests, assessments] = await Promise.all([
+  const [clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots] = await Promise.all([
     db.clients.toArray(),
     db.exercises.toArray(),
     db.sessions.toArray(),
@@ -247,14 +291,16 @@ export async function exportBackup(): Promise<Backup> {
     db.focuses.toArray(),
     db.tests.toArray(),
     db.assessments.toArray(),
+    db.goals.toArray(),
+    db.snapshots.toArray(),
   ]);
-  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses, tests, assessments };
+  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots };
 }
 
 /** Merge a backup in: newer record wins, so importing twice is harmless. */
 export async function importBackup(b: Backup): Promise<number> {
   let n = 0;
-  for (const table of ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments"] as const) {
+  for (const table of ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots"] as const) {
     const t = db[table] as unknown as Table<SyncMeta, string>;
     for (const rec of (b[table] ?? []) as SyncMeta[]) {
       const cur = await t.get(rec.id);

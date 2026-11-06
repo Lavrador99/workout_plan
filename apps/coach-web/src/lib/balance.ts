@@ -4,7 +4,7 @@
 
 import { change, e1rm, goalProgress, series, testMdc, type Change, type SeriesPoint, type VersionSeries } from "./assessment";
 import { norm } from "./text";
-import type { Assessment, Client, Direction, Item, Session, SetRow, Side, TestDef } from "./types";
+import type { Assessment, Direction, Item, Session, SetRow, Side, TestDef } from "./types";
 
 // ── Period ──────────────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ function nameOf(assessments: Assessment[], testId: string, test: TestDef | undef
   return newest?.results.find((x) => x.testId === testId)?.name ?? "Teste";
 }
 
-export function testBalance(assessments: Assessment[], tests: TestDef[], targets: Client["targets"], r: Range): { rows: TestRow[]; singles: SingleRow[] } {
+export function testBalance(assessments: Assessment[], tests: TestDef[], targets: Record<string, number> | undefined, r: Range): { rows: TestRow[]; singles: SingleRow[] } {
   const rows: TestRow[] = [];
   const singles: SingleRow[] = [];
   const byId = new Map(tests.map((t) => [t.id, t]));
@@ -243,7 +243,7 @@ export interface GoalRow {
   progress: number | null; // % of the way there, see goalProgress
 }
 
-export function goalBalance(assessments: Assessment[], tests: TestDef[], targets: Client["targets"], r: Range): GoalRow[] {
+export function goalBalance(assessments: Assessment[], tests: TestDef[], targets: Record<string, number> | undefined, r: Range): GoalRow[] {
   const rows: GoalRow[] = [];
   for (const [testId, target] of Object.entries(targets ?? {})) {
     const versions = series(assessments, testId);

@@ -3,8 +3,8 @@ import LineChart, { type Point } from "../components/LineChart";
 import PageHeader from "../components/PageHeader";
 import { fmtRelative, NumberField, TONE_CLASS } from "../components/ResultCard";
 import { averageSpeed, bodyMassAt, change, changeTone, fmtAsymmetry, fmtChange, goalProgress, series, testMdc, type SeriesPoint, type VersionSeries } from "../lib/assessment";
-import { save } from "../lib/db";
-import { go, useAssessments, useClient, useTests } from "../lib/hooks";
+import { newGoal, remove, save } from "../lib/db";
+import { go, useAssessments, useClient, useGoals, useTests } from "../lib/hooks";
 import { fmtDate, fmtNum } from "../lib/text";
 import type { Assessment, Client, TestDef } from "../lib/types";
 
@@ -99,17 +99,19 @@ export default function EvolutionPage({ clientId, testId }: { clientId: string; 
   const client = useClient(clientId);
   const assessments = useAssessments(clientId);
   const tests = useTests();
-  if (!assessments || !tests || !client) return null;
+  const goals = useGoals(clientId);
+  if (!assessments || !tests || !client || !goals) return null;
 
   const versions = series(assessments, testId).reverse();
   const test = tests.find((t) => t.id === testId);
   const name = test?.name ?? assessments.flatMap((a) => a.results).find((r) => r.testId === testId)?.name ?? "Teste";
-  const target = client.targets?.[testId] ?? null;
+  const goal = goals.find((g) => g.testId === testId && g.status !== "dropped");
+  const target = goal?.target ?? null;
 
   const setTarget = (value: number | null) => {
-    const { [testId]: _old, ...others } = client.targets ?? {};
-    const next: Client = { ...client, targets: value == null ? others : { ...others, [testId]: value } };
-    void save("clients", next);
+    // a date or criteria survive clearing the value, which may just be retyping it
+    if (value == null && goal && !goal.dueDate && !goal.criteria) return void remove("goals", goal.id);
+    void save("goals", { ...(goal ?? newGoal(clientId, testId)), target: value });
   };
 
   return (

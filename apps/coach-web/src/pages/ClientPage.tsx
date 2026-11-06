@@ -7,10 +7,12 @@ import BalanceTab from "../components/BalanceTab";
 import Chips, { ChipPick } from "../components/Chips";
 import CountsView from "../components/CountsView";
 import PageHeader, { NotFound } from "../components/PageHeader";
+import ProgressSheet from "../components/ProgressSheet";
 import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
 import { back, go, replaceRoute, useClient, useExercises, useFocuses, useSessions } from "../lib/hooks";
 import { FOCUS_KINDS } from "../lib/movement";
+import { goalLabel } from "../lib/progress";
 import { fmtDate, num, todayISO } from "../lib/text";
 import type { Client, Item, Session, Side } from "../lib/types";
 import { openNewSession } from "./SessionPage";
@@ -49,7 +51,7 @@ const TABS = [
   ["info", "Ficha"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
-type Section = "person" | "training" | "health" | "notes" | "data";
+type Section = "person" | "training" | "progress" | "health" | "notes" | "data";
 
 /** Sessions shown at first; a long history opens on demand. */
 const PAGE = 20;
@@ -118,6 +120,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const sectionRows: [Section, string, string, string?][] = [
     ["person", "Dados pessoais", [age && `${age} anos`, c.sex && SEXES.find(([k]) => k === c.sex)?.[1], c.heightCm && `${c.heightCm} cm`, handedLabel(c.dominantHand) && `mão ${handedLabel(c.dominantHand)?.toLowerCase()}`].filter(Boolean).join(" · ") || "Por preencher"],
     ["training", "Treino e objetivos", [c.level, c.position, c.weeklyFrequency && `${c.weeklyFrequency}×/sem`, ...(c.goals ?? []), ...focusNames].filter(Boolean).join(" · ") || "Por preencher"],
+    ["progress", "Índice de progresso", `${goalLabel(c.primaryGoal) ?? "Objetivo principal por escolher"}${c.weights ? " · pesos próprios" : ""}`],
     ["health", "Saúde e cuidados", [c.injuries, c.hrMax && `FC máx ${c.hrMax}`, c.hrRest && `repouso ${c.hrRest}`].filter(Boolean).join(" · ") || "Sem lesões registadas"],
     ["notes", "Notas e records", c.notes.split("\n")[0] || "Sem notas"],
     ["data", "Consentimento e dados", c.consentAt ? `Consentimento em ${fmtDate(c.consentAt)}` : "⚠ Sem consentimento registado", c.consentAt ? undefined : "text-warn"],
@@ -230,6 +233,8 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
           </ul>
         )}
       </div>
+
+      {section === "progress" && <ProgressSheet client={c} onChange={choose} onClose={closeSection} />}
 
       {section === "person" && (
         <FichaSheet title="Dados pessoais" onClose={closeSection} onBlur={persist}>

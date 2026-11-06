@@ -28,9 +28,29 @@ export interface Client extends SyncMeta {
   sportYears?: number | null;
   weeklyFrequency?: number | null;
   goals?: string[]; // saúde, força, performance, reabilitação
-  /** Goal per test (testId → value), read in the test's direction. */
+  /** Replaced by Goal records: only read to move what older versions left here. */
   targets?: Record<string, number>;
+  primaryGoal?: PrimaryGoal | null;
+  /** The coach's own weights; unset = those of the main goal (progress.ts). */
+  weights?: Weights | null;
+  /** Every change of weights, oldest first. */
+  weightLog?: WeightChange[];
   consentAt?: string | null; // YYYY-MM-DD, when the client consented to their data being kept
+}
+
+/** The six dimensions of the Individual Progress Index. */
+export type DimensionId = "geral" | "forca" | "mobilidade" | "composicao" | "cardio" | "adesao";
+
+/** % per dimension, adding up to 100. */
+export type Weights = Record<DimensionId, number>;
+
+export type PrimaryGoal = "saude" | "hipertrofia" | "gordura" | "desporto" | "funcional" | "longevidade";
+
+export interface WeightChange {
+  at: number; // ms
+  primaryGoal: PrimaryGoal;
+  weights: Weights;
+  custom: boolean; // changed by hand, not the main goal's own
 }
 
 export interface Exercise extends SyncMeta {
@@ -256,4 +276,56 @@ export interface Assessment extends SyncMeta {
   results: TestResult[];
 }
 
-export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments";
+export type GoalStatus = "active" | "achieved" | "dropped";
+
+/** On a test it is read against the results, otherwise the coach settles it (qualitative). */
+export interface Goal extends SyncMeta {
+  clientId: string;
+  title: string; // empty on a test: the test's name is shown
+  testId?: string | null;
+  target?: number | null; // in the test's unit
+  dueDate?: string | null; // YYYY-MM-DD
+  criteria: string; // what counts as done
+  status: GoalStatus;
+  achievedAt?: string | null; // YYYY-MM-DD
+}
+
+/** One indicator behind a score, as it was that day. */
+export interface SnapshotIndicator {
+  testId: string;
+  name: string;
+  unit: string;
+  side?: Side;
+  version: number;
+  origin: "measured" | "calculated" | "estimated";
+  first: number;
+  current: number;
+  target: number;
+  confirmed: boolean | null; // beyond the measurement error; null = that error is unknown
+  score: number;
+}
+
+export interface SnapshotDimension {
+  id: DimensionId;
+  score: number | null; // null = no data, its weight went to the others
+  weight: number; // as used, after that
+  indicators: SnapshotIndicator[];
+}
+
+/** An index as calculated that day, with all it was made from. Never edited: recalculating adds another. */
+export interface ProgressSnapshot extends SyncMeta {
+  clientId: string;
+  date: string; // YYYY-MM-DD, of the data
+  method: number; // version of the calculation
+  primaryGoal: PrimaryGoal;
+  weights: Weights;
+  ipi: number | null;
+  coverage: number; // % of the weight with data
+  icc: number | null;
+  ia: number | null;
+  io: number | null;
+  dimensions: SnapshotDimension[];
+  interpretation: string;
+}
+
+export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots";

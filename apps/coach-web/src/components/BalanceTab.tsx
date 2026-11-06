@@ -1,12 +1,14 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { changeTone, fmtChange, SIDE_SHORT } from "../lib/assessment";
-import { adherence, customRange, doneIn, goalBalance, markBalance, presetRange, testBalance, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
+import { adherence, customRange, doneIn, goalBalance, markBalance, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
 import { fmtLoad } from "../lib/format";
-import { go, useAssessments, useTests } from "../lib/hooks";
+import { go, useAssessments, useGoals, useTests } from "../lib/hooks";
 import { tally } from "../lib/movement";
+import { targetsOf } from "../lib/progress";
 import { fmtDate, fmtNum, todayISO } from "../lib/text";
-import type { Client, Exercise, Focus, Session, Side } from "../lib/types";
+import type { Client, Exercise, Focus, Goal, GoalStatus, Session, Side } from "../lib/types";
 import { Bars, Section } from "./CountsView";
+import GoalSheet from "./GoalSheet";
 import { TONE_CLASS } from "./ResultCard";
 import Seg from "./Seg";
 
@@ -27,6 +29,8 @@ interface Choice {
 
 /** The period picked per client, so coming back from a test lands on the same view. */
 const chosen = new Map<string, Choice>();
+
+const SIDE_LONG: Record<Side, string> = { left: "Esquerdo", right: "Direito" };
 
 /** The name gives way on a narrow screen; the side never does. */
 function Name({ row, className = "" }: { row: { name: string; side?: Side }; className?: string }) {
@@ -133,10 +137,48 @@ function MarkList({ title, rows, clientId }: { title: string; rows: MarkRow[]; c
   );
 }
 
+const STATUS_ORDER: Record<GoalStatus, number> = { active: 0, achieved: 1, dropped: 2 };
+const STATUS_LABEL: Record<GoalStatus, string> = { active: "Em curso", achieved: "Atingido", dropped: "Abandonado" };
+
+function GoalProgress({ row }: { row: GoalRow }) {
+  const pct = row.progress == null ? 100 : Math.max(0, Math.min(100, row.progress));
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="flex items-baseline gap-2">
+        <span className="flex-1 text-xs text-muted">{row.side ? SIDE_LONG[row.side] : ""}</span>
+        <span className="shrink-0 tabular-nums text-xs">
+          {fmtNum(row.current)} / {fmtNum(row.target)} {row.unit}
+        </span>
+      </span>
+      <span className="h-2 rounded-full bg-card2 overflow-hidden">
+        <span className="block h-full bg-accent" style={{ width: `${pct}%` }} />
+      </span>
+      <span className="text-xs text-muted">{row.progress == null ? "Já estava no objetivo" : row.progress < 0 ? "Mais longe do objetivo do que no início" : `${Math.round(row.progress)}% do caminho desde ${fmtNum(row.start)} ${row.unit}`}</span>
+    </span>
+  );
+}
+
+function GoalItem({ goal, rows, name, today, onOpen }: { goal: Goal; rows: GoalRow[]; name: string | undefined; today: string; onOpen: () => void }) {
+  const late = goal.status === "active" && goal.dueDate != null && goal.dueDate < today;
+  const facts = [goal.status !== "active" && STATUS_LABEL[goal.status], goal.dueDate && `Até ${fmtDate(goal.dueDate)}`].filter(Boolean).join(" · ");
+  return (
+    <li>
+      <button type="button" className={`w-full text-left flex flex-col gap-1 ${goal.status === "dropped" ? "opacity-60" : ""}`} onClick={onOpen}>
+        <span className="text-sm text-accent2">{goal.title || name || rows[0]?.name || "Teste"}</span>
+        {facts && <span className={`text-xs ${late ? "text-warn" : "text-muted"}`}>{late ? `${facts} · prazo ultrapassado` : facts}</span>}
+        {goal.criteria && <span className="text-xs text-muted">{goal.criteria}</span>}
+        {goal.testId && goal.status !== "dropped" && (rows.length ? rows.map((r) => <GoalProgress key={r.side ?? "both"} row={r} />) : <span className="text-xs text-muted">{goal.target == null ? "Sem valor definido" : `Objetivo: ${fmtNum(goal.target)} · ainda sem resultados`}</span>)}
+      </button>
+    </li>
+  );
+}
+
 /** Everything a client gained and lost in a chosen period. */
 export default function BalanceTab({ client, sessions, exercises, focuses }: { client: Client; sessions: Session[]; exercises: Exercise[]; focuses: Focus[] }) {
   const assessments = useAssessments(client.id);
   const tests = useTests();
+  const goals = useGoals(client.id);
+  const [editing, setEditing] = useState<Goal | "new" | null>(null);
   const today = todayISO();
   const [choice, setChoice] = useState<Choice>(() => chosen.get(client.id) ?? { preset: "3m", from: presetRange("3m", today).from as string, to: today });
 
@@ -148,18 +190,19 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
   const range: Range = choice.preset === "custom" ? customRange(choice.from, choice.to, today) : presetRange(choice.preset, today);
 
   const data = useMemo(() => {
-    if (!assessments || !tests) return null;
+    if (!assessments || !tests || !goals) return null;
+    const targets = targetsOf(goals);
     const names = new Map(exercises.map((e) => [e.id, e.name]));
     const done = doneIn(sessions, range);
     return {
-      tests: testBalance(assessments, tests, client.targets, range),
+      tests: testBalance(assessments, tests, targets, range),
       marks: markBalance(sessions, names, range),
       adherence: adherence(sessions, assessments, client.weeklyFrequency, range),
-      goals: goalBalance(assessments, tests, client.targets, range),
+      goals: goalBalance(assessments, tests, targets, range),
       volume: tally(done, new Map(exercises.map((e) => [e.id, e])), focuses),
     };
     // range is rebuilt on every render; its two dates are what matter
-  }, [assessments, tests, sessions, exercises, focuses, client.targets, client.weeklyFrequency, range.from, range.to]);
+  }, [assessments, tests, goals, sessions, exercises, focuses, client.weeklyFrequency, range.from, range.to]);
 
   if (!data) return null;
 
@@ -172,6 +215,7 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
   const markBelow = data.marks.filter((m) => m.status === "below");
   const markSame = data.marks.filter((m) => m.status === "same");
   const a = data.adherence;
+  const ordered = [...(goals ?? [])].sort((x, y) => STATUS_ORDER[x.status] - STATUS_ORDER[y.status] || (x.dueDate ?? "9").localeCompare(y.dueDate ?? "9") || x.id.localeCompare(y.id));
   const empty = !rows.length && !singles.length && !data.marks.length && !a.done && !a.unticked;
 
   return (
@@ -231,29 +275,15 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
           </Section>
 
           <Section title="Objetivos">
-            {data.goals.length === 0 ? (
-              <p className="text-xs text-muted">Sem objetivos com resultados. Define-os na evolução de cada teste.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {data.goals.map((g) => {
-                  const pct = g.progress == null ? 0 : Math.max(0, Math.min(100, g.progress));
-                  return (
-                    <li key={`${g.testId}-${g.side ?? ""}`} className="flex flex-col gap-1">
-                      <span className="flex items-baseline gap-2 text-sm">
-                        <Name row={g} />
-                        <span className="shrink-0 tabular-nums text-xs">
-                          {fmtNum(g.current)} / {fmtNum(g.target)} {g.unit}
-                        </span>
-                      </span>
-                      <span className="h-2 rounded-full bg-card2 overflow-hidden">
-                        <span className="block h-full bg-accent" style={{ width: `${pct}%` }} />
-                      </span>
-                      <span className="text-xs text-muted">{g.progress == null ? "Já estava no objetivo" : g.progress < 0 ? "Mais longe do objetivo do que no início" : `${Math.round(g.progress)}% do caminho desde ${fmtNum(g.start)} ${g.unit}`}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            {!goals?.length && <p className="text-xs text-muted">Sem objetivos definidos.</p>}
+            <ul className="flex flex-col gap-3">
+              {ordered.map((g) => (
+                <GoalItem key={g.id} goal={g} rows={data.goals.filter((r) => r.testId === g.testId)} name={tests?.find((t) => t.id === g.testId)?.name} today={today} onOpen={() => setEditing(g)} />
+              ))}
+            </ul>
+            <button type="button" className="btn self-start" onClick={() => setEditing("new")}>
+              + Objetivo
+            </button>
           </Section>
 
           <Section title={`Volume · ${data.volume.sets} séries em ${data.volume.sessions} sessões`}>
@@ -261,6 +291,8 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
           </Section>
         </>
       )}
+
+      {editing && <GoalSheet clientId={client.id} goal={editing === "new" ? null : editing} goals={goals ?? []} tests={tests ?? []} onClose={() => setEditing(null)} />}
     </div>
   );
 }

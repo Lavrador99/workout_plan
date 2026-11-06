@@ -5,11 +5,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Table } from "dexie";
-import { db, DEFAULTS, onLocalChange } from "./db";
+import { db, DEFAULTS, migrateTargets, onLocalChange } from "./db";
 import type { SyncMeta, TableName } from "./types";
 
 const CFG_KEY = "coach_api_cfg";
-const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments"];
+const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots"];
 const KIND: Record<TableName, string> = {
   clients: "client",
   exercises: "exercise",
@@ -18,6 +18,8 @@ const KIND: Record<TableName, string> = {
   focuses: "focus",
   tests: "test",
   assessments: "assessment",
+  goals: "goal",
+  snapshots: "snapshot",
 };
 const TABLE_OF = Object.fromEntries(TABLES.map((t) => [KIND[t], t])) as Record<string, TableName>;
 const PUSH_CHUNK = 200;
@@ -143,6 +145,7 @@ async function doSync() {
       await db.meta.put({ key: "lastSeq", value: since });
       if (!more) break;
     }
+    await migrateTargets();
     // ── push ──
     for (const table of TABLES) {
       const t = db[table] as unknown as Table<SyncMeta, string>;
