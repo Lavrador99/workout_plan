@@ -12,8 +12,8 @@ O cálculo está em `apps/coach-web/src/lib/ipi.ts`, em funções puras. Alterar
 - **IPI:** média ponderada das dimensões com dados, com os pesos redistribuídos entre elas. Só com adesão não há IPI.
 - **Cobertura:** soma dos pesos com dados. Abaixo de `MIN_COVERAGE` (50%), o estado é "dados insuficientes".
 - **ICC:** média dos percentis nos testes com referência compatível. Nunca entra no IPI.
-- **IA:** sessões feitas / (frequência semanal × semanas), desde o início. É uma estimativa. Uma sessão marcada como "Não contar para a adesão" fica de fora, mas continua no volume.
-- **IO:** média dos objetivos, ponderada pela importância. Qualitativos valem 0 ou 100; os de teste valem a sua pontuação; os abandonados não contam.
+- **IA:** sessões feitas / sessões planeadas, desde o início. As planeadas vêm dos dias da semana na ficha (`Client.schedule`, com o histórico de mudanças). Nos dias sem plano, usa-se a frequência semanal, e a adesão fica marcada como estimada. Ficam de fora os tipos de sessão excluídos na ficha e as sessões marcadas como "Não contar para a adesão", que continuam no volume.
+- **IO:** média dos objetivos, ponderada pela importância. Qualitativos valem 0 ou 100; os de teste valem a sua pontuação; os de métrica própria valem a % do caminho e não entram no IPI; os abandonados não contam.
 
 | Categoria do teste | Dimensão |
 |---|---|

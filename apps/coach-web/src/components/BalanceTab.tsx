@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { changeTone, fmtChange, SIDE_SHORT } from "../lib/assessment";
-import { adherence, customRange, doneIn, goalBalance, markBalance, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
+import { adherence, customRange, doneIn, goalBalance, markBalance, metricRow, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
 import { fmtLoad } from "../lib/format";
 import { go, useAssessments, useGoals, useTests } from "../lib/hooks";
 import { tally } from "../lib/movement";
@@ -161,7 +161,7 @@ function GoalItem({ goal, rows, name, today, onOpen }: { goal: Goal; rows: GoalR
         <span className="text-sm text-accent2">{goal.title || name || rows[0]?.name || "Teste"}</span>
         {facts && <span className={`text-xs ${late ? "text-warn" : "text-muted"}`}>{late ? `${facts} · prazo ultrapassado` : facts}</span>}
         {goal.criteria && <span className="text-xs text-muted">{goal.criteria}</span>}
-        {goal.testId && goal.status !== "dropped" && (rows.length ? rows.map((r) => <GoalProgress key={r.side ?? "both"} row={r} />) : <span className="text-xs text-muted">{goal.target == null ? "Sem valor definido" : `Objetivo: ${fmtNum(goal.target)} · ainda sem resultados`}</span>)}
+        {(goal.testId || rows.length > 0) && goal.status !== "dropped" && (rows.length ? rows.map((r) => <GoalProgress key={r.side ?? "both"} row={r} />) : <span className="text-xs text-muted">{goal.target == null ? "Sem valor definido" : `Objetivo: ${fmtNum(goal.target)} · ainda sem resultados`}</span>)}
       </button>
     </li>
   );
@@ -191,12 +191,12 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
     return {
       tests: testBalance(assessments, tests, targets, range),
       marks: markBalance(sessions, names, range),
-      adherence: adherence(sessions, assessments, client.weeklyFrequency, range),
+      adherence: adherence(sessions, assessments, client, range),
       goals: goalBalance(assessments, tests, targets, range),
       volume: tally(done, new Map(exercises.map((e) => [e.id, e])), focuses),
     };
     // range is rebuilt on every render; its two dates are what matter
-  }, [assessments, tests, goals, sessions, exercises, focuses, client.weeklyFrequency, range.from, range.to]);
+  }, [assessments, tests, goals, sessions, exercises, focuses, client.weeklyFrequency, client.schedule, client.adherenceSkips, range.from, range.to]);
 
   if (!data) return null;
 
@@ -238,8 +238,8 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
-            <Tile label="Ganhos" value={gains.length + markGains.length} detail={`${gains.length} em testes · ${markGains.length} em marcas`} tone="text-success" />
-            <Tile label="Perdas" value={losses.length + markBelow.length} detail={`${losses.length} em testes · ${markBelow.length} em marcas`} tone="text-danger" />
+            <Tile label="Ganhos" value={gains.length} detail={`Em testes · ${markGains.length} ${markGains.length === 1 ? "marca acima" : "marcas acima"}`} tone="text-success" />
+            <Tile label="Perdas" value={losses.length} detail={`Em testes · ${markBelow.length} ${markBelow.length === 1 ? "marca abaixo" : "marcas abaixo"}`} tone="text-danger" />
             <Tile label="Adesão" value={a.pct == null ? "—" : `${Math.round(a.pct)}%`} detail={a.expected == null ? `${a.done} sessões` : `${a.done} de ${a.expected} sessões`} />
           </div>
 
@@ -264,17 +264,17 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
           <Section title="Adesão">
             <p className="text-sm">
               <b>{a.done}</b> {a.done === 1 ? "sessão feita" : "sessões feitas"}
-              {a.expected != null && ` de cerca de ${a.expected} esperadas`}
+              {a.expected != null && ` de ${a.source === "plan" ? "" : "cerca de "}${a.expected} ${a.source === "plan" ? "planeadas" : "esperadas"}`}
             </p>
             {a.unticked > 0 && <p className="text-xs text-warn">{a.unticked === 1 ? "1 sessão sem nada marcado" : `${a.unticked} sessões sem nada marcado`}: não conta como feita.</p>}
-            <p className="text-xs text-muted">{client.weeklyFrequency ? `Estimativa: ${client.weeklyFrequency}×/semana da ficha${a.from && a.from !== range.from ? `, desde ${fmtDate(a.from)}` : ""}. Não há plano de sessões para comparar.` : "Preenche a frequência semanal na ficha para estimar a adesão."}</p>
+            <p className="text-xs text-muted">{a.source === "plan" ? `Pelo plano semanal da ficha${a.from && a.from !== range.from ? `, desde ${fmtDate(a.from)}` : ""}.` : a.source === "estimate" ? `Estimativa com ${client.weeklyFrequency}×/semana da ficha para os dias sem plano${a.from && a.from !== range.from ? `, desde ${fmtDate(a.from)}` : ""}. Define os dias planeados para a tornar real.` : "Define os dias planeados na ficha para calcular a adesão."}</p>
           </Section>
 
           <Section title="Objetivos">
             {!goals?.length && <p className="text-xs text-muted">Sem objetivos definidos.</p>}
             <ul className="flex flex-col gap-3">
               {ordered.map((g) => (
-                <GoalItem key={g.id} goal={g} rows={data.goals.filter((r) => r.testId === g.testId)} name={tests?.find((t) => t.id === g.testId)?.name} today={today} onOpen={() => setEditing(g)} />
+                <GoalItem key={g.id} goal={g} rows={g.testId ? data.goals.filter((r) => r.testId === g.testId) : [metricRow(g)].filter((r): r is GoalRow => r != null)} name={tests?.find((t) => t.id === g.testId)?.name} today={today} onOpen={() => setEditing(g)} />
               ))}
             </ul>
             <button type="button" className="btn self-start" onClick={() => setEditing("new")}>

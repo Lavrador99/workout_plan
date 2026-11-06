@@ -72,7 +72,7 @@ export function MonthBars({ months }: { months: MonthAdherence[] }) {
         </div>
       </div>
       {shown && <p className="text-xs">{fmtMonth(shown)}</p>}
-      {hasGoal && <p className="text-xs text-muted">Linha tracejada: 100% das sessões esperadas. É uma estimativa pela frequência da ficha.</p>}
+      {hasGoal && <p className="text-xs text-muted">Linha tracejada: 100% das sessões esperadas, pelo plano semanal ou, antes dele, pela frequência da ficha.</p>}
     </div>
   );
 }

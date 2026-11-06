@@ -220,6 +220,10 @@ function TestEditor({ test, tests, locked, onClose, onOpen }: { test: TestDef; t
           <input className="input" value={t.semSource ?? ""} placeholder="Fonte do SEM" onChange={(e) => edit({ semSource: e.target.value })} />
         </div>
         <p className="text-xs text-muted">{mdc95(t.sem) != null ? `MDC95: ${fmtNum(mdc95(t.sem))} ${t.unit}. ` : ""}Usa um SEM do mesmo protocolo e de uma população semelhante. Vale só para a versão atual.</p>
+        <label className="flex flex-col gap-1">
+          <span className="label">Referências científicas</span>
+          <textarea className="input py-2 min-h-[70px]" value={t.references ?? ""} placeholder="Autores, ano, DOI" onChange={(e) => edit({ references: e.target.value })} />
+        </label>
       </div>
       </>
       )}

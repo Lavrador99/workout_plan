@@ -11,6 +11,7 @@ import ProgressSheet from "../components/ProgressSheet";
 import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
 import { back, go, replaceRoute, useClient, useExercises, useFocuses, useSessions } from "../lib/hooks";
+import { ACTIVITIES, changeSchedule, currentDays, WEEKDAYS } from "../lib/balance";
 import { FOCUS_KINDS } from "../lib/movement";
 import { goalLabel } from "../lib/progress";
 import { fmtDate, num, todayISO } from "../lib/text";
@@ -273,6 +274,15 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
             <Field label="Treinos / sem.">
               <input className="input" inputMode="numeric" value={c.weeklyFrequency ?? ""} onChange={(e) => edit({ weeklyFrequency: num(e.target.value) })} />
             </Field>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label">Dias planeados</span>
+            <Chips options={WEEKDAYS} value={currentDays(c, todayISO()).map((d) => WEEKDAYS[d])} onChange={(v) => choose(changeSchedule(c, v.map((d) => WEEKDAYS.indexOf(d)), todayISO()))} />
+            <span className="text-xs text-muted">A adesão usa estes dias a partir de hoje. Antes disso, usa os treinos por semana.</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label">Contam para a adesão</span>
+            <Chips options={ACTIVITIES.map(([, l]) => l)} value={ACTIVITIES.filter(([k]) => !c.adherenceSkips?.includes(k)).map(([, l]) => l)} onChange={(v) => choose({ adherenceSkips: ACTIVITIES.filter(([, l]) => !v.includes(l)).map(([k]) => k) })} />
           </div>
           <Field label="Posição">
             <input className="input" value={c.position ?? ""} placeholder="ex: Lateral direito" onChange={(e) => edit({ position: e.target.value })} />

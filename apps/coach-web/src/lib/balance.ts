@@ -4,7 +4,8 @@
 
 import { change, e1rm, goalProgress, series, testMdc, type Change, type SeriesPoint, type VersionSeries } from "./assessment";
 import { norm } from "./text";
-import type { Assessment, Direction, Item, Session, SetRow, Side, TestDef } from "./types";
+import { metricProgress } from "./progress";
+import type { Activity, Assessment, Client, Direction, Goal, Item, ScheduleChange, Session, SetRow, Side, TestDef } from "./types";
 
 // ── Period ──────────────────────────────────────────────────────────────────
 
@@ -218,23 +219,63 @@ export interface Adherence {
   done: number;
   /** Sessions in the period with nothing ticked: maybe missed, maybe never ticked. */
   unticked: number;
-  /** Weekly frequency × weeks: an estimate, there is no plan to read it from. */
+  /** From the planned week; for days before there was one, the weekly frequency. */
   expected: number | null;
   pct: number | null;
+  source: "plan" | "estimate" | null;
   /** The period starts here if the client started after it. */
   from: string | null;
 }
 
-export function adherence(sessions: Session[], assessments: Assessment[], weeklyFrequency: number | null | undefined, r: Range): Adherence {
+export type AdherencePlan = Pick<Client, "weeklyFrequency" | "schedule" | "adherenceSkips">;
+
+export const ACTIVITIES: [Activity, string][] = [
+  ["treino", "Treino"],
+  ["cardio", "Cardio"],
+  ["mobilidade", "Mobilidade"],
+  ["avaliacao", "Avaliação"],
+  ["outro", "Outro"],
+];
+
+export const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+/** The planned days that held on `date`; a client's history keeps every change. */
+const entryOn = (schedule: ScheduleChange[], date: string) => schedule.filter((e) => e.from <= date).pop();
+
+export const currentDays = (c: Pick<Client, "schedule">, date: string): number[] => entryOn(c.schedule ?? [], date)?.days ?? [];
+
+/** The fields to save for a new planned week, kept apart from the one before. */
+export function changeSchedule(c: Pick<Client, "schedule">, days: number[], today: string): Partial<Client> {
+  const list = c.schedule ?? [];
+  const sorted = [...days].sort((a, b) => a - b);
+  if (sorted.join() === currentDays(c, today).join() && list.length) return {};
+  return { schedule: [...list.filter((e) => e.from !== today), { from: today, days: sorted }] };
+}
+
+/** Sessions planned in a span, and whether any of them is only an estimate. */
+export function plannedSessions(p: AdherencePlan, from: string, to: string): { count: number; estimated: boolean } {
+  const schedule = p.schedule ?? [];
+  let planned = 0;
+  let estimatedDays = 0;
+  for (let ms = toMs(from); ms <= toMs(to); ms += DAY) {
+    const entry = entryOn(schedule, toIso(ms));
+    if (!entry) estimatedDays++;
+    else if (entry.days.includes((new Date(ms).getUTCDay() + 6) % 7)) planned++;
+  }
+  const frequency = p.weeklyFrequency ?? 0;
+  return { count: Math.round(planned + (frequency * estimatedDays) / 7), estimated: frequency > 0 && estimatedDays > 0 };
+}
+
+export function adherence(sessions: Session[], assessments: Assessment[], plan: AdherencePlan, r: Range): Adherence {
   const live = sessions.filter((s) => !s.deleted);
-  const inside = live.filter((s) => within(s.date, r) && !s.noAdherence);
+  const counts = (s: Session) => !s.noAdherence && !plan.adherenceSkips?.includes(s.activity ?? "treino");
+  const inside = live.filter((s) => within(s.date, r) && counts(s));
   const done = inside.filter(isDone).length;
   const unticked = inside.filter((s) => !isDone(s) && s.blocks.some((b) => b.items.length > 0)).length;
   const first = [...live.filter(isDone).map((s) => s.date), ...assessments.filter((a) => !a.deleted).map((a) => a.date)].sort()[0] ?? null;
   const from = first == null ? r.from : r.from == null || first > r.from ? first : r.from;
-  const days = from == null || from > r.to ? 0 : Math.round((toMs(r.to) - toMs(from)) / DAY) + 1;
-  const expected = weeklyFrequency ? Math.round((weeklyFrequency * days) / 7) : null;
-  return { done, unticked, expected: expected || null, pct: expected ? (done / expected) * 100 : null, from };
+  const { count, estimated } = from == null || from > r.to ? { count: 0, estimated: false } : plannedSessions(plan, from, r.to);
+  return { done, unticked, expected: count || null, pct: count ? (done / count) * 100 : null, source: !count ? null : estimated ? "estimate" : "plan", from };
 }
 
 export interface MonthAdherence extends Pick<Adherence, "done" | "expected" | "pct"> {
@@ -242,8 +283,8 @@ export interface MonthAdherence extends Pick<Adherence, "done" | "expected" | "p
 }
 
 /** Month by month, each cut to the period and to when the client started. */
-export function monthlyAdherence(sessions: Session[], assessments: Assessment[], weeklyFrequency: number | null | undefined, r: Range): MonthAdherence[] {
-  const start = adherence(sessions, assessments, weeklyFrequency, r).from;
+export function monthlyAdherence(sessions: Session[], assessments: Assessment[], plan: AdherencePlan, r: Range): MonthAdherence[] {
+  const start = adherence(sessions, assessments, plan, r).from;
   if (start == null || start > r.to) return [];
   const months: MonthAdherence[] = [];
   let [y, m] = start.split("-").map(Number);
@@ -251,7 +292,7 @@ export function monthlyAdherence(sessions: Session[], assessments: Assessment[],
     const first = toIso(Date.UTC(y, m - 1, 1));
     const last = toIso(Date.UTC(y, m, 0));
     const part = { from: first < start ? start : first, to: last > r.to ? r.to : last };
-    const { done, expected, pct } = adherence(sessions, assessments, weeklyFrequency, part);
+    const { done, expected, pct } = adherence(sessions, assessments, plan, part);
     months.push({ month: first.slice(0, 7), done, expected, pct });
     [y, m] = m === 12 ? [y + 1, 1] : [y, m + 1];
   }
@@ -270,6 +311,13 @@ export interface GoalRow {
   current: number; // latest one by the end of the period
   date: string;
   progress: number | null; // % of the way there, see goalProgress
+}
+
+/** A metric of its own, in the same shape as a test's goal. */
+export function metricRow(g: Goal): GoalRow | null {
+  const progress = metricProgress(g);
+  if (g.unit == null || g.startValue == null || g.target == null) return null;
+  return { testId: g.id, name: g.title, unit: g.unit, target: g.target, start: g.startValue, current: g.currentValue ?? g.startValue, date: "", progress };
 }
 
 export function goalBalance(assessments: Assessment[], tests: TestDef[], targets: Record<string, number> | undefined, r: Range): GoalRow[] {

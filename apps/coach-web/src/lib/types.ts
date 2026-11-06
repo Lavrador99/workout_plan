@@ -27,6 +27,10 @@ export interface Client extends SyncMeta {
   level?: "recreativo" | "competitivo" | "elite" | null;
   sportYears?: number | null;
   weeklyFrequency?: number | null;
+  /** The planned week over time, oldest first. Each entry holds until the next one. */
+  schedule?: ScheduleChange[];
+  /** Kinds of session left out of adherence. */
+  adherenceSkips?: Activity[];
   goals?: string[]; // saúde, força, performance, reabilitação
   /** Replaced by Goal records: only read to move what older versions left here. */
   targets?: Record<string, number>;
@@ -36,6 +40,14 @@ export interface Client extends SyncMeta {
   /** Every change of weights, oldest first. */
   weightLog?: WeightChange[];
   consentAt?: string | null; // YYYY-MM-DD, when the client consented to their data being kept
+}
+
+/** What a session is. Unset = treino. */
+export type Activity = "treino" | "cardio" | "mobilidade" | "avaliacao" | "outro";
+
+export interface ScheduleChange {
+  from: string; // YYYY-MM-DD
+  days: number[]; // 0 = Monday … 6 = Sunday; empty = a planned break
 }
 
 /** The six dimensions of the Individual Progress Index. */
@@ -154,6 +166,7 @@ export interface Session extends SyncMeta {
   title: string;
   notes: string;
   blocks: Block[];
+  activity?: Activity;
   /** Left out of adherence, e.g. an extra or an assessment day. Volume still counts it. */
   noAdherence?: boolean;
   /** Live session: when the coach started and finished it (ms). */
@@ -237,6 +250,8 @@ export interface TestDef extends SyncMeta {
   /** Standard error of measurement, in the test's unit, for this protocol and a similar population. */
   sem?: number | null;
   semSource?: string; // where it comes from
+  /** Scientific references behind the test, in the coach's words. */
+  references?: string;
   demoUrl?: string;
   /** For the body map (phase 2): not used in any calculation yet. */
   muscles?: string[];
@@ -283,12 +298,16 @@ export type GoalStatus = "active" | "achieved" | "dropped";
 /** How much a goal counts against the others of its dimension, and in the goals met. */
 export type Importance = 1 | 2 | 3;
 
-/** On a test it is read against the results, otherwise the coach settles it (qualitative). */
+/** On a test it is read against the results; a metric of its own, against the values the coach types; otherwise the coach settles it. */
 export interface Goal extends SyncMeta {
   clientId: string;
   title: string; // empty on a test: the test's name is shown
   testId?: string | null;
-  target?: number | null; // in the test's unit
+  target?: number | null; // in the test's or the metric's unit
+  /** Set on a metric with no test: "treinos/mês", "dias sem dor". */
+  unit?: string | null;
+  startValue?: number | null;
+  currentValue?: number | null;
   dueDate?: string | null; // YYYY-MM-DD
   criteria: string; // what counts as done
   importance?: Importance; // unset = 1
@@ -338,7 +357,8 @@ export interface ProgressSnapshot extends SyncMeta {
   coverage: number; // % of the weight with data
   icc: number | null;
   iccTests: number; // how many tests it rests on
-  ia: number | null; // estimated: there is no session plan
+  ia: number | null;
+  iaSource?: "plan" | "estimate" | null; // estimate = some of it comes from the weekly frequency
   io: number | null;
   ioGoals: number; // how many goals it rests on
   status: ProgressStatus;

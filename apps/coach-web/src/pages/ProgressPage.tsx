@@ -5,11 +5,11 @@ import PageHeader, { NotFound } from "../components/PageHeader";
 import { CompareBars, MonthBars } from "../components/ProgressBars";
 import Seg from "../components/Seg";
 import { monthlyAdherence, PERIODS, presetRange, type Preset } from "../lib/balance";
-import { useAssessments, useClient, useGoals, useSessions, useSnapshots } from "../lib/hooks";
+import { useAssessments, useClient, useGoals, useSessions, useSnapshots, useTests } from "../lib/hooks";
 import { comparableHistory, compareRows, highlights } from "../lib/ipi";
 import { DIMENSIONS, IMPORTANCE } from "../lib/progress";
 import { fmtDate, fmtNum, todayISO } from "../lib/text";
-import type { DimensionId, DimensionState, ProgressSnapshot, SnapshotDimension, SnapshotIndicator } from "../lib/types";
+import type { DimensionId, DimensionState, ProgressSnapshot, SnapshotDimension, SnapshotIndicator, TestDef } from "../lib/types";
 
 type Period = Exclude<Preset, "custom">;
 
@@ -22,7 +22,7 @@ function Trend({ points, unit }: { points: Point[]; unit: string }) {
   return new Set(points.map((p) => p.date)).size >= 2 ? <LineChart points={points} unit={unit} /> : <p className="text-xs text-muted">O gráfico aparece com dois valores neste período.</p>;
 }
 
-function Indicator({ i }: { i: SnapshotIndicator }) {
+function Indicator({ i, test }: { i: SnapshotIndicator; test: TestDef | undefined }) {
   const reading = i.confirmed === false ? "Dentro do erro de medição" : i.confirmed == null ? "Por confirmar" : "Confirmado";
   return (
     <li className="py-2 flex flex-col">
@@ -37,11 +37,13 @@ function Indicator({ i }: { i: SnapshotIndicator }) {
         {fmtNum(i.first)} → {fmtNum(i.current)} {i.unit} · objetivo {fmtNum(i.target)} · {i.origin === "estimated" ? "estimado" : "medido"} · {reading}
         {i.importance > 1 && ` · importância ${IMPORTANCE.find(([v]) => v === i.importance)?.[1].toLowerCase()}`}
       </span>
+      {test?.semSource && <span className="text-xs text-muted">Erro de medição: {test.semSource}</span>}
+      {test?.references && <span className="text-xs text-muted">Referências: {test.references}</span>}
     </li>
   );
 }
 
-function DimensionCard({ d, history }: { d: SnapshotDimension; history: ProgressSnapshot[] }) {
+function DimensionCard({ d, history, tests }: { d: SnapshotDimension; history: ProgressSnapshot[]; tests: TestDef[] }) {
   const points = history.flatMap((s): Point[] => {
     const score = s.dimensions.find((x) => x.id === d.id)?.score;
     return score == null ? [] : [{ date: s.date, value: score, detail: "" }];
@@ -62,7 +64,7 @@ function DimensionCard({ d, history }: { d: SnapshotDimension; history: Progress
           <summary className="label cursor-pointer">Indicadores · {d.indicators.length}</summary>
           <ul className="divide-y divide-border">
             {d.indicators.map((i) => (
-              <Indicator key={`${i.testId}-${i.side ?? ""}`} i={i} />
+              <Indicator key={`${i.testId}-${i.side ?? ""}`} i={i} test={tests.find((t) => t.id === i.testId)} />
             ))}
           </ul>
         </details>
@@ -78,6 +80,7 @@ export default function ProgressPage({ clientId }: { clientId: string }) {
   const sessions = useSessions(clientId);
   const assessments = useAssessments(clientId);
   const goals = useGoals(clientId);
+  const tests = useTests();
   const [period, setPeriod] = useState<Period>("all");
   const range = presetRange(period, todayISO());
 
@@ -86,7 +89,7 @@ export default function ProgressPage({ clientId }: { clientId: string }) {
   const shown = useMemo(() => list.filter(inPeriod), [list, range.from, range.to]);
   const scored = useMemo(() => sameMethod.filter(inPeriod), [sameMethod, range.from, range.to]);
   const rows = useMemo(() => compareRows(snapshots ?? []), [snapshots]);
-  const months = useMemo(() => monthlyAdherence(sessions ?? [], assessments ?? [], client?.weeklyFrequency, range), [sessions, assessments, client?.weeklyFrequency, range.from, range.to]);
+  const months = useMemo(() => monthlyAdherence(sessions ?? [], assessments ?? [], client ?? {}, range), [sessions, assessments, client, range.from, range.to]);
 
   if (client === null) return <NotFound title="Cliente" back={[""]} />;
   if (!client || !snapshots || !sessions || !assessments || !goals) return null;
@@ -133,7 +136,7 @@ export default function ProgressPage({ clientId }: { clientId: string }) {
 
         <div className="grid sm:grid-cols-2 gap-3">
           {current.dimensions.map((d) => (
-            <DimensionCard key={d.id} d={d} history={scored} />
+            <DimensionCard key={d.id} d={d} history={scored} tests={tests ?? []} />
           ))}
         </div>
 

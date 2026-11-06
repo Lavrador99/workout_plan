@@ -1,3 +1,4 @@
+import { ACTIVITIES } from "../lib/balance";
 import { useEffect, useRef, useState } from "react";
 import BlockCard, { KIND_DEFAULTS } from "../components/BlockCard";
 import DragHandle from "../components/DragHandle";
@@ -14,7 +15,7 @@ import { SessionCtx } from "../lib/sessionContext";
 import { itemsFromLine, parseSessionText } from "../lib/parser";
 import { useReorder } from "../lib/reorder";
 import { fmtDate, uid } from "../lib/text";
-import type { Block, Item, Section, Session, Template } from "../lib/types";
+import type { Block, Item, Section, Session, Template, Activity } from "../lib/types";
 
 const TITLES = ["Fullbody", "Superiores", "Inferiores", "Hyrox Sim", "Core", "Mobilidade"];
 
@@ -236,6 +237,16 @@ export default function SessionPage({ id }: { id: string }) {
           ))}
         </datalist>
       </div>
+      <label className="flex items-center gap-2">
+        <span className="label">Tipo</span>
+        <select className="input w-auto" value={s.activity ?? "treino"} onChange={(e) => update({ ...s, activity: e.target.value as Activity })}>
+          {ACTIVITIES.map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {s.blocks.some((b) => b.items.length) && <LiveBar session={s} onStart={startLive} />}
 

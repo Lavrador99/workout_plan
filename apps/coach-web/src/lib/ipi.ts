@@ -8,7 +8,7 @@
 import { change, finalValue, goalProgress, series, testMdc, type Change } from "./assessment";
 import { adherence, directionFor, sideLists } from "./balance";
 import { benchmark, clientContext, latestComparable } from "./benchmark";
-import { DIMENSIONS, sameWeights, weightsOf } from "./progress";
+import { DIMENSIONS, metricProgress, sameWeights, weightsOf } from "./progress";
 import type { Assessment, Client, DimensionId, DimensionState, Focus, Goal, ProgressSnapshot, ProgressStatus, Session, SnapshotDimension, SnapshotIndicator, TestCategory, TestDef, Weights } from "./types";
 
 export const METHOD = 1;
@@ -139,6 +139,10 @@ function goalsMet(goals: Goal[], rows: SnapshotIndicator[], date: string): { io:
     const weight = g.importance ?? 1;
     if (g.deleted || g.status === "dropped") return [];
     if (g.status === "achieved" && (g.achievedAt ?? "") <= date) return [{ value: 100, weight }];
+    if (g.unit != null) {
+      const progress = metricProgress(g);
+      return progress == null ? [] : [{ value: clamp(progress), weight }];
+    }
     if (!g.testId) return [{ value: 0, weight }];
     const mine = rows.filter((r) => r.testId === g.testId);
     return mine.length ? [{ value: mean(mine.map((r) => r.score)), weight }] : []; // nothing to read it from yet
@@ -158,7 +162,7 @@ export const STATUS_LABEL: Record<ProgressStatus, string> = {
 };
 
 /** Says only what the calculation found. */
-export function describe(c: Pick<ProgressSnapshot, "status" | "provisional" | "dimensions" | "ia" | "io">): string {
+export function describe(c: Pick<ProgressSnapshot, "status" | "provisional" | "dimensions" | "ia" | "iaSource" | "io">): string {
   const named = (state: DimensionState) => c.dimensions.filter((d) => d.id !== "adesao" && d.state === state).map((d) => DIMENSIONS.find((x) => x.id === d.id)!.label);
   const empty = c.dimensions.filter((d) => d.state == null && d.id !== "adesao").map((d) => DIMENSIONS.find((x) => x.id === d.id)!.label);
   const [up, flat, down] = [named("improving"), named("stable"), named("regressing")];
@@ -168,7 +172,7 @@ export function describe(c: Pick<ProgressSnapshot, "status" | "provisional" | "d
     flat.length ? `Sem mudança relevante em ${list(flat)}.` : "",
     down.length ? `Em regressão: ${list(down)}. Pode precisar de atenção.` : "",
     empty.length ? `Sem dados em ${list(empty)}.` : "",
-    c.ia != null ? `Adesão estimada de ${Math.round(c.ia)}%.` : "",
+    c.ia != null ? `Adesão ${c.iaSource === "plan" ? "ao plano" : "estimada"} de ${Math.round(c.ia)}%.` : "",
     c.io != null ? `Objetivos cumpridos a ${Math.round(c.io)}%.` : "",
     c.provisional ? "Leitura por confirmar: há testes sem erro de medição definido." : "",
   ]
@@ -181,7 +185,7 @@ export type Calculation = Omit<ProgressSnapshot, "id" | "updatedAt" | "deleted" 
 /** The index as of one date, with what it was made from. */
 export function calculate(input: IpiInput, date: string, weights: Weights = weightsOf(input.client)): Calculation {
   const rows = indicators(input, date);
-  const a = adherence(input.sessions, input.assessments, input.client.weeklyFrequency, { from: null, to: date });
+  const a = adherence(input.sessions, input.assessments, input.client, { from: null, to: date });
 
   const raw = DIMENSIONS.map(({ id }) => {
     const mine = rows.filter((r) => r.dimension === id).map(({ dimension: _d, ...r }): SnapshotIndicator => r);
@@ -199,8 +203,9 @@ export function calculate(input: IpiInput, date: string, weights: Weights = weig
   const provisional = dimensions.some((d) => d.provisional);
   const ia = a.pct == null ? null : round(a.pct);
   const { io, ioGoals } = goalsMet(input.goals, rows, date);
-  const core = { status, provisional, dimensions, ia, io };
-  return { clientId: input.client.id, date, method: METHOD, primaryGoal: input.client.primaryGoal ?? "saude", weights, ipi, coverage, ...currentCondition(input, date), ia, io, ioGoals, status, provisional, dimensions, interpretation: describe(core) };
+  const iaSource = a.source;
+  const core = { status, provisional, dimensions, ia, iaSource, io };
+  return { clientId: input.client.id, date, method: METHOD, primaryGoal: input.client.primaryGoal ?? "saude", weights, ipi, coverage, ...currentCondition(input, date), ia, iaSource, io, ioGoals, status, provisional, dimensions, interpretation: describe(core) };
 }
 
 // ── Snapshots ───────────────────────────────────────────────────────────────

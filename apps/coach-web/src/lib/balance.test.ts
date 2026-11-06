@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adherence, monthlyAdherence, customRange, directionFor, doneIn, goalBalance, markBalance, presetRange, testBalance, type Range } from "./balance";
+import { adherence, changeSchedule, currentDays, metricRow, monthlyAdherence, plannedSessions, customRange, directionFor, doneIn, goalBalance, markBalance, presetRange, testBalance, type Range } from "./balance";
 import type { Assessment, Item, Session, SetRow, TestDef, TestResult } from "./types";
 
 const test_ = (over: Partial<TestDef> = {}): TestDef => ({
@@ -185,24 +185,24 @@ describe("adherence", () => {
 
   it("is done over frequency × weeks", () => {
     const r: Range = { from: "2026-01-05", to: "2026-02-01" }; // 4 weeks
-    const a = adherence([done("2026-01-01"), done("2026-01-06"), done("2026-01-13"), open("2026-01-20")], [], 2, r);
+    const a = adherence([done("2026-01-01"), done("2026-01-06"), done("2026-01-13"), open("2026-01-20")], [], { weeklyFrequency: 2 }, r);
     expect(a).toMatchObject({ done: 2, unticked: 1, expected: 8, pct: 25 });
   });
 
   it("starts when the client did", () => {
-    const a = adherence([done("2026-10-05")], [], 2, { from: "2025-11-06", to: "2026-11-01" }); // 4 weeks since
+    const a = adherence([done("2026-10-05")], [], { weeklyFrequency: 2 }, { from: "2025-11-06", to: "2026-11-01" }); // 4 weeks since
     expect(a).toMatchObject({ from: "2026-10-05", expected: 8 });
   });
 
   it("leaves out the sessions the coach set aside, but not from the client's start", () => {
     const r: Range = { from: null, to: "2026-01-28" }; // 4 weeks from 01/01
     const list = [{ ...done("2026-01-01"), noAdherence: true }, done("2026-01-06"), { ...open("2026-01-13"), noAdherence: true }];
-    expect(adherence(list, [], 1, r)).toMatchObject({ done: 1, unticked: 0, expected: 4, from: "2026-01-01" });
+    expect(adherence(list, [], { weeklyFrequency: 1 }, r)).toMatchObject({ done: 1, unticked: 0, expected: 4, from: "2026-01-01" });
     expect(doneIn(list, r)).toHaveLength(2); // volume still counts it
   });
 
   it("has no estimate without a frequency", () => {
-    expect(adherence([done("2026-02-01")], [], null, YEAR)).toMatchObject({ done: 1, expected: null, pct: null });
+    expect(adherence([done("2026-02-01")], [], {}, YEAR)).toMatchObject({ done: 1, expected: null, pct: null });
   });
 
   it("does not count a session that was never done", () => {
@@ -210,21 +210,78 @@ describe("adherence", () => {
   });
 });
 
+describe("session plan", () => {
+  const done = (date: string, over: Partial<Session> = {}) => session(date, [item([set(50, 5)])], over);
+  const week = { schedule: [{ from: "2026-01-05", days: [0, 2] }] }; // Monday and Wednesday
+
+  it("counts the planned weekdays", () => {
+    expect(plannedSessions(week, "2026-01-05", "2026-01-18")).toEqual({ count: 4, estimated: false });
+    expect(plannedSessions(week, "2026-01-05", "2026-01-05")).toEqual({ count: 1, estimated: false });
+  });
+
+  it("follows each change of plan, breaks included", () => {
+    const schedule = [{ from: "2026-01-05", days: [0, 2] }, { from: "2026-01-12", days: [] }, { from: "2026-01-19", days: [4] }];
+    expect(plannedSessions({ schedule }, "2026-01-05", "2026-01-25").count).toBe(3); // 2 + break + 1
+  });
+
+  it("falls back on the weekly frequency before there was a plan, and says so", () => {
+    expect(plannedSessions({ ...week, weeklyFrequency: 7 }, "2026-01-01", "2026-01-11")).toEqual({ count: 6, estimated: true }); // 4 days + Mon, Wed
+    expect(plannedSessions({ ...week }, "2026-01-01", "2026-01-11")).toEqual({ count: 2, estimated: false });
+  });
+
+  it("gives adherence against the plan", () => {
+    const a = adherence([done("2026-01-05"), done("2026-01-07"), done("2026-01-12")], [], week, { from: "2026-01-05", to: "2026-01-18" });
+    expect(a).toMatchObject({ done: 3, expected: 4, pct: 75, source: "plan" });
+  });
+
+  it("leaves out the kinds of session the coach chose", () => {
+    const list = [done("2026-01-05"), done("2026-01-07", { activity: "cardio" }), done("2026-01-12", { activity: "avaliacao" })];
+    expect(adherence(list, [], { ...week, adherenceSkips: ["cardio", "avaliacao"] }, { from: "2026-01-05", to: "2026-01-18" }).done).toBe(1);
+    expect(adherence(list, [], { ...week, adherenceSkips: ["treino"] }, { from: "2026-01-05", to: "2026-01-18" }).done).toBe(2);
+  });
+
+  it("keeps the plan before a change, and one change per day", () => {
+    const c = { schedule: [{ from: "2026-01-05", days: [0] }] };
+    expect(changeSchedule(c, [2, 1], "2026-02-01").schedule).toEqual([{ from: "2026-01-05", days: [0] }, { from: "2026-02-01", days: [1, 2] }]);
+    expect(changeSchedule(c, [3], "2026-01-05").schedule).toEqual([{ from: "2026-01-05", days: [3] }]);
+    expect(changeSchedule(c, [0], "2026-02-01")).toEqual({});
+    expect(changeSchedule({}, [], "2026-02-01").schedule).toEqual([{ from: "2026-02-01", days: [] }]);
+    expect(currentDays(c, "2026-01-01")).toEqual([]);
+  });
+});
+
+describe("metric goals", () => {
+  const g = { id: "g", updatedAt: 1, clientId: "c", title: "Treinos por mês", criteria: "", status: "active" as const };
+
+  it("read in the shape of a test goal", () => {
+    expect(metricRow({ ...g, unit: "treinos", startValue: 4, currentValue: 7, target: 10 })).toMatchObject({ name: "Treinos por mês", unit: "treinos", start: 4, current: 7, target: 10, progress: 50 });
+  });
+
+  it("start at the first value until there is another", () => {
+    expect(metricRow({ ...g, unit: "treinos", startValue: 4, target: 10 })).toMatchObject({ current: 4, progress: 0 });
+  });
+
+  it("stay out without their numbers", () => {
+    expect(metricRow(g)).toBeNull();
+    expect(metricRow({ ...g, unit: "treinos", startValue: 4 })).toBeNull();
+  });
+});
+
 describe("monthly adherence", () => {
   const done = (date: string) => session(date, [item([set(50, 5)])]);
 
   it("goes month by month, cut to the client's start and the period's end", () => {
-    const months = monthlyAdherence([done("2026-01-15"), done("2026-02-03"), done("2026-02-10")], [], 1, { from: "2025-06-01", to: "2026-03-14" });
+    const months = monthlyAdherence([done("2026-01-15"), done("2026-02-03"), done("2026-02-10")], [], { weeklyFrequency: 1 }, { from: "2025-06-01", to: "2026-03-14" });
     expect(months.map((m) => [m.month, m.done, m.expected])).toEqual([["2026-01", 1, 2], ["2026-02", 2, 4], ["2026-03", 0, 2]]);
   });
 
   it("crosses a year and works with no frequency", () => {
-    const months = monthlyAdherence([done("2025-12-20"), done("2026-01-02")], [], null, { from: null, to: "2026-01-31" });
+    const months = monthlyAdherence([done("2025-12-20"), done("2026-01-02")], [], {}, { from: null, to: "2026-01-31" });
     expect(months).toMatchObject([{ month: "2025-12", done: 1, pct: null }, { month: "2026-01", done: 1, pct: null }]);
   });
 
   it("is empty with nothing to go on", () => {
-    expect(monthlyAdherence([], [], 2, { from: null, to: "2026-01-31" })).toEqual([]);
+    expect(monthlyAdherence([], [], { weeklyFrequency: 2 }, { from: null, to: "2026-01-31" })).toEqual([]);
   });
 });
 

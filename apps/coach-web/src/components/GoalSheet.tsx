@@ -10,6 +10,7 @@ import Sheet, { SheetFooter } from "./Sheet";
 const KINDS: [string, string][] = [
   ["qualitative", "Qualitativo"],
   ["test", "Teste"],
+  ["metric", "Métrica"],
 ];
 const STATUSES: [GoalStatus, string][] = [
   ["active", "Em curso"],
@@ -19,10 +20,13 @@ const STATUSES: [GoalStatus, string][] = [
 
 /** Add or edit one goal. A test can only have one, so the ones taken are not offered. */
 export default function GoalSheet({ clientId, goal, goals, tests, onClose }: { clientId: string; goal: Goal | null; goals: Goal[]; tests: TestDef[]; onClose: () => void }) {
-  const [kind, setKind] = useState(goal?.testId ? "test" : "qualitative");
+  const [kind, setKind] = useState(goal?.testId ? "test" : goal?.unit != null ? "metric" : "qualitative");
   const [title, setTitle] = useState(goal?.title ?? "");
   const [testId, setTestId] = useState(goal?.testId ?? "");
   const [target, setTarget] = useState<number | null>(goal?.target ?? null);
+  const [metricUnit, setMetricUnit] = useState(goal?.unit ?? "");
+  const [startValue, setStartValue] = useState<number | null>(goal?.startValue ?? null);
+  const [currentValue, setCurrentValue] = useState<number | null>(goal?.currentValue ?? null);
   const [dueDate, setDueDate] = useState(goal?.dueDate ?? "");
   const [criteria, setCriteria] = useState(goal?.criteria ?? "");
   const [importance, setImportance] = useState<Importance>(goal?.importance ?? 1);
@@ -32,12 +36,13 @@ export default function GoalSheet({ clientId, goal, goals, tests, onClose }: { c
   const taken = new Set(goals.map((g) => g.testId));
   const free = tests.filter((t) => t.id === goal?.testId || !taken.has(t.id));
   const unit = tests.find((t) => t.id === testId)?.unit;
-  const ready = isTest ? !!testId && target != null : !!title.trim();
+  const isMetric = kind === "metric";
+  const ready = isTest ? !!testId && target != null : isMetric ? !!title.trim() && !!metricUnit.trim() && startValue != null && target != null : !!title.trim();
 
   const submit = () => {
     const base = goal ?? newGoal(clientId, isTest ? testId : undefined);
     const achievedAt = status !== "achieved" ? null : (base.achievedAt ?? todayISO());
-    void save("goals", { ...base, title: isTest ? "" : title.trim(), target: isTest ? target : null, dueDate: dueDate || null, criteria: criteria.trim(), importance, status, achievedAt });
+    void save("goals", { ...base, title: isTest ? "" : title.trim(), target: isTest || isMetric ? target : null, unit: isMetric ? metricUnit.trim() : null, startValue: isMetric ? startValue : null, currentValue: isMetric ? currentValue : null, dueDate: dueDate || null, criteria: criteria.trim(), importance, status, achievedAt });
     onClose();
   };
 
@@ -66,8 +71,29 @@ export default function GoalSheet({ clientId, goal, goals, tests, onClose }: { c
       ) : (
         <label className="flex flex-col gap-1">
           <span className="label">Objetivo</span>
-          <input className="input" value={title} placeholder="ex: Correr 30 minutos sem dor" onChange={(e) => setTitle(e.target.value)} />
+          <input className="input" value={title} placeholder={isMetric ? "ex: Treinos por mês" : "ex: Correr 30 minutos sem dor"} onChange={(e) => setTitle(e.target.value)} />
         </label>
+      )}
+
+      {isMetric && (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="label">Unidade</span>
+            <input className="input" value={metricUnit} placeholder="ex: treinos" onChange={(e) => setMetricUnit(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="label">Valor inicial</span>
+            <NumberField value={startValue} label="Valor inicial" onChange={setStartValue} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="label">Valor atual</span>
+            <NumberField value={currentValue} label="Valor atual" onChange={setCurrentValue} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="label">Valor-alvo</span>
+            <NumberField value={target} label="Valor-alvo" onChange={setTarget} />
+          </label>
+        </div>
       )}
 
       <label className="flex flex-col gap-1">

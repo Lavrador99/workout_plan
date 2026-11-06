@@ -2,6 +2,7 @@
 // weights per main goal, and the record of every change to them.
 // The weights are starting points for the coach, not scientific values.
 
+import { goalProgress } from "./assessment";
 import type { Client, DimensionId, Goal, Importance, PrimaryGoal, Weights } from "./types";
 
 export const DIMENSIONS: { id: DimensionId; label: string }[] = [
@@ -56,6 +57,12 @@ export const IMPORTANCE: [Importance, string][] = [
   [2, "Alta"],
   [3, "Muito alta"],
 ];
+
+/** % of the way on a metric of its own; null until it has a start and a target. */
+export function metricProgress(g: Pick<Goal, "startValue" | "currentValue" | "target">): number | null {
+  if (g.startValue == null || g.target == null) return null;
+  return goalProgress(g.startValue, g.currentValue ?? g.startValue, g.target);
+}
 
 /** One goal per test and client, so every device arrives at the same record. */
 export const testGoalId = (clientId: string, testId: string) => `goal-${clientId}-${testId}`;

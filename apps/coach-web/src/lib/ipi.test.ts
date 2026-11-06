@@ -124,6 +124,19 @@ group("calculate", () => {
     expect(calculate(input({ goals }), "2026-06-01").io).toBe(75);
   });
 
+  it("counts a metric of its own in the goals met, never in the index", () => {
+    const metric = goal(null, 10, { title: "m", unit: "treinos", startValue: 0, currentValue: 5 });
+    expect(calculate(input({ goals: [metric] }), "2026-06-01")).toMatchObject({ io: 50, ioGoals: 1, ipi: null });
+    expect(calculate(input({ goals: [{ ...metric, target: null }] }), "2026-06-01")).toMatchObject({ io: null, ioGoals: 0 });
+  });
+
+  it("says when adherence comes from the plan", () => {
+    const planned = input({ client: client({ schedule: [{ from: "2026-01-01", days: [0, 1, 2, 3, 4, 5, 6] }] }), sessions: [session("2026-05-30"), session("2026-05-31")] });
+    expect(calculate(planned, "2026-06-01")).toMatchObject({ iaSource: "plan" });
+    expect(calculate(planned, "2026-06-01").interpretation).toContain("Adesão ao plano de");
+    expect(calculate(input({ client: client({ weeklyFrequency: 2 }), sessions: [session("2026-05-30")] }), "2026-06-01").interpretation).toContain("Adesão estimada de");
+  });
+
   it("keeps out dropped goals and results after the date", () => {
     expect(calculate(input({ goals: [goal("f", 200, { status: "dropped" })] }), "2026-06-01").ipi).toBeNull();
     expect(calculate(input(), "2026-03-01").ipi).toBeNull();
@@ -155,7 +168,7 @@ group("calculate", () => {
 
 group("describe", () => {
   it("names only what was found", () => {
-    const text = describe({ status: "moderate", provisional: true, ia: 80.4, io: null, dimensions: [{ id: "forca", state: "improving", score: 50, weight: 50, provisional: true, indicators: [] }, { id: "cardio", state: "regressing", score: 0, weight: 50, provisional: false, indicators: [] }, { id: "mobilidade", state: null, score: null, weight: 0, provisional: false, indicators: [] }, { id: "adesao", state: null, score: 80, weight: 0, provisional: false, indicators: [] }] });
+    const text = describe({ status: "moderate", provisional: true, ia: 80.4, iaSource: "estimate", io: null, dimensions: [{ id: "forca", state: "improving", score: 50, weight: 50, provisional: true, indicators: [] }, { id: "cardio", state: "regressing", score: 0, weight: 50, provisional: false, indicators: [] }, { id: "mobilidade", state: null, score: null, weight: 0, provisional: false, indicators: [] }, { id: "adesao", state: null, score: 80, weight: 0, provisional: false, indicators: [] }] });
     expect(text).toBe("Evolução moderada. Melhoria em força e capacidade muscular. Em regressão: resistência cardiovascular. Pode precisar de atenção. Sem dados em mobilidade, estabilidade e controlo motor. Adesão estimada de 80%. Leitura por confirmar: há testes sem erro de medição definido.");
   });
 });

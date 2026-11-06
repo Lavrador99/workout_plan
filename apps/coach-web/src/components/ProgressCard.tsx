@@ -99,7 +99,7 @@ export default function ProgressCard({ client }: { client: Client }) {
 
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Condição" value={s.icc == null ? "—" : `P${Math.round(s.icc)}`} detail={s.iccTests ? `${s.iccTests} ${s.iccTests === 1 ? "teste" : "testes"}` : "Sem referências"} />
-        <Stat label="Adesão" value={s.ia == null ? "—" : `${Math.round(s.ia)}%`} detail="Estimada" />
+        <Stat label="Adesão" value={s.ia == null ? "—" : `${Math.round(s.ia)}%`} detail={s.iaSource === "plan" ? "Pelo plano" : "Estimada"} />
         <Stat label="Objetivos" value={s.io == null ? "—" : `${Math.round(s.io)}%`} detail={`${s.ioGoals} ${s.ioGoals === 1 ? "objetivo" : "objetivos"}`} />
       </div>
 
