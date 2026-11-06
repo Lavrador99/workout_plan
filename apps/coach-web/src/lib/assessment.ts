@@ -57,10 +57,15 @@ export function repeatResults(results: TestResult[], tests: TestDef[]): TestResu
 /** Beyond this the estimate is too loose to be worth showing. */
 export const MAX_E1RM_REPS = 10;
 
-/** Epley. An estimate, never equivalent to a measured 1RM. */
-export function e1rm(load: number, reps: number): number | null {
-  if (!Number.isInteger(reps) || reps < 1 || reps > MAX_E1RM_REPS || load <= 0) return null;
+/** Epley at any number of reps: looser the more there are, so training marks only, as indicative. */
+export function estimatedRm(load: number, reps: number): number | null {
+  if (!Number.isInteger(reps) || reps < 1 || load <= 0) return null;
   return reps === 1 ? load : load * (1 + reps / 30);
+}
+
+/** Epley for a test. An estimate, never equivalent to a measured 1RM. */
+export function e1rm(load: number, reps: number): number | null {
+  return reps > MAX_E1RM_REPS ? null : estimatedRm(load, reps);
 }
 
 const measured = (r: TestResult, t: Trial): number | null => (r.strength === "estimated" ? (t.value == null ? null : e1rm(t.value, t.reps ?? 0)) : t.value);

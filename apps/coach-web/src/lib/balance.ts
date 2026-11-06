@@ -2,7 +2,7 @@
 // Pure functions over what is already stored, nothing here is saved.
 // A training mark has no measurement error, so it only ever reads as indicative.
 
-import { change, e1rm, goalProgress, series, testMdc, type Change, type SeriesPoint, type VersionSeries } from "./assessment";
+import { change, estimatedRm, goalProgress, series, testMdc, type Change, type SeriesPoint, type VersionSeries } from "./assessment";
 import { norm } from "./text";
 import { metricProgress } from "./progress";
 import type { Activity, Assessment, Client, Direction, Goal, Item, ScheduleChange, Session, SetRow, Side, TestDef } from "./types";
@@ -163,7 +163,7 @@ export interface MarkRow {
 /** Only real reps at a load Epley can read: no warm-ups, added load, steps or special methods. */
 function setEstimate(it: Item, set: SetRow): number | null {
   if (!set.done || set.type === "warmup" || it.repsUnit !== "r" || it.method) return null;
-  return set.load == null ? null : e1rm(set.load, set.reps ?? 0);
+  return set.load == null ? null : estimatedRm(set.load, set.reps ?? 0);
 }
 
 const stronger = (cur: MarkPoint | undefined, next: MarkPoint) => (!cur || next.e1rm > cur.e1rm ? next : cur);

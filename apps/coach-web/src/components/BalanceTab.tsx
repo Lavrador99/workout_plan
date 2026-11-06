@@ -105,6 +105,8 @@ function SingleList({ rows, clientId }: { rows: SingleRow[]; clientId: string })
   );
 }
 
+const fmtRm = (p: MarkPoint) => fmtLoad({ ...p.item, loadMax: null }, Math.round(p.e1rm * 10) / 10);
+
 const fmtMark = (p: MarkPoint) => `${p.reps} × ${fmtLoad({ ...p.item, loadMax: null }, p.load)}`;
 
 function MarkList({ title, rows, clientId }: { title: string; rows: MarkRow[]; clientId: string }) {
@@ -122,7 +124,7 @@ function MarkList({ title, rows, clientId }: { title: string; rows: MarkRow[]; c
               <span className="text-sm font-semibold shrink-0">{m.status === "same" ? "=" : `${m.pct > 0 ? "+" : ""}${fmtNum(Math.round(m.pct * 10) / 10)}%`}</span>
             </span>
             <span className="text-xs text-muted">
-              {fmtMark(m.base)} ({fmtDate(m.base.date)}) → {fmtMark(m.best)} ({fmtDate(m.best.date)})
+              {fmtMark(m.base)} ({fmtDate(m.base.date)}) → {fmtMark(m.best)} ({fmtDate(m.best.date)}) · RM {fmtRm(m.base)} → {fmtRm(m.best)}
             </span>
           </RowButton>
         ))}
@@ -258,7 +260,7 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
             <MarkList title="Acima da melhor anterior" rows={markGains} clientId={client.id} />
             <MarkList title="Abaixo da melhor anterior" rows={markBelow} clientId={client.id} />
             <MarkList title="Iguais" rows={markSame} clientId={client.id} />
-            <p className="text-xs text-muted">Indicativo: compara o e1RM da melhor série. Uma fase mais leve ou um deload também ficam abaixo. Só conta exercícios com carga, até 10 repetições.</p>
+            <p className="text-xs text-muted">Indicativo: compara o RM estimado da melhor série (Epley). Com muitas repetições é menos preciso, e uma fase mais leve ou um deload também ficam abaixo. Precisa de carga, repetições registadas e pelo menos 2 sessões.</p>
           </Section>
 
           <Section title="Adesão">

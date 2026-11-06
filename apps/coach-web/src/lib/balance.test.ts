@@ -160,6 +160,24 @@ describe("marks", () => {
     expect(markBalance([session("2025-02-01", [item([set(90, 5)])])], names, YEAR)).toEqual([]);
   });
 
+  it("estimates from high reps too", () => {
+    const list = [session("2025-11-01", [item([set(30, 12)])]), session("2026-02-01", [item([set(50, 13)])])];
+    const [row] = markBalance(list, names, YEAR);
+    expect(row).toMatchObject({ status: "gain", base: { reps: 12 }, best: { reps: 13 } });
+    expect(row.base.e1rm).toBeCloseTo(42);
+    expect(row.best.e1rm).toBeCloseTo(71.67, 1);
+  });
+
+  it("weighs reps against load across different sets", () => {
+    const list = [session("2025-11-01", [item([set(50, 13)])]), session("2026-02-01", [item([set(47.5, 8)])])];
+    expect(markBalance(list, names, YEAR)[0].status).toBe("below"); // 71,7 against 60,2
+  });
+
+  it("needs the reps written down", () => {
+    const list = [session("2025-11-01", [item([{ load: 15, done: true }])]), session("2026-02-01", [item([{ load: 40, done: true }])])];
+    expect(markBalance(list, names, YEAR)).toEqual([]);
+  });
+
   it("skips what Epley cannot read", () => {
     const skipped = [
       item([set(200, 5, { done: false })]),
@@ -167,7 +185,6 @@ describe("marks", () => {
       item([set(200, 5)], { loadMode: "added" }),
       item([set(200, 5)], { repsUnit: "m" }),
       item([set(200, 5)], { method: { type: "cluster", clusters: 4, reps: 2, pause: 20 } }),
-      item([set(200, 15)]),
     ];
     const list = [session("2025-11-01", [item([set(100, 5)])]), session("2026-02-01", [...skipped, item([set(100, 5)])])];
     expect(markBalance(list, names, YEAR)[0].status).toBe("same");
