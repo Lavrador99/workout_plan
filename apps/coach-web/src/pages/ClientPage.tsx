@@ -3,6 +3,7 @@ import { exportClient, purgeClient, remove, save } from "../lib/db";
 import { downloadText } from "../lib/exportExercises";
 import { fmtLoad } from "../lib/format";
 import AssessmentsTab from "../components/AssessmentsTab";
+import BalanceTab from "../components/BalanceTab";
 import Chips, { ChipPick } from "../components/Chips";
 import CountsView from "../components/CountsView";
 import PageHeader, { NotFound } from "../components/PageHeader";
@@ -42,6 +43,7 @@ function bestMarks(sessions: Session[], names: Map<string, string>): Best[] {
 const TABS = [
   ["sessions", "Sessões"],
   ["records", "Marcas"],
+  ["balance", "Balanço"],
   ["counts", "Contagens"],
   ["assessments", "Avaliações"],
   ["info", "Ficha"],
@@ -205,6 +207,8 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
             )}
           </div>
         )}
+
+        {tab === "balance" && <BalanceTab client={c} sessions={sessions ?? []} exercises={exercises ?? []} focuses={mine} />}
 
         {tab === "counts" && <CountsView sessions={list} exercises={exercises ?? []} focuses={mine} />}
 

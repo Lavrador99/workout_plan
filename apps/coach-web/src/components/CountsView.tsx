@@ -81,7 +81,7 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="card p-3 flex flex-col gap-2">
       <span className="label">{title}</span>
@@ -90,7 +90,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Bars({ entries, total, wanted = [], empty }: { entries: [string, number][]; total: number; wanted?: string[]; empty?: string }) {
+export function Bars({ entries, total, wanted = [], empty }: { entries: [string, number][]; total: number; wanted?: string[]; empty?: string }) {
   if (!entries.length) return <p className="text-xs text-muted">{empty ?? "Nada neste período."}</p>;
   return (
     <>
