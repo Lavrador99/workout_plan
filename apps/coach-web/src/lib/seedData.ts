@@ -316,5 +316,5 @@ export const SEED_GROUPS: SeedGroup[] = [
     tags: ["kettlebell"],
     items: ["Kettlebell Clean | Clean com kettlebell | KB clean", "Kettlebell Snatch | Snatch com kettlebell | KB snatch", "Kettlebell Press | Press com kettlebell | KB press"],
   },
-  { tags: ["cardio"], items: ["Bike | Bicicleta | Assault bike, Air bike", "Rower | Remo | Remo ergómetro", "Incline Walk | Caminhada inclinada | Passadeira inclinada"] },
+  { tags: ["cardio"], items: ["Bike | Bicicleta | Assault bike, Air bike", "Rower | Remo | Remo ergómetro", "Incline Walk | Caminhada inclinada | Passadeira inclinada", "Corrida | Corrida | Run, Running, Jogging, Corrida contínua | corrida"] },
 ];

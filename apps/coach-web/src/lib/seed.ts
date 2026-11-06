@@ -12,7 +12,7 @@ import type { Block, Exercise, Focus, Template, TestDef } from "./types";
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 8; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors, 8: the whole of "Teste"
+const SEED_VERSION = 9; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors, 8: the whole of "Teste", 9: the run
 
 export interface SeedExercise {
   id: string;
@@ -161,7 +161,10 @@ async function seedDemoClient(library: Exercise[]): Promise<number> {
   const cur = await db.clients.get(DEMO_CLIENT_ID);
   if (cur?.deleted) return 0;
   const { client, assessments, sessions, goals } = demoData(seedTests(), library);
-  for (const s of sessions) if (!(await db.sessions.get(s.id))) await db.sessions.put({ ...s, dirty: 1 });
+  for (const s of sessions) {
+    const old = await db.sessions.get(s.id);
+    if (!old || old.updatedAt === 1) await db.sessions.put({ ...s, dirty: 1 });
+  }
   for (const a of assessments) {
     const old = await db.assessments.get(a.id);
     if (!old || old.updatedAt === 1) await db.assessments.put({ ...a, dirty: 1 });

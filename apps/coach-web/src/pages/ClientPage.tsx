@@ -14,6 +14,7 @@ import { back, go, replaceRoute, useClient, useExercises, useFocuses, useSession
 import { ACTIVITIES, changeSchedule, currentDays, WEEKDAYS } from "../lib/balance";
 import { FOCUS_KINDS } from "../lib/movement";
 import { goalLabel } from "../lib/progress";
+import { fmtPace, parsePace } from "../lib/run";
 import { fmtDate, num, todayISO } from "../lib/text";
 import type { Client, Item, Session, Side } from "../lib/types";
 import { openNewSession } from "./SessionPage";
@@ -337,6 +338,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
               <input className="input" inputMode="numeric" value={c.hrRest ?? ""} onChange={(e) => edit({ hrRest: num(e.target.value) })} />
             </Field>
           </div>
+          <PaceField value={c.thresholdPace ?? null} onChange={(thresholdPace) => edit({ thresholdPace })} />
         </FichaSheet>
       )}
 
@@ -417,6 +419,28 @@ function FichaSheet({ title, onClose, onBlur, children }: { title: string; onClo
         </button>
       </SheetFooter>
     </Sheet>
+  );
+}
+
+/** Keeps what is typed ("4:") until it is a whole pace. */
+function PaceField({ value, onChange }: { value: number | null; onChange: (seconds: number | null) => void }) {
+  const [text, setText] = useState(value == null ? "" : fmtPace(value));
+  const bad = !!text.trim() && parsePace(text) == null;
+  return (
+    <Field label="Ritmo de limiar (min/km)">
+      <input
+        className="input"
+        inputMode="numeric"
+        value={text}
+        placeholder="ex: 4:30"
+        aria-invalid={bad}
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(parsePace(e.target.value));
+        }}
+      />
+      <span className={`text-xs ${bad ? "text-warn" : "text-muted"}`}>{bad ? "Escreve minutos:segundos, como 4:30." : "Base das zonas de ritmo da corrida."}</span>
+    </Field>
   );
 }
 

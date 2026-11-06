@@ -1,3 +1,4 @@
+import { fmtSegment, fmtZone, zoneName, zoneRange } from "../lib/run";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { fmtCircuitHeader, fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
 import { history, loadStep } from "../lib/history";
@@ -5,7 +6,7 @@ import { useBackClose } from "../lib/hooks";
 import { addSet, buildSteps, editSet, isDone, nextOpen, restAfter, sameStep, setDone, setItem, type Step } from "../lib/live";
 import { SessionCtx } from "../lib/sessionContext";
 import { fmtNum, fmtSec, num } from "../lib/text";
-import type { Item, Session, SetRow } from "../lib/types";
+import type { Item, Session, SetRow, RunZone } from "../lib/types";
 import CircuitTimer, { beep } from "./CircuitTimer";
 import { EasierHarder } from "./Progressions";
 
@@ -209,7 +210,7 @@ function setLabel(item: Item, si: number): string {
   if (s.type === "warmup") return "Aquecimento";
   const n = work.indexOf(s) + 1;
   const kind = s.type && s.type !== "work" ? ` · ${SET_TYPE[s.type].label}` : "";
-  return `Série ${n} de ${work.length}${kind}`;
+  return `${item.run ? "Segmento" : "Série"} ${n} de ${work.length}${kind}`;
 }
 
 function SetCard({
@@ -245,6 +246,7 @@ function SetCard({
         <h1 className="text-3xl font-black leading-tight">{item.name || "—"}</h1>
         {!set && fmtRx(item) && <span className="text-accent2">{fmtRx(item)}</span>}
         {details && <span className="text-sm text-muted">{details}</span>}
+        {set?.zone && <ZoneGoal zone={set.zone} />}
         {set && <LastTime item={item} si={(step as Extract<Step, { kind: "set" }>).si} session={session} />}
       </div>
 
@@ -252,28 +254,32 @@ function SetCard({
 
       {set && (
         <>
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${item.run ? "grid-cols-1" : "grid-cols-2"}`}>
             <BigStepper
               label={timed ? "Segundos" : item.repsUnit === "passos" ? "Passos" : item.repsUnit === "m" ? "Metros" : "Reps"}
               value={timed ? set.duration : set.reps}
-              step={timed ? 5 : 1}
+              step={item.run ? (timed ? 30 : 100) : timed ? 5 : 1}
               onChange={(v) => onEdit(timed ? "duration" : "reps", v)}
             />
-            <BigStepper
-              label={item.loadMode === "dual" ? "Kg (cada)" : item.loadMode === "added" ? "Kg (+)" : "Kg"}
-              value={set.load}
-              step={loadStep(item)}
-              onChange={(v) => onEdit("load", v)}
-            />
+            {!item.run && (
+              <BigStepper
+                label={item.loadMode === "dual" ? "Kg (cada)" : item.loadMode === "added" ? "Kg (+)" : "Kg"}
+                value={set.load}
+                step={loadStep(item)}
+                onChange={(v) => onEdit("load", v)}
+              />
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="label w-10">{rpe ? "RPE" : "RIR"}</span>
-            {(rpe ? [6, 7, 8, 9, 10] : [0, 1, 2, 3, 4]).map((v) => (
-              <button key={v} type="button" className={`flex-1 h-10 rounded-lg border text-sm font-semibold ${set.rir === v ? "bg-accent/20 border-accent text-accent" : "border-border bg-card2 text-muted"}`} onClick={() => onEdit("rir", set.rir === v ? null : v)}>
-                {v}
-              </button>
-            ))}
-          </div>
+          {!item.run && (
+            <div className="flex items-center gap-1.5">
+              <span className="label w-10">{rpe ? "RPE" : "RIR"}</span>
+              {(rpe ? [6, 7, 8, 9, 10] : [0, 1, 2, 3, 4]).map((v) => (
+                <button key={v} type="button" className={`flex-1 h-10 rounded-lg border text-sm font-semibold ${set.rir === v ? "bg-accent/20 border-accent text-accent" : "border-border bg-card2 text-muted"}`} onClick={() => onEdit("rir", set.rir === v ? null : v)}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -284,7 +290,7 @@ function SetCard({
         </button>
         {set && (
           <button type="button" className="btn" onClick={onAddSet}>
-            + Série
+            {item.run ? "+ Segmento" : "+ Série"}
           </button>
         )}
       </div>
@@ -301,7 +307,7 @@ function LastTime({ item, si, session }: { item: Item; si: number; session: Sess
   );
   if (!prev) return null;
   const p = prev.item.sets[si] ?? prev.item.sets[prev.item.sets.length - 1];
-  const vol = p.duration != null ? fmtSec(p.duration) : p.reps != null ? `${p.reps}` : "";
+  const vol = prev.item.run ? fmtSegment(p) : p.duration != null ? fmtSec(p.duration) : p.reps != null ? `${p.reps}` : "";
   const load = fmtLoad({ ...prev.item, loadMax: null }, p.load);
   return (
     <span className="text-sm text-muted">
@@ -346,8 +352,15 @@ function stepText(s: Session, st: Step): string {
   const it = b.items[st.ii];
   if (st.kind === "item") return it.name;
   const x = it.sets[st.si];
-  const vol = x.duration != null ? fmtSec(x.duration) : x.reps != null ? `${x.reps}` : "";
+  const vol = it.run ? fmtSegment(x) : x.duration != null ? fmtSec(x.duration) : x.reps != null ? `${x.reps}` : "";
   return `${it.name} · ${[vol, fmtLoad({ ...it, loadMax: null }, x.load)].filter(Boolean).join(" × ")}`;
+}
+
+/** What this segment of a run should feel like, in this client's numbers when known. */
+function ZoneGoal({ zone }: { zone: RunZone }) {
+  const client = useContext(SessionCtx)?.client;
+  const range = zoneRange(zone, client);
+  return <span className="text-accent2 font-semibold">{[fmtZone(zone), zoneName(zone), range].filter(Boolean).join(" · ")}</span>;
 }
 
 function NextUp({ session, step }: { session: Session; step: Step }) {

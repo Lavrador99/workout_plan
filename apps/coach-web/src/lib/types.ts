@@ -15,6 +15,8 @@ export interface Client extends SyncMeta {
   birthYear?: number | null;
   hrMax?: number | null;
   hrRest?: number | null;
+  /** Running pace at the threshold, seconds per km: the base of the pace zones. */
+  thresholdPace?: number | null;
   injuries: string; // "Glúteo médio esquerdo"
   notes: string; // free text, e.g. records copied from the old notes
   /** Sports, pathologies and asymmetries (Focus ids) this client works on. */
@@ -106,6 +108,14 @@ export interface SetRow {
   rir?: number | null; // or RPE, as the item's `effort` says
   rest?: number | null; // seconds after this set
   done?: boolean;
+  /** Runs: the goal of this segment. */
+  zone?: RunZone | null;
+}
+
+/** A goal for a stretch of a run: a heart rate or a pace zone. */
+export interface RunZone {
+  kind: "hr" | "pace";
+  zone: 1 | 2 | 3 | 4 | 5;
 }
 
 /** How each set is done, beyond plain reps (drops are separate "drop" sets). */
@@ -135,6 +145,8 @@ export interface Item {
   note: string;
   grip?: string; // hand position: "pronada", "neutra"…
   stance?: string; // feet: "largura da anca", "afastados"…
+  /** A run: each set is a segment, metres in `reps` or seconds in `duration` (run.ts). */
+  run?: boolean;
   sets: SetRow[];
 }
 

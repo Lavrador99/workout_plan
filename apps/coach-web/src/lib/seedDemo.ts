@@ -2,7 +2,7 @@ import { newResult } from "./assessment";
 import { matchExercise } from "./db";
 import { parseItemLine } from "./parser";
 import { PRIMARY_GOALS, testGoal } from "./progress";
-import type { Activity, Assessment, Block, Client, Exercise, Goal, Item, Session, TestDef, TestResult, Trial, Weights } from "./types";
+import type { Activity, Assessment, Block, Client, Exercise, Goal, Item, RunZone, Session, SetRow, TestDef, TestResult, Trial, Weights } from "./types";
 
 // A made-up client called "Teste", to see the assessments with real-looking
 // history: 14 months of a footballer who sprains the left ankle in March 2026,
@@ -161,6 +161,18 @@ function sessionOf(library: Exercise[], id: string, date: string, title: string,
   return { id, updatedAt: 1, clientId: DEMO_CLIENT_ID, date, title, notes: "", blocks: [{ id: `${id}-b`, kind: "sets", section: "principal", title: "", items }], activity, ...over };
 }
 
+interface Segment {
+  km?: number;
+  min?: number;
+  kind?: RunZone["kind"];
+  zone?: RunZone["zone"];
+}
+
+function runItem(library: Exercise[], id: string, segments: Segment[]): Item {
+  const sets = segments.map((s): SetRow => ({ reps: s.km ? s.km * 1000 : null, duration: s.min ? s.min * 60 : null, load: null, done: true, zone: s.kind && s.zone ? { kind: s.kind, zone: s.zone } : null }));
+  return { ...parseItemLine("Corrida"), id: `${id}-i0`, exerciseId: matchExercise(library, "Corrida")?.id, run: true, repsUnit: "m", sets };
+}
+
 const MOBILITY = ["1/2 Kneeling Ankle Mobilization 3x10", "Couch Stretch 2x10", "90/90 Hip Switch 2x10"];
 
 /** Everything beyond the two strength days: what does and does not count for adherence. */
@@ -171,8 +183,19 @@ function otherSessions(library: Exercise[]): Session[] {
     const done = day !== "2026-10-07" && day !== "2026-10-21";
     out.push(sessionOf(library, `seed-demo-m-${day}`, day, "Mobilidade", "mobilidade", MOBILITY, done, done ? {} : { notes: "Faltou: marcada e não feita." }));
   }
-  // a run every other Saturday, off the plan
-  for (let day = "2026-06-06"; day <= LAST_DAY; day = addDays(day, 14)) out.push(sessionOf(library, `seed-demo-c-${day}`, day, "Corrida", "cardio", ["Corrida contínua 1x30"], true));
+  // a run every other Saturday, off the plan, by distance or time, on a heart rate or pace goal
+  const shapes: Segment[][] = [
+    [{ km: 1.5, kind: "hr", zone: 1 }, { km: 5, kind: "hr", zone: 2 }, { km: 1, kind: "hr", zone: 1 }],
+    [{ km: 2, kind: "hr", zone: 2 }, ...Array.from({ length: 4 }, (_, i) => [{ min: 3, kind: "pace", zone: 5 } as const, { min: 2, kind: "hr", zone: 1 } as const]).flat(), { km: 1 }],
+    [{ km: 2, kind: "hr", zone: 2 }, { min: 20, kind: "pace", zone: 4 }, { km: 1.5, kind: "hr", zone: 1 }],
+  ];
+  let turn = 0;
+  for (let day = "2026-06-06"; day <= LAST_DAY; day = addDays(day, 14)) {
+    const id = `seed-demo-c-${day}`;
+    const session = sessionOf(library, id, day, "Corrida", "cardio", [], true);
+    session.blocks[0].items = [runItem(library, id, shapes[turn++ % shapes.length])];
+    out.push(session);
+  }
   // assessment days
   for (const day of ["2026-09-07", "2026-11-02"]) out.push(sessionOf(library, `seed-demo-av-${day}`, day, "Avaliação", "avaliacao", ["Spiderman Lunge with Rotation 2x6"], true));
   // an extra the coach set aside
@@ -230,6 +253,7 @@ export function demoData(tests: TestDef[], library: Exercise[]): { client: Clien
     position: "Lateral",
     level: "competitivo",
     sportYears: 12,
+    thresholdPace: 270,
     weeklyFrequency: 3,
     schedule: [
       { from: VISITS[0][0], days: [0, 3] },

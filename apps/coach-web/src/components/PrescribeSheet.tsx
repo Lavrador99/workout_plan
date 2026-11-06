@@ -5,8 +5,10 @@ import { history } from "../lib/history";
 import { useBackClose, useExerciseIndex, useExercises, useUsage } from "../lib/hooks";
 import { emptyItem, parseItemLine } from "../lib/parser";
 import { SessionCtx } from "../lib/sessionContext";
+import { newSegment, RUN_TAG } from "../lib/run";
 import type { Block, Exercise, Item } from "../lib/types";
 import { LastTime } from "./ItemRow";
+import RunFields from "./RunFields";
 import RxFields from "./RxFields";
 
 // Prescribing in three steps, repeated: 1) pick or create the exercise,
@@ -88,7 +90,10 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
     const prev = ctx ? history(ctx.sessions, base, { before: ctx.date, excludeId: ctx.sessionId })[0] : undefined;
     const model = prev?.item ?? [...block.items].reverse().find((i) => i.role === "main" && i.sets.length);
     let d: Item;
-    if (model) {
+    if (ex?.tags.includes(RUN_TAG)) {
+      const last = prev?.item.run ? prev.item.sets.map((s) => ({ ...s, done: false })) : [newSegment()];
+      d = { ...base, run: true, repsUnit: "m", sets: last };
+    } else if (model) {
       d = {
         ...base,
         repsUnit: model.repsUnit,
@@ -219,7 +224,7 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
             </div>
 
             <LastTime item={draft} onApply={setDraft} />
-            <RxFields item={draft} onChange={setDraft} />
+            {draft.run ? <RunFields item={draft} onChange={setDraft} /> : <RxFields item={draft} onChange={setDraft} />}
 
             <label className="flex flex-col gap-1">
               <span className="label">Nota (opcional)</span>

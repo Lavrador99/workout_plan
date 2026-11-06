@@ -165,7 +165,7 @@ export default function SessionPage({ id }: { id: string }) {
     back("client", s.clientId);
   };
 
-  const ctx = { clientId: s.clientId, sessionId: s.id, date: s.date, sessions: clientSessions ?? [] };
+  const ctx = { clientId: s.clientId, sessionId: s.id, date: s.date, sessions: clientSessions ?? [], client };
 
   /** Apply "progress" to every exercise that was fully done last time. */
   const progressAll = () => {

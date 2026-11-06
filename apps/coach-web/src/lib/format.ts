@@ -1,5 +1,6 @@
 // Structured session → the coach's own text format (for WhatsApp, print, notes).
 
+import { fmtDistanceOrTime, fmtZone } from "./run";
 import type { Block, Item, ItemMethod, SetRow, SetType, Session } from "./types";
 import { fmtDate, fmtNum, fmtSec } from "./text";
 
@@ -38,6 +39,7 @@ export function fmtLoad(item: Item, load: number | null | undefined): string {
 }
 
 function fmtVolume(item: Item, s: SetRow): string {
+  if (item.run) return fmtDistanceOrTime(s);
   if (s.duration != null) {
     const max = item.durationMax != null ? `-${item.durationMax}` : "";
     return s.duration >= 60 && !max ? fmtSec(s.duration) : `${s.duration}${max}s`;
@@ -51,7 +53,7 @@ function fmtVolume(item: Item, s: SetRow): string {
 }
 
 const same = (a: SetRow, b: SetRow) =>
-  a.reps === b.reps && a.duration === b.duration && a.load === b.load && (a.rir ?? null) === (b.rir ?? null) && (a.type ?? "work") === (b.type ?? "work");
+  a.reps === b.reps && a.duration === b.duration && a.load === b.load && (a.rir ?? null) === (b.rir ?? null) && (a.type ?? "work") === (b.type ?? "work") && a.zone?.kind === b.zone?.kind && a.zone?.zone === b.zone?.zone;
 
 /** Prescription only, e.g. "3x8 2x8kg (E +1)". */
 export function fmtRx(item: Item): string {
@@ -62,8 +64,10 @@ export function fmtRx(item: Item): string {
     if (uniform) {
       const vol = fmtVolume(item, sets[0]);
       const timed = sets[0].duration != null;
-      if (vol) parts.push(sets.length > 1 ? `${sets.length}x${timed ? " " : ""}${vol}` : timed ? vol : `x${vol}`);
+      if (item.run) parts.push(`${sets.length > 1 ? `${sets.length}x` : ""}${vol}`);
+      else if (vol) parts.push(sets.length > 1 ? `${sets.length}x${timed ? " " : ""}${vol}` : timed ? vol : `x${vol}`);
       else if (sets.length > 1) parts.push(`${sets.length} séries`);
+      if (sets[0].zone) parts.push(fmtZone(sets[0].zone));
       const load = fmtLoad(item, sets[0].load);
       if (load) parts.push(load);
       const effort = fmtEffort(item, sets[0].rir);
@@ -75,7 +79,7 @@ export function fmtRx(item: Item): string {
             const vol = fmtVolume(item, s) || (s.type === "drop" || s.type === "failure" ? "falha" : "");
             const load = fmtLoad(item, s.load);
             const mark = s.type && s.type !== "work" ? `${SET_TYPE[s.type].short}:` : "";
-            return mark + [vol && load ? `${vol}x${load}` : vol || load, fmtEffort(item, s.rir)].filter(Boolean).join(" ");
+            return mark + [vol && load ? `${vol}x${load}` : vol || load, s.zone && fmtZone(s.zone), fmtEffort(item, s.rir)].filter(Boolean).join(" ");
           })
           .join(" / "),
       );

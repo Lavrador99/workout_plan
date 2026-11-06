@@ -53,6 +53,7 @@ export interface Suggestion {
  * Otherwise → repeat what was done.
  */
 export function suggest(prev: Occurrence | undefined): Suggestion | null {
+  if (prev?.item.run) return null; // a run progresses by its segments, the coach's call
   if (!prev || !prev.item.sets.length) return null;
   const p = prev.item;
   const allDone = p.sets.every((s) => s.done);

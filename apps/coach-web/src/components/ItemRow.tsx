@@ -7,11 +7,13 @@ import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
 import { addBackoff, addDrop, addWarmups, cycleType, pyramid } from "../lib/rx";
 import { fmtDate, fmtNum, fmtSec, num } from "../lib/text";
+import { fmtSegment } from "../lib/run";
 import type { Item, SetRow } from "../lib/types";
 import { ChipPick } from "./Chips";
 import ExerciseInput from "./ExerciseInput";
 import MethodFields from "./MethodFields";
 import { LevelPicker } from "./Progressions";
+import RunFields from "./RunFields";
 import RxFields from "./RxFields";
 import Stepper from "./Stepper";
 
@@ -26,6 +28,7 @@ interface Props {
 }
 
 function chipText(item: Item, s: SetRow): string {
+  if (item.run) return fmtSegment(s) || "✓";
   const vol = s.duration != null ? fmtSec(s.duration) : s.reps != null ? String(s.reps) : s.type === "drop" || s.type === "failure" ? "falha" : "";
   const load = fmtLoad({ ...item, loadMax: null }, s.load);
   const effort = s.rir != null ? `${item.effort === "rpe" ? "@" : "RIR "}${fmtNum(s.rir)}` : "";
@@ -85,9 +88,9 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
           <LastTime item={item} onApply={onChange} />
           <LevelPicker item={item} onChange={onChange} />
 
-          <RxFields item={item} onChange={onChange} />
+          {item.run ? <RunFields item={item} onChange={onChange} /> : <RxFields item={item} onChange={onChange} />}
 
-          {item.sets.length > 0 && (
+          {item.sets.length > 0 && !item.run && (
             <>
               <table className="w-full text-sm">
                 <thead>

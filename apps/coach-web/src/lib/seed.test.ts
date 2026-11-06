@@ -202,6 +202,18 @@ describe("Teste shows everything the app reads", () => {
     expect(last.ipi as number).toBeGreaterThan(before.ipi as number);
   });
 
+  it("has runs by distance and time, on heart rate and pace goals", () => {
+    const runs = sessions.filter((s) => s.activity === "cardio").flatMap((s) => s.blocks[0].items);
+    expect(runs.length).toBeGreaterThan(3);
+    expect(runs.every((i) => i.run && i.exerciseId)).toBe(true);
+    const sets = runs.flatMap((i) => i.sets);
+    expect(sets.some((s) => s.reps)).toBe(true);
+    expect(sets.some((s) => s.duration)).toBe(true);
+    expect(new Set(sets.map((s) => s.zone?.kind))).toEqual(new Set(["hr", "pace", undefined]));
+    expect(client.thresholdPace).toBe(270);
+    expect(library.find((e) => e.id === runs[0].exerciseId)?.tags).toContain("corrida");
+  });
+
   it("keeps what the coach changed when it fills in the rest", () => {
     const cur = { id: "c", updatedAt: 5, name: "Mudado", injuries: "", notes: "x" } as Client;
     expect(fillMissing(cur, { ...cur, name: "Teste", injuries: "Entorse", notes: "y", primaryGoal: "desporto" })).toEqual({ ...cur, injuries: "Entorse", primaryGoal: "desporto" });
