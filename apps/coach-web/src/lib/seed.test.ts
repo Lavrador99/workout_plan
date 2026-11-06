@@ -1,10 +1,12 @@
+import { adherence } from "./balance";
+import { calculate } from "./ipi";
 import { describe, expect, it } from "vitest";
 import { asymmetry, finalValue, series } from "./assessment";
 import { MUSCLES, PATTERNS } from "./movement";
 import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
 import { seedDays, seedExercises, seedProfiles, seedTests } from "./seed";
-import { demoData } from "./seedDemo";
-import type { Exercise } from "./types";
+import { demoData, fillMissing } from "./seedDemo";
+import type { Exercise, Focus, Client } from "./types";
 import { norm } from "./text";
 
 describe("seed library", () => {
@@ -93,7 +95,7 @@ describe("seed tests", () => {
 describe("made-up client Teste", () => {
   const tests = seedTests();
   const library = seedExercises().map((e) => ({ ...e, updatedAt: 1 }) as Exercise);
-  const { client, assessments, sessions } = demoData(tests, library);
+  const { client, assessments, sessions, goals } = demoData(tests, library);
   const span = (dates: string[]) => (Date.parse(dates[dates.length - 1]) - Date.parse(dates[0])) / 86_400_000;
 
   it("is called Teste and says it is made up", () => {
@@ -108,7 +110,7 @@ describe("made-up client Teste", () => {
   });
 
   it("gives every device the same records", () => {
-    expect(demoData(tests, library)).toEqual({ client, assessments, sessions });
+    expect(demoData(tests, library)).toEqual({ client, assessments, sessions, goals });
     expect(new Set(sessions.map((s) => s.id)).size).toBe(sessions.length);
     expect(new Set(assessments.flatMap((a) => a.results.map((r) => r.id))).size).toBe(assessments.flatMap((a) => a.results).length);
   });
@@ -127,11 +129,11 @@ describe("made-up client Teste", () => {
   });
 
   it("every session is linked to the library, with its sets done, and none during the injury", () => {
-    for (const s of sessions) for (const it of s.blocks[0].items) {
+    for (const s of sessions.filter((x) => x.activity !== "cardio")) for (const it of s.blocks[0].items) {
       expect(it.exerciseId, `${s.date}: ${it.name}`).toBeTruthy();
       expect(it.sets.length).toBeGreaterThan(0);
-      expect(it.sets.every((x) => x.done)).toBe(true);
     }
+    expect(sessions.filter((x) => x.activity === "treino").every((s) => s.blocks[0].items.every((it) => it.sets.every((x) => x.done)))).toBe(true);
     expect(sessions.some((s) => s.date >= "2026-03-16" && s.date < "2026-04-13")).toBe(false);
   });
 
@@ -142,8 +144,67 @@ describe("made-up client Teste", () => {
   });
 
   it("targets and profile point at things that exist", () => {
-    for (const id of Object.keys(client.targets!)) expect(tests.some((t) => t.id === id), id).toBe(true);
+    for (const g of goals.filter((x) => x.testId)) expect(tests.some((t) => t.id === g.testId), g.testId as string).toBe(true);
     expect(seedProfiles(library).some((f) => f.id === client.focusIds![0])).toBe(true);
+  });
+});
+
+describe("Teste shows everything the app reads", () => {
+  const tests = seedTests();
+  const library = seedExercises().map((e) => ({ ...e, updatedAt: 1 }) as Exercise);
+  const { client, assessments, sessions, goals } = demoData(tests, library);
+  const input = { client, assessments, sessions, goals, tests, focuses: seedProfiles(library).map((f) => ({ ...f, updatedAt: 1 }) as Focus) };
+
+  it("has every base test", () => {
+    const done = new Set(assessments.flatMap((a) => a.results.map((r) => r.testId)));
+    expect(tests.filter((t) => !done.has(t.id)).map((t) => t.id)).toEqual([]);
+    for (const a of assessments) for (const r of a.results) expect(r.sided ? finalValue(r, "left") != null && finalValue(r, "right") != null : finalValue(r) != null, r.testId).toBe(true);
+  });
+
+  it("gives ordinal tests whole scores inside their scale", () => {
+    for (const r of assessments.flatMap((a) => a.results).filter((x) => x.scale)) for (const t of r.trials) {
+      expect(Number.isInteger(t.value), r.testId).toBe(true);
+      expect(t.value as number, r.testId).toBeGreaterThanOrEqual(r.scale!.min);
+      expect(t.value as number, r.testId).toBeLessThanOrEqual(r.scale!.max);
+    }
+  });
+
+  it("has each kind of goal and state", () => {
+    expect(goals.some((g) => g.testId)).toBe(true);
+    expect(goals.some((g) => g.unit)).toBe(true);
+    expect(goals.some((g) => !g.testId && !g.unit)).toBe(true);
+    expect(new Set(goals.map((g) => g.status))).toEqual(new Set(["active", "achieved", "dropped"]));
+    expect(new Set(goals.map((g) => g.importance))).toEqual(new Set([1, 2, 3]));
+    expect(goals.some((g) => g.status === "active" && g.dueDate && g.dueDate < "2026-11-06")).toBe(true);
+    expect(new Set(goals.map((g) => g.id)).size).toBe(goals.length);
+  });
+
+  it("has sessions that count and sessions that do not", () => {
+    expect(new Set(sessions.map((s) => s.activity))).toEqual(new Set(["treino", "mobilidade", "cardio", "avaliacao", "outro"]));
+    expect(sessions.some((s) => s.noAdherence)).toBe(true);
+    const a = adherence(sessions, assessments, client, { from: "2026-09-07", to: "2026-11-05" });
+    expect(a).toMatchObject({ source: "plan", unticked: 2 });
+    expect(a.done).toBeLessThan(a.expected as number); // the two missed ones
+    expect(a.pct).toBeGreaterThan(85);
+    expect(adherence(sessions, assessments, client, { from: "2026-03-20", to: "2026-04-10" }).expected).toBeNull(); // the injury is a planned break
+    expect(new Set(sessions.map((s) => s.id)).size).toBe(sessions.length);
+  });
+
+  it("gives an index with all dimensions, the injury included", () => {
+    const last = calculate(input, "2026-11-02");
+    expect(last.coverage).toBe(100);
+    expect(last.dimensions.every((d) => d.score != null)).toBe(true);
+    expect(last.iaSource).toBe("plan");
+    expect(last.iccTests).toBeGreaterThan(0);
+    expect(last.provisional).toBe(true); // some tests have no known error
+    const [before, injured] = [calculate(input, "2026-02-16"), calculate(input, "2026-04-20")];
+    expect(injured.ipi as number).toBeLessThan(before.ipi as number);
+    expect(last.ipi as number).toBeGreaterThan(before.ipi as number);
+  });
+
+  it("keeps what the coach changed when it fills in the rest", () => {
+    const cur = { id: "c", updatedAt: 5, name: "Mudado", injuries: "", notes: "x" } as Client;
+    expect(fillMissing(cur, { ...cur, name: "Teste", injuries: "Entorse", notes: "y", primaryGoal: "desporto" })).toEqual({ ...cur, injuries: "Entorse", primaryGoal: "desporto" });
   });
 });
 

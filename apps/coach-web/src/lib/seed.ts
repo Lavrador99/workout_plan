@@ -1,8 +1,8 @@
-import { changed, db, matchExercise, save } from "./db";
+import { changed, db, matchExercise, remove, save } from "./db";
 import { parseItemLine } from "./parser";
 import { SEED_GROUPS } from "./seedData";
 import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
-import { DEMO_CLIENT_ID, demoData } from "./seedDemo";
+import { DEMO_CLIENT_ID, demoData, fillMissing } from "./seedDemo";
 import { SEED_DAYS } from "./seedTemplates";
 import { SEED_TESTS } from "./seedTests";
 import { norm } from "./text";
@@ -12,7 +12,7 @@ import type { Block, Exercise, Focus, Template, TestDef } from "./types";
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 7; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors
+const SEED_VERSION = 8; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors, 8: the whole of "Teste"
 
 export interface SeedExercise {
   id: string;
@@ -154,17 +154,26 @@ async function seedTestLibrary(): Promise<number> {
 
 /**
  * The made-up client with a long history. Once erased it stays erased: its
- * tombstone is still here. Records nobody edited (updatedAt 1) get newer data.
+ * tombstone is still here. Records nobody edited (updatedAt 1) get newer data,
+ * and the rest only what they lack, so what the coach changed stays.
  */
 async function seedDemoClient(library: Exercise[]): Promise<number> {
   const cur = await db.clients.get(DEMO_CLIENT_ID);
   if (cur?.deleted) return 0;
-  const { client, assessments, sessions } = demoData(seedTests(), library);
-  if (!cur) await db.sessions.bulkPut(sessions.map((s) => ({ ...s, dirty: 1 as const })));
+  const { client, assessments, sessions, goals } = demoData(seedTests(), library);
+  for (const s of sessions) if (!(await db.sessions.get(s.id))) await db.sessions.put({ ...s, dirty: 1 });
   for (const a of assessments) {
     const old = await db.assessments.get(a.id);
     if (!old || old.updatedAt === 1) await db.assessments.put({ ...a, dirty: 1 });
   }
+  for (const g of goals) {
+    const old = await db.goals.get(g.id);
+    if (!old) await db.goals.put({ ...g, dirty: 1 });
+    else if (!old.deleted && JSON.stringify(fillMissing(old, g)) !== JSON.stringify(old)) await save("goals", fillMissing(old, g));
+  }
   if (!cur || cur.updatedAt === 1) await db.clients.put({ ...client, dirty: 1 });
+  else if (JSON.stringify(fillMissing(cur, client)) !== JSON.stringify(cur)) await save("clients", fillMissing(cur, client));
+  // made from less data: the Balanço works them out again
+  if (cur) for (const id of await db.snapshots.where("clientId").equals(DEMO_CLIENT_ID).primaryKeys()) await remove("snapshots", id);
   return cur ? 0 : 1;
 }
