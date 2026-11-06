@@ -7,7 +7,7 @@ import Seg from "../components/Seg";
 import { monthlyAdherence, PERIODS, presetRange, type Preset } from "../lib/balance";
 import { useAssessments, useClient, useGoals, useSessions, useSnapshots } from "../lib/hooks";
 import { comparableHistory, compareRows, highlights } from "../lib/ipi";
-import { DIMENSIONS } from "../lib/progress";
+import { DIMENSIONS, IMPORTANCE } from "../lib/progress";
 import { fmtDate, fmtNum, todayISO } from "../lib/text";
 import type { DimensionId, DimensionState, ProgressSnapshot, SnapshotDimension, SnapshotIndicator } from "../lib/types";
 
@@ -35,6 +35,7 @@ function Indicator({ i }: { i: SnapshotIndicator }) {
       </span>
       <span className="text-xs text-muted">
         {fmtNum(i.first)} → {fmtNum(i.current)} {i.unit} · objetivo {fmtNum(i.target)} · {i.origin === "estimated" ? "estimado" : "medido"} · {reading}
+        {i.importance > 1 && ` · importância ${IMPORTANCE.find(([v]) => v === i.importance)?.[1].toLowerCase()}`}
       </span>
     </li>
   );
@@ -113,7 +114,7 @@ export default function ProgressPage({ clientId }: { clientId: string }) {
       {header}
       <div className="page">
         <Seg options={PERIODS} value={period} onChange={(p) => setPeriod(p as Period)} />
-        {left > 0 && <p className="text-xs text-warn">{left === 1 ? "1 índice ficou" : `${left} índices ficaram`} de fora: {left === 1 ? "foi calculado" : "foram calculados"} com outros pesos ou outro método. Afeta a linha do IPI; recalcula o histórico para os incluir.</p>}
+        {left > 0 && <p className="text-xs text-warn">{left === 1 ? "1 índice ficou" : `${left} índices ficaram`} de fora: {left === 1 ? "foi calculado" : "foram calculados"} com outros pesos, método ou erro de medição. Recalcula o histórico para os incluir.</p>}
 
         <Section title="IPI">
           <Trend points={line(shown, (s) => s.ipi)} unit="pts" />

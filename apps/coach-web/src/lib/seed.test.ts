@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { asymmetry, finalValue, series } from "./assessment";
 import { MUSCLES, PATTERNS } from "./movement";
+import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
 import { seedDays, seedExercises, seedProfiles, seedTests } from "./seed";
 import { demoData } from "./seedDemo";
 import type { Exercise } from "./types";
@@ -143,5 +144,33 @@ describe("made-up client Teste", () => {
   it("targets and profile point at things that exist", () => {
     for (const id of Object.keys(client.targets!)) expect(tests.some((t) => t.id === id), id).toBe(true);
     expect(seedProfiles(library).some((f) => f.id === client.focusIds![0])).toBe(true);
+  });
+});
+
+describe("measurement errors", () => {
+  const seeded = seedTests();
+
+  it("belong to tests that exist and always say where they come from", () => {
+    for (const [id, e] of Object.entries(MEASUREMENT_ERRORS)) {
+      expect(seeded.find((t) => t.id === id)?.sem, id).toBe(e.sem);
+      expect(e.sem, id).toBeGreaterThan(0);
+      expect(e.semSource.length, id).toBeGreaterThan(20);
+    }
+  });
+
+  it("stay out of tests with no checked source", () => {
+    expect(seeded.filter((t) => t.sem != null)).toHaveLength(Object.keys(MEASUREMENT_ERRORS).length);
+    expect(seeded.find((t) => t.id === "seed-test-1rm-agachamento")?.sem).toBeUndefined();
+  });
+
+  it("reach a test already here, without touching the coach's own or a changed protocol", () => {
+    const t = seeded.find((x) => x.id === "seed-test-handgrip")!;
+    const { sem: _s, semSource: _o, ...cur } = t;
+    expect(withMeasurementError(cur, t)).toMatchObject({ sem: 1.8 });
+    expect(withMeasurementError({ ...cur, sem: 2.5 }, t)).toBeNull();
+    expect(withMeasurementError({ ...cur, version: 2 }, t)).toBeNull();
+    expect(withMeasurementError({ ...cur, deleted: true }, t)).toBeNull();
+    const none = seeded.find((x) => x.id === "seed-test-cooper")!;
+    expect(withMeasurementError(none, none)).toBeNull();
   });
 });

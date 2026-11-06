@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { newGoal, remove, save } from "../lib/db";
+import { IMPORTANCE } from "../lib/progress";
 import { todayISO } from "../lib/text";
-import type { Goal, GoalStatus, TestDef } from "../lib/types";
+import type { Goal, GoalStatus, Importance, TestDef } from "../lib/types";
 import { NumberField } from "./ResultCard";
 import Seg from "./Seg";
 import Sheet, { SheetFooter } from "./Sheet";
@@ -24,6 +25,7 @@ export default function GoalSheet({ clientId, goal, goals, tests, onClose }: { c
   const [target, setTarget] = useState<number | null>(goal?.target ?? null);
   const [dueDate, setDueDate] = useState(goal?.dueDate ?? "");
   const [criteria, setCriteria] = useState(goal?.criteria ?? "");
+  const [importance, setImportance] = useState<Importance>(goal?.importance ?? 1);
   const [status, setStatus] = useState<GoalStatus>(goal?.status ?? "active");
 
   const isTest = kind === "test";
@@ -35,7 +37,7 @@ export default function GoalSheet({ clientId, goal, goals, tests, onClose }: { c
   const submit = () => {
     const base = goal ?? newGoal(clientId, isTest ? testId : undefined);
     const achievedAt = status !== "achieved" ? null : (base.achievedAt ?? todayISO());
-    void save("goals", { ...base, title: isTest ? "" : title.trim(), target: isTest ? target : null, dueDate: dueDate || null, criteria: criteria.trim(), status, achievedAt });
+    void save("goals", { ...base, title: isTest ? "" : title.trim(), target: isTest ? target : null, dueDate: dueDate || null, criteria: criteria.trim(), importance, status, achievedAt });
     onClose();
   };
 
@@ -76,6 +78,11 @@ export default function GoalSheet({ clientId, goal, goals, tests, onClose }: { c
         <span className="label">Critério de conclusão</span>
         <textarea className="input min-h-20" value={criteria} onChange={(e) => setCriteria(e.target.value)} />
       </label>
+
+      <div className="flex flex-col gap-1">
+        <span className="label">Importância</span>
+        <Seg options={IMPORTANCE.map(([v, label]) => [String(v), label])} value={String(importance)} onChange={(v) => setImportance(Number(v) as Importance)} />
+      </div>
 
       {goal && (
         <div className="flex flex-col gap-1">

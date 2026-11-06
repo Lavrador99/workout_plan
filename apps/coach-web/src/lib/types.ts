@@ -154,6 +154,8 @@ export interface Session extends SyncMeta {
   title: string;
   notes: string;
   blocks: Block[];
+  /** Left out of adherence, e.g. an extra or an assessment day. Volume still counts it. */
+  noAdherence?: boolean;
   /** Live session: when the coach started and finished it (ms). */
   startedAt?: number | null;
   endedAt?: number | null;
@@ -278,6 +280,9 @@ export interface Assessment extends SyncMeta {
 
 export type GoalStatus = "active" | "achieved" | "dropped";
 
+/** How much a goal counts against the others of its dimension, and in the goals met. */
+export type Importance = 1 | 2 | 3;
+
 /** On a test it is read against the results, otherwise the coach settles it (qualitative). */
 export interface Goal extends SyncMeta {
   clientId: string;
@@ -286,6 +291,7 @@ export interface Goal extends SyncMeta {
   target?: number | null; // in the test's unit
   dueDate?: string | null; // YYYY-MM-DD
   criteria: string; // what counts as done
+  importance?: Importance; // unset = 1
   status: GoalStatus;
   achievedAt?: string | null; // YYYY-MM-DD
 }
@@ -297,11 +303,13 @@ export interface SnapshotIndicator {
   unit: string;
   side?: Side;
   version: number;
+  importance: Importance;
   origin: "measured" | "calculated" | "estimated";
   first: number;
   current: number;
   target: number;
   improved: boolean | null;
+  mdc?: number | null; // the error used: scores made with another one do not compare
   confirmed: boolean | null; // beyond the measurement error; null = that error is unknown
   score: number;
 }

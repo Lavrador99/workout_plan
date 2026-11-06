@@ -203,7 +203,7 @@ export default function SessionPage({ id }: { id: string }) {
     <SessionCtx.Provider value={ctx}>
     <PageHeader
       title={s.title || "Sessão"}
-      subtitle={[client?.name, fmtDate(s.date), total > 0 && `${done}/${total} séries`].filter(Boolean).join(" · ")}
+      subtitle={[client?.name, fmtDate(s.date), total > 0 && `${done}/${total} séries`, s.noAdherence && "fora da adesão"].filter(Boolean).join(" · ")}
       back={["client", s.clientId]}
       actions={
         <>
@@ -218,6 +218,7 @@ export default function SessionPage({ id }: { id: string }) {
               { label: copied ? "✓ Copiado" : "Copiar texto", onClick: copy, keepOpen: true },
               "share" in navigator && { label: "Partilhar", onClick: share },
               { label: "Duplicar para hoje", onClick: duplicate },
+              { label: s.noAdherence ? "Contar para a adesão" : "Não contar para a adesão", onClick: () => update({ ...s, noAdherence: !s.noAdherence }) },
               s.blocks.length > 0 && { label: "☆ Guardar como template de dia", onClick: saveDay },
               { label: "Apagar sessão", onClick: del, danger: true },
             ]}

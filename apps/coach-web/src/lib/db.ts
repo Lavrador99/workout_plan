@@ -169,7 +169,7 @@ export function templateBlocks(t: Template): Block[] {
 
 /** Copy of a session for today: new ids, nothing ticked. */
 export function duplicateSession(s: Session): Session {
-  return { ...newSession(s.clientId), title: s.title, blocks: s.blocks.map(copyBlock) };
+  return { ...newSession(s.clientId), title: s.title, blocks: s.blocks.map(copyBlock), ...(s.noAdherence ? { noAdherence: true } : {}) };
 }
 
 // ── Tests and assessments ───────────────────────────────────────────────────

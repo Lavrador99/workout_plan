@@ -227,7 +227,7 @@ export interface Adherence {
 
 export function adherence(sessions: Session[], assessments: Assessment[], weeklyFrequency: number | null | undefined, r: Range): Adherence {
   const live = sessions.filter((s) => !s.deleted);
-  const inside = live.filter((s) => within(s.date, r));
+  const inside = live.filter((s) => within(s.date, r) && !s.noAdherence);
   const done = inside.filter(isDone).length;
   const unticked = inside.filter((s) => !isDone(s) && s.blocks.some((b) => b.items.length > 0)).length;
   const first = [...live.filter(isDone).map((s) => s.date), ...assessments.filter((a) => !a.deleted).map((a) => a.date)].sort()[0] ?? null;

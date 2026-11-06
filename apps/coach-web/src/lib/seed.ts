@@ -1,6 +1,7 @@
 import { changed, db, matchExercise, save } from "./db";
 import { parseItemLine } from "./parser";
 import { SEED_GROUPS } from "./seedData";
+import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
 import { DEMO_CLIENT_ID, demoData } from "./seedDemo";
 import { SEED_DAYS } from "./seedTemplates";
 import { SEED_TESTS } from "./seedTests";
@@ -11,7 +12,7 @@ import type { Block, Exercise, Focus, Template, TestDef } from "./types";
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 6; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests
+const SEED_VERSION = 7; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors
 
 export interface SeedExercise {
   id: string;
@@ -131,7 +132,7 @@ async function seedFocuses(library: Exercise[]): Promise<number> {
 
 /** The base assessment tests, ready to store. */
 export function seedTests(): TestDef[] {
-  return SEED_TESTS.map((t) => ({ direction: "higher", sided: false, scale: null, trials: 3, aggregate: "best", groups: [], ...t, version: 1, updatedAt: 1 }));
+  return SEED_TESTS.map((t) => ({ direction: "higher", sided: false, scale: null, trials: 3, aggregate: "best", groups: [], ...t, ...MEASUREMENT_ERRORS[t.id], version: 1, updatedAt: 1 }));
 }
 
 async function seedTestLibrary(): Promise<number> {
@@ -139,8 +140,10 @@ async function seedTestLibrary(): Promise<number> {
   for (const t of seedTests()) {
     const cur = await db.tests.get(t.id);
     if (cur) {
-      // already here (or deleted on purpose): only give the sprints their distance
+      // already here (or deleted on purpose): only give the sprints their distance and fill in a missing error
       if (t.distanceM && cur.distanceM == null && !cur.deleted) await save("tests", { ...cur, distanceM: t.distanceM });
+      const measured = withMeasurementError((await db.tests.get(t.id)) as TestDef, t);
+      if (measured) await save("tests", measured);
       continue;
     }
     await db.tests.put({ ...t, dirty: 1 });

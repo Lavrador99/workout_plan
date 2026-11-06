@@ -18,7 +18,7 @@ Módulo para comparar cada atleta com referências publicadas, sem perder a evol
 - Força relativa: carga / peso do dia, ou o peso mais recente até 60 dias antes.
 - Velocidade média: `TestDef.distanceM` / tempo.
 - Erro de medição: `TestDef.sem` e fonte, editáveis, com MDC95 = 1,96 × √2 × SEM. Vale só para a versão atual do protocolo.
-- Nenhum teste de base traz SEM: tem de vir de fonte compatível (passo 4).
+- SEM dos testes de base: ver passo 4.
 
 ## Passo 2: motor de referências (feito)
 
@@ -41,8 +41,22 @@ Módulo para comparar cada atleta com referências publicadas, sem perder a evol
 - **Protocolo do handgrip:** a referência assume o protocolo de Southampton. O cartão diz isto, mas o texto do teste na app ainda não o pede.
 - **Por fazer, WBLT:** McBride et al. (2026), DOI 10.1016/j.msksp.2026.103525, CC BY 4.0 segundo a Crossref. O ScienceDirect recusa o acesso automático e o Europe PMC só tem o resumo. Falta a tabela original, a partir do PDF. O resumo diz que não há diferença relevante entre pernas, mas não indica que valor usar em cada lado: isso tem de vir da tabela.
 
+## Passo 4: SEM (parcial)
+
+Em `references/measurementError.ts`, cada valor com a sua fonte e população. Só entra o que foi confirmado na fonte. Os testes que já existem recebem o valor se não tiverem nenhum e continuarem no protocolo de base; um valor do treinador nunca é substituído.
+
+| Teste | SEM | Fonte e limite |
+|---|---|---|
+| Knee to Wall | 0,7 cm | Powden 2015. Derivado da MDC de 1,9 cm |
+| Y-Balance anterior / posteromedial / posterolateral | 2,01 / 2,83 / 3,11 cm | Plisky 2009, 15 futebolistas universitários. Citado por fonte secundária, sem acesso ao original |
+| Handgrip | 1,8 kg | Horn 2024, 30 adultos, Jamar. Só resumo de conferência |
+| Countermovement Jump | 1,5 cm | Springham 2024, academia da Premier League. Tempo de voo |
+| Sprint 10 m | 0,016 s | Sensors 2025, atletas muito treinados, células. O artigo traz erro típico e MDC incoerentes; usa-se o SEM da MDC publicada |
+| Yo-Yo IR1 | 149 m | Deprez 2014, sub-15. Não há valor em metros para adultos |
+
+**Sem SEM, de propósito:** 1RM e e1RM (só havia Smith machine ou mulheres destreinadas), 505 (só em percentagem), Sprint 5 e 20 m, composição corporal, mobilidade em graus, testes de pontuação e o resto. Quase todos os valores vêm de populações jovens ou atletas: com clientes de outro perfil, o treinador deve ajustá-los.
+
 ## Próximos passos
 
-4. SEM e MDC por teste.
 5. Powerlifting, sempre com a população visível.
 6. Alometria, massa magra, potência e referências de futebol.

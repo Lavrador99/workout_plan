@@ -2,7 +2,7 @@
 // weights per main goal, and the record of every change to them.
 // The weights are starting points for the coach, not scientific values.
 
-import type { Client, DimensionId, Goal, PrimaryGoal, Weights } from "./types";
+import type { Client, DimensionId, Goal, Importance, PrimaryGoal, Weights } from "./types";
 
 export const DIMENSIONS: { id: DimensionId; label: string }[] = [
   { id: "geral", label: "Condição física geral" },
@@ -50,6 +50,12 @@ export function changeWeights(c: Client, primaryGoal: PrimaryGoal, next: Weights
 }
 
 // ── Goals ───────────────────────────────────────────────────────────────────
+
+export const IMPORTANCE: [Importance, string][] = [
+  [1, "Normal"],
+  [2, "Alta"],
+  [3, "Muito alta"],
+];
 
 /** One goal per test and client, so every device arrives at the same record. */
 export const testGoalId = (clientId: string, testId: string) => `goal-${clientId}-${testId}`;

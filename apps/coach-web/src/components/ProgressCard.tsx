@@ -93,7 +93,7 @@ export default function ProgressCard({ client }: { client: Client }) {
       {(sincePrevious != null || sinceFirst != null || weightsChanged) && (
         <p className="text-xs text-muted">
           {[sincePrevious != null && `${signed(sincePrevious)} desde a avaliação anterior`, sinceFirst != null && `${signed(sinceFirst)} desde o início`].filter(Boolean).join(" · ")}
-          {weightsChanged && <span className="block text-warn">Há índices com pesos ou método diferentes: ficam de fora desta comparação.</span>}
+          {weightsChanged && <span className="block text-warn">Há índices com outros pesos, método ou erro de medição: ficam de fora desta comparação. Recalcula o histórico para os incluir.</span>}
         </p>
       )}
 

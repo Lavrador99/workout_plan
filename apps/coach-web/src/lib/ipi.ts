@@ -43,6 +43,10 @@ const round = (n: number) => Math.round(n * 10) / 10;
 const lastOf = <T>(items: T[]): T | undefined => items[items.length - 1];
 const mean = (list: number[]) => list.reduce((a, b) => a + b, 0) / list.length;
 
+function weightedMean(list: { value: number; weight: number }[]): number {
+  return list.reduce((sum, x) => sum + x.value * x.weight, 0) / list.reduce((sum, x) => sum + x.weight, 0);
+}
+
 /** % of the way to the goal. A change within the measurement error is no change. */
 export function indicatorScore(first: number, current: number, target: number, c: Change): number {
   const progress = goalProgress(first, current, target);
@@ -62,7 +66,8 @@ function indicators(input: IpiInput, date: string): (SnapshotIndicator & { dimen
       const seen = list.filter((p) => p.date <= date);
       const [start, last] = [seen[0], lastOf(seen)];
       if (!start || !last || start.assessmentId === last.assessmentId) continue;
-      const c = change(start.value, last.value, directionFor(v.direction, start.value, g.target), v.scale, testMdc(test, v.version));
+      const mdc = testMdc(test, v.version);
+      const c = change(start.value, last.value, directionFor(v.direction, start.value, g.target), v.scale, mdc);
       out.push({
         dimension: DIMENSION_OF[test.category],
         testId: test.id,
@@ -70,11 +75,13 @@ function indicators(input: IpiInput, date: string): (SnapshotIndicator & { dimen
         unit: v.unit,
         ...(side ? { side } : {}),
         version: v.version,
+        importance: g.importance ?? 1,
         origin: v.strength === "estimated" ? "estimated" : "measured",
         first: start.value,
         current: last.value,
         target: g.target,
         improved: c.improved,
+        mdc,
         confirmed: c.confirmed,
         score: round(indicatorScore(start.value, last.value, g.target, c)),
       });
@@ -85,9 +92,9 @@ function indicators(input: IpiInput, date: string): (SnapshotIndicator & { dimen
 
 /** Both sides of a test count as one indicator, so a sided test does not weigh double. */
 function scoreOf(list: SnapshotIndicator[]): number {
-  const byTest = new Map<string, number[]>();
-  for (const i of list) byTest.set(i.testId, [...(byTest.get(i.testId) ?? []), i.score]);
-  return mean([...byTest.values()].map(mean));
+  const byTest = new Map<string, SnapshotIndicator[]>();
+  for (const i of list) byTest.set(i.testId, [...(byTest.get(i.testId) ?? []), i]);
+  return weightedMean([...byTest.values()].map((sides) => ({ value: mean(sides.map((s) => s.score)), weight: sides[0].importance })));
 }
 
 /** Changes known to be real decide; with none, the unconfirmed ones give a provisional reading. */
@@ -128,14 +135,15 @@ function currentCondition(input: IpiInput, date: string): { icc: number | null; 
 }
 
 function goalsMet(goals: Goal[], rows: SnapshotIndicator[], date: string): { io: number | null; ioGoals: number } {
-  const scores = goals.flatMap((g): number[] => {
+  const scores = goals.flatMap((g) => {
+    const weight = g.importance ?? 1;
     if (g.deleted || g.status === "dropped") return [];
-    if (g.status === "achieved" && (g.achievedAt ?? "") <= date) return [100];
-    if (!g.testId) return [0];
+    if (g.status === "achieved" && (g.achievedAt ?? "") <= date) return [{ value: 100, weight }];
+    if (!g.testId) return [{ value: 0, weight }];
     const mine = rows.filter((r) => r.testId === g.testId);
-    return mine.length ? [mean(mine.map((r) => r.score))] : []; // nothing to read it from yet
+    return mine.length ? [{ value: mean(mine.map((r) => r.score)), weight }] : []; // nothing to read it from yet
   });
-  return { io: scores.length ? round(mean(scores)) : null, ioGoals: scores.length };
+  return { io: scores.length ? round(weightedMean(scores)) : null, ioGoals: scores.length };
 }
 
 const list = (names: string[]) => (names.length < 2 ? names[0] : `${names.slice(0, -1).join(", ")} e ${lastOf(names)}`).toLowerCase();
@@ -254,11 +262,23 @@ export interface Evolution {
   /** Change against the previous and the first index; null with nothing to compare. */
   sincePrevious: number | null;
   sinceFirst: number | null;
-  /** A comparison was left out or is flagged as the method or weights differ. */
+  /** An earlier index was left out: its method, weights or measurement errors differ. */
   weightsChanged: boolean;
 }
 
-const comparable = (a: ProgressSnapshot, b: ProgressSnapshot) => a.method === b.method && sameWeights(a.weights, b.weights);
+const indicatorsOf = (s: ProgressSnapshot) => s.dimensions.flatMap((d) => d.indicators);
+
+/** Same calculation and same errors on the tests both share: a new error alone can move a score. */
+function sameScale(a: ProgressSnapshot, b: ProgressSnapshot): boolean {
+  if (a.method !== b.method) return false;
+  const others = indicatorsOf(b);
+  return indicatorsOf(a).every((i) => {
+    const other = others.find((x) => x.testId === i.testId && x.side === i.side && x.version === i.version);
+    return !other || (other.mdc ?? null) === (i.mdc ?? null);
+  });
+}
+
+const comparable = (a: ProgressSnapshot, b: ProgressSnapshot) => sameScale(a, b) && sameWeights(a.weights, b.weights);
 
 export function evolution(snapshots: ProgressSnapshot[]): Evolution | null {
   const all = latestByDate(snapshots);
@@ -272,13 +292,14 @@ export function evolution(snapshots: ProgressSnapshot[]): Evolution | null {
 
 /**
  * What can share a line with the latest index, oldest first. Weights only touch
- * the index: dimensions and goals compare across them, not across methods.
+ * the index: dimensions and goals compare across them, not across a method or
+ * measurement errors.
  */
 export function comparableHistory(snapshots: ProgressSnapshot[]): { list: ProgressSnapshot[]; sameMethod: ProgressSnapshot[]; left: number } {
   const all = latestByDate(snapshots);
   const current = lastOf(all);
   const list = current ? all.filter((s) => comparable(s, current)) : [];
-  return { list, sameMethod: all.filter((s) => s.method === current?.method), left: all.length - list.length };
+  return { list, sameMethod: current ? all.filter((s) => sameScale(s, current)) : [], left: all.length - list.length };
 }
 
 export interface CompareRow extends SnapshotIndicator {

@@ -194,6 +194,13 @@ describe("adherence", () => {
     expect(a).toMatchObject({ from: "2026-10-05", expected: 8 });
   });
 
+  it("leaves out the sessions the coach set aside, but not from the client's start", () => {
+    const r: Range = { from: null, to: "2026-01-28" }; // 4 weeks from 01/01
+    const list = [{ ...done("2026-01-01"), noAdherence: true }, done("2026-01-06"), { ...open("2026-01-13"), noAdherence: true }];
+    expect(adherence(list, [], 1, r)).toMatchObject({ done: 1, unticked: 0, expected: 4, from: "2026-01-01" });
+    expect(doneIn(list, r)).toHaveLength(2); // volume still counts it
+  });
+
   it("has no estimate without a frequency", () => {
     expect(adherence([done("2026-02-01")], [], null, YEAR)).toMatchObject({ done: 1, expected: null, pct: null });
   });

@@ -8,12 +8,12 @@ O cálculo está em `apps/coach-web/src/lib/ipi.ts`, em funções puras. Alterar
 
 - **Indicador:** teste com objetivo e pelo menos duas avaliações do mesmo protocolo.
 - **Pontuação:** % do caminho até ao objetivo, entre 0 e 100. Uma mudança dentro do erro de medição vale 0.
-- **Dimensão:** média dos testes. Os dois lados de um teste contam como um só.
+- **Dimensão:** média dos testes, ponderada pela importância do objetivo (Normal 1, Alta 2, Muito alta 3). Os dois lados de um teste contam como um só.
 - **IPI:** média ponderada das dimensões com dados, com os pesos redistribuídos entre elas. Só com adesão não há IPI.
 - **Cobertura:** soma dos pesos com dados. Abaixo de `MIN_COVERAGE` (50%), o estado é "dados insuficientes".
 - **ICC:** média dos percentis nos testes com referência compatível. Nunca entra no IPI.
-- **IA:** sessões feitas / (frequência semanal × semanas), desde o início. É uma estimativa.
-- **IO:** média dos objetivos. Qualitativos valem 0 ou 100; os de teste valem a sua pontuação; os abandonados não contam.
+- **IA:** sessões feitas / (frequência semanal × semanas), desde o início. É uma estimativa. Uma sessão marcada como "Não contar para a adesão" fica de fora, mas continua no volume.
+- **IO:** média dos objetivos, ponderada pela importância. Qualitativos valem 0 ou 100; os de teste valem a sua pontuação; os abandonados não contam.
 
 | Categoria do teste | Dimensão |
 |---|---|
@@ -44,18 +44,17 @@ Estes cortes são uma escolha inicial, não limites validados.
 - Cada data com resultados tem um `ProgressSnapshot`. O id depende do conteúdo, por isso dois dispositivos chegam ao mesmo registo.
 - Só a data mais recente se atualiza sozinha, acrescentando um registo novo. As anteriores ficam como estavam.
 - "Recalcular histórico" acrescenta registos com `recalculated`, sem apagar os originais.
-- As comparações do IPI só usam índices com o mesmo método e os mesmos pesos, e a app avisa quando há outros de fora.
+- As comparações do IPI só usam índices com o mesmo método, os mesmos pesos e o mesmo erro de medição nos testes em comum, e a app avisa quando há outros de fora.
 
 ## 4. Página de evolução
 
 `ProgressPage`, aberta em "Ver evolução" no Balanço, com filtro de 30 dias, 3, 6 e 12 meses e histórico completo.
 
 - A linha do IPI só junta índices com os mesmos pesos e método.
-- As linhas das dimensões e dos objetivos atravessam mudanças de pesos, porque não dependem deles, mas não de método.
+- As linhas das dimensões e dos objetivos atravessam mudanças de pesos, porque não dependem deles, mas não de método ou de erro de medição.
 - Cada dimensão lista os indicadores que a compõem.
 - Nas barras de inicial, atual e objetivo, cada teste tem a sua escala a partir de 0, porque as unidades diferem.
 
 ## 5. Limitações
 
-- A importância por indicador não está implementada: todos os testes de uma dimensão pesam o mesmo.
 - O IPI compara cada data com o objetivo atual, por isso um histórico recalculado usa os objetivos de hoje.

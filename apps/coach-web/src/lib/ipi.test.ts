@@ -110,6 +110,20 @@ group("calculate", () => {
     expect(c.dimensions.find((d) => d.id === "forca")!.score).toBe(25); // (mean of 100, 0) and 0
   });
 
+  it("weighs tests within a dimension by the importance of their goals", () => {
+    const tests = [test_("a", "força"), test_("b", "força")];
+    const assessments = [assessment("2026-01-01", result("a", 100), result("b", 100)), assessment("2026-06-01", result("a", 200), result("b", 100))];
+    const score = (a: Goal, b: Goal) => calculate(input({ tests, assessments, goals: [a, b] }), "2026-06-01").dimensions.find((d) => d.id === "forca");
+    expect(score(goal("a", 200), goal("b", 200))?.score).toBe(50);
+    expect(score(goal("a", 200, { importance: 3 }), goal("b", 200))?.score).toBe(75);
+    expect(score(goal("a", 200, { importance: 3 }), goal("b", 200))?.indicators.map((i) => i.importance)).toEqual([3, 1]);
+  });
+
+  it("weighs goals met by importance too", () => {
+    const goals = [goal(null, null, { title: "a", status: "achieved", importance: 3 }), goal(null, null, { title: "b" })];
+    expect(calculate(input({ goals }), "2026-06-01").io).toBe(75);
+  });
+
   it("keeps out dropped goals and results after the date", () => {
     expect(calculate(input({ goals: [goal("f", 200, { status: "dropped" })] }), "2026-06-01").ipi).toBeNull();
     expect(calculate(input(), "2026-03-01").ipi).toBeNull();
@@ -179,7 +193,7 @@ group("snapshots", () => {
   });
 
   it("compares only indices of the same method and weights", () => {
-    const base = { clientId: "c", method: 1, primaryGoal: "saude", weights: PRIMARY_GOALS[0].weights, ipi: 40, status: "moderate" } as ProgressSnapshot;
+    const base = { clientId: "c", method: 1, primaryGoal: "saude", weights: PRIMARY_GOALS[0].weights, ipi: 40, status: "moderate", dimensions: [] } as unknown as ProgressSnapshot;
     const a = { ...base, id: "a", updatedAt: 1, date: "2026-01-01", ipi: 20 };
     const b = { ...base, id: "b", updatedAt: 2, date: "2026-02-01", ipi: 30 };
     const c = { ...base, id: "c", updatedAt: 3, date: "2026-03-01", ipi: 45 };
@@ -192,7 +206,7 @@ group("snapshots", () => {
 
 group("charts", () => {
   const snap = (date: string, updatedAt: number, over: Partial<ProgressSnapshot> = {}) => ({ id: date, updatedAt, clientId: "c", date, method: 1, primaryGoal: "saude", weights: PRIMARY_GOALS[0].weights, ipi: 40, coverage: 100, icc: null, iccTests: 0, ia: null, io: null, ioGoals: 0, status: "moderate", provisional: false, dimensions: [], interpretation: "", ...over }) as ProgressSnapshot;
-  const row = (over: Partial<SnapshotIndicator> = {}): SnapshotIndicator => ({ testId: "f", name: "Força", unit: "kg", version: 1, origin: "measured", first: 100, current: 150, target: 200, improved: true, confirmed: null, score: 50, ...over });
+  const row = (over: Partial<SnapshotIndicator> = {}): SnapshotIndicator => ({ testId: "f", name: "Força", unit: "kg", version: 1, importance: 1, origin: "measured", first: 100, current: 150, target: 200, improved: true, confirmed: null, score: 50, ...over });
   const dim = (id: "forca" | "cardio", score: number, state: "improving" | "stable" | "regressing", indicators: SnapshotIndicator[] = []) => ({ id, score, weight: 50, state, provisional: false, indicators });
 
   it("keeps out of the line what was made with other weights", () => {
@@ -200,6 +214,15 @@ group("charts", () => {
     expect(list.map((s) => s.date)).toEqual(["2026-02-01", "2026-03-01"]);
     expect(sameMethod.map((s) => s.date)).toEqual(["2026-01-01", "2026-02-01", "2026-03-01"]);
     expect(left).toBe(2);
+  });
+
+  it("keeps apart scores made with another measurement error", () => {
+    const old = snap("2026-01-01", 1, { dimensions: [dim("forca", 25, "improving", [row()])] });
+    const now = snap("2026-02-01", 2, { dimensions: [dim("forca", 10, "stable", [row({ mdc: 4 })])] });
+    expect(comparableHistory([old, now])).toMatchObject({ list: [{ id: "2026-02-01" }], sameMethod: [{ id: "2026-02-01" }], left: 1 });
+    expect(evolution([old, now])).toMatchObject({ sincePrevious: null, weightsChanged: true });
+    const same = snap("2026-01-15", 1, { dimensions: [dim("forca", 5, "stable", [row({ mdc: 4 }), row({ testId: "other" })])] });
+    expect(comparableHistory([same, now]).left).toBe(0);
   });
 
   it("finds the previous value of each indicator", () => {
