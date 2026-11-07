@@ -10,6 +10,7 @@ import { newSegment, RUN_TAG } from "../lib/run";
 import type { Block, Exercise, Item } from "../lib/types";
 import { LastTime } from "./ItemRow";
 import RunFields from "./RunFields";
+import OptionalFields from "./OptionalFields";
 import RxFields from "./RxFields";
 
 // Prescribing in three steps, repeated: 1) pick or create the exercise,
@@ -223,6 +224,7 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
 
             <LastTime item={draft} onApply={setDraft} />
             {draft.run ? <RunFields item={draft} onChange={setDraft} /> : <RxFields item={draft} onChange={setDraft} />}
+            {!draft.run && <OptionalFields item={draft} onChange={setDraft} />}
 
             <label className="flex flex-col gap-1">
               <span className="label">Nota (opcional)</span>

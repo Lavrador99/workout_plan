@@ -13,7 +13,7 @@ export function normTempo(s: string): string {
   return m ? m.slice(1).join("-") : t;
 }
 
-/** Sets, volume, load and cadence: the prescription of one exercise. */
+/** Sets, volume and load: the core prescription of one exercise (cadence lives in OptionalFields). */
 export default function RxFields({ item, onChange }: { item: Item; onChange: (i: Item) => void }) {
   const timed = item.sets.some((s) => s.duration != null);
   const ref = firstWork(item);
@@ -62,13 +62,11 @@ export default function RxFields({ item, onChange }: { item: Item; onChange: (i:
           onChange={(v) => onChange({ ...item, loadMode: v as LoadMode })}
         />
       </div>
-
-      <TempoField value={item.tempo ?? ""} onChange={(t) => onChange({ ...item, tempo: t || undefined })} />
     </div>
   );
 }
 
-function TempoField({ value, onChange }: { value: string; onChange: (t: string) => void }) {
+export function TempoField({ value, onChange }: { value: string; onChange: (t: string) => void }) {
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
   return (

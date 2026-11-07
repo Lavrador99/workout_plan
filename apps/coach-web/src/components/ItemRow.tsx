@@ -1,8 +1,7 @@
-import { ArrowDown, ArrowUp, Check, Copy } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronRight, Copy } from "lucide-react";
 import { useContext, useMemo, useState } from "react";
 import { fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
 import { history, suggest } from "../lib/history";
-import { GRIPS, STANCES } from "../lib/movement";
 import { go } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
@@ -10,13 +9,11 @@ import { addBackoff, addDrop, addWarmups, cycleType, pyramid } from "../lib/rx";
 import { fmtDate, fmtNum, fmtSec, num } from "../lib/text";
 import { fmtSegment } from "../lib/run";
 import type { Item, SetRow } from "../lib/types";
-import { ChipPick } from "./Chips";
 import ExerciseInput from "./ExerciseInput";
-import MethodFields from "./MethodFields";
 import { LevelPicker } from "./Progressions";
+import OptionalFields from "./OptionalFields";
 import RunFields from "./RunFields";
 import RxFields from "./RxFields";
-import Stepper from "./Stepper";
 
 interface Props {
   item: Item;
@@ -26,6 +23,13 @@ interface Props {
   onDuplicate?: () => void;
   /** Drag handle (BlockCard's reorder). */
   handle?: React.ReactNode;
+}
+
+function varied(sets: SetRow[]): boolean {
+  const [a] = sets;
+  return sets.some(
+    (s) => (s.type ?? "work") !== "work" || s.reps !== a.reps || s.duration !== a.duration || s.load !== a.load || s.rir !== a.rir || s.rest !== a.rest,
+  );
 }
 
 function chipText(item: Item, s: SetRow): string {
@@ -39,6 +43,8 @@ function chipText(item: Item, s: SetRow): string {
 
 export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate, handle }: Props) {
   const [open, setOpen] = useState(false);
+  // per-set table starts open only when the sets actually differ
+  const [rows, setRows] = useState(() => varied(item.sets));
   const timed = item.sets.some((s) => s.duration != null);
   const filler = item.role === "filler";
   const rx = fmtRx(item);
@@ -93,6 +99,11 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
           {item.run ? <RunFields item={item} onChange={onChange} /> : <RxFields item={item} onChange={onChange} />}
 
           {item.sets.length > 0 && !item.run && (
+            <button type="button" className="label text-left inline-flex items-center gap-1 -mb-1" onClick={() => setRows(!rows)}>
+              <ChevronRight size={14} className={`transition ${rows ? "rotate-90" : ""}`} /> Séries por linha
+            </button>
+          )}
+          {item.sets.length > 0 && !item.run && rows && (
             <>
               <table className="w-full text-sm">
                 <thead>
@@ -165,23 +176,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
             </>
           )}
 
-          <MethodFields item={item} onChange={onChange} />
-
-          <div className="grid grid-cols-2 gap-2">
-            <Stepper label="Séries extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
-            <Stepper label="Séries extra dir." value={item.extraRight ?? 0} step={1} onChange={(v) => onChange({ ...item, extraRight: v || undefined })} />
-            <Stepper label="Isometria" suffix="s" value={item.holdSec} step={1} onChange={(v) => onChange({ ...item, holdSec: v || null })} />
-            <Stepper label="Teste RM" value={item.rmTest} step={1} onChange={(v) => onChange({ ...item, rmTest: v || null })} />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="label">Pega</span>
-            <ChipPick options={GRIPS} value={item.grip} onChange={(grip) => onChange({ ...item, grip })} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="label">Pés</span>
-            <ChipPick options={STANCES} value={item.stance} onChange={(stance) => onChange({ ...item, stance })} />
-          </div>
+          {!item.run && <OptionalFields item={item} onChange={onChange} />}
 
           <label className="flex flex-col gap-1">
             <span className="label">Nota</span>
