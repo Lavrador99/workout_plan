@@ -49,7 +49,7 @@ function Tile({ label, value, detail, tone = "" }: { label: string; value: strin
 function RowButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   return (
     <li>
-      <button type="button" className="w-full text-left py-2 flex flex-col gap-0.5" onClick={onClick}>
+      <button type="button" className="w-full text-left py-2 flex flex-col gap-1" onClick={onClick}>
         {children}
       </button>
     </li>
@@ -67,7 +67,7 @@ function TestList({ title, rows, clientId }: { title: string; rows: TestRow[]; c
         {rows.map((r) => (
           <RowButton key={`${r.testId}-${r.version}-${r.side ?? ""}`} onClick={() => go("evolution", clientId, r.testId)}>
             <span className="flex items-baseline gap-2">
-              <Name row={r} className="text-accent2" />
+              <Name row={r} className="text-accent" />
               <span className={`text-sm font-semibold shrink-0 ${TONE_CLASS[changeTone(r.change)]}`}>{fmtChange(r.change, r.unit)}</span>
             </span>
             <span className="text-xs text-muted">
@@ -120,7 +120,7 @@ function MarkList({ title, rows, clientId }: { title: string; rows: MarkRow[]; c
         {rows.map((m) => (
           <RowButton key={`${m.key}-${m.base.item.loadMode}`} onClick={() => go("history", clientId, m.key)}>
             <span className="flex items-baseline gap-2">
-              <span className="flex-1 min-w-0 truncate text-sm text-accent2">{m.name}</span>
+              <span className="flex-1 min-w-0 truncate text-sm text-accent">{m.name}</span>
               <span className="text-sm font-semibold shrink-0">{m.status === "same" ? "=" : `${m.pct > 0 ? "+" : ""}${fmtNum(Math.round(m.pct * 10) / 10)}%`}</span>
             </span>
             <span className="text-xs text-muted">
@@ -160,7 +160,7 @@ function GoalItem({ goal, rows, name, today, onOpen }: { goal: Goal; rows: GoalR
   return (
     <li>
       <button type="button" className={`w-full text-left flex flex-col gap-1 ${goal.status === "dropped" ? "opacity-60" : ""}`} onClick={onOpen}>
-        <span className="text-sm text-accent2">{goal.title || name || rows[0]?.name || "Teste"}</span>
+        <span className="text-sm text-accent">{goal.title || name || rows[0]?.name || "Teste"}</span>
         {facts && <span className={`text-xs ${late ? "text-warn" : "text-muted"}`}>{late ? `${facts} · prazo ultrapassado` : facts}</span>}
         {goal.criteria && <span className="text-xs text-muted">{goal.criteria}</span>}
         {(goal.testId || rows.length > 0) && goal.status !== "dropped" && (rows.length ? rows.map((r) => <GoalProgress key={r.side ?? "both"} row={r} />) : <span className="text-xs text-muted">{goal.target == null ? "Sem valor definido" : `Objetivo: ${fmtNum(goal.target)} · ainda sem resultados`}</span>)}
@@ -267,7 +267,7 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
                 <ul className="divide-y divide-border">
                   {data.pending.map((p) => (
                     <RowButton key={`${p.sessionId}-${p.name}`} onClick={() => go("session", p.sessionId)}>
-                      <span className="text-sm text-accent2">{p.name}</span>
+                      <span className="text-sm text-accent">{p.name}</span>
                       <span className="text-xs text-muted">
                         {fmtMark(p.point)} ({fmtDate(p.point.date)}) · não conta até marcares a série como feita
                       </span>

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useState } from "react";
 import { applyUpdate, isIOS, promptInstall, usePwa } from "../lib/pwa";
 
@@ -16,9 +17,9 @@ export function UpdateBar() {
   const { updateReady } = usePwa();
   if (!updateReady) return null;
   return (
-    <div className="flex items-center gap-2 bg-accent2/15 text-accent2 text-sm px-3 py-2">
+    <div className="flex items-center gap-2 bg-accent2/15 text-accent text-sm px-3 py-2">
       <span className="flex-1">Nova versão disponível.</span>
-      <button type="button" className="btn-accent min-h-[32px]" onClick={() => void applyUpdate()}>
+      <button type="button" className="btn-accent min-h-[40px]" onClick={() => void applyUpdate()}>
         Atualizar
       </button>
     </div>
@@ -60,7 +61,7 @@ export function InstallCard({ compact = false }: { compact?: boolean }) {
         </div>
         {compact && (
           <button type="button" className="text-muted px-1" onClick={hide} aria-label="Fechar">
-            ✕
+            <X />
           </button>
         )}
       </div>

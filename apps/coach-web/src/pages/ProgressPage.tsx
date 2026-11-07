@@ -1,3 +1,4 @@
+import { PageLoading } from "../components/States";
 import { useMemo, useState } from "react";
 import { Section } from "../components/CountsView";
 import LineChart, { type Point } from "../components/LineChart";
@@ -91,8 +92,8 @@ export default function ProgressPage({ clientId }: { clientId: string }) {
   const rows = useMemo(() => compareRows(snapshots ?? []), [snapshots]);
   const months = useMemo(() => monthlyAdherence(sessions ?? [], assessments ?? [], client ?? {}, range), [sessions, assessments, client, range.from, range.to]);
 
-  if (client === null) return <NotFound title="Cliente" back={[""]} />;
-  if (!client || !snapshots || !sessions || !assessments || !goals) return null;
+  if (client === null) return <NotFound title="Cliente" back={["clients"]} />;
+  if (!client || !snapshots || !sessions || !assessments || !goals) return <PageLoading title="Progresso" back={["clients"]} />;
 
   const current = list[list.length - 1];
   const header = <PageHeader title="Evolução do índice" subtitle={client.name} back={["client", clientId, "balance"]} />;

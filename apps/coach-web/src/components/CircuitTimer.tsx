@@ -1,3 +1,4 @@
+import { Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBackClose } from "../lib/hooks";
 import type { Block } from "../lib/types";
@@ -88,7 +89,7 @@ export default function CircuitTimer({ block, onClose }: { block: Block; onClose
 
   const done = idx >= phases.length;
   const p = phases[Math.min(idx, phases.length - 1)];
-  const bg = done ? "bg-card" : p.kind === "work" ? "bg-accent text-black" : p.kind === "prep" ? "bg-accent2 text-black" : "bg-card2";
+  const bg = done ? "bg-card" : p.kind === "work" ? "bg-accent text-on-accent" : p.kind === "prep" ? "bg-accent2 text-on-accent" : "bg-card2";
 
   const jump = (d: number) => {
     const n = Math.max(0, Math.min(phases.length - 1, idx + d));
@@ -119,7 +120,7 @@ export default function CircuitTimer({ block, onClose }: { block: Block; onClose
             {paused ? "Continuar" : "Pausa"}
           </button>
           <button type="button" className="btn flex-1 h-14 text-black/80 bg-white/70" onClick={() => jump(1)}>
-            ▶
+            <Play />
           </button>
         </div>
       )}

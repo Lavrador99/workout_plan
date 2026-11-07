@@ -1,3 +1,4 @@
+import { Star, StickyNote } from "lucide-react";
 import { useState } from "react";
 import type { BlockKind, Section, Template } from "../lib/types";
 import { SECTIONS } from "./BlockCard";
@@ -44,9 +45,9 @@ export default function ExtrasSheet({ days, blocks, onGroup, onSection, onTempla
             ))}
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <span className="label">Começar secção</span>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {SECTIONS.map((s) => (
                 <button key={s} type="button" className="chip" onClick={() => pick(() => onSection(s))}>
                   {s}
@@ -56,9 +57,9 @@ export default function ExtrasSheet({ days, blocks, onGroup, onSection, onTempla
           </div>
 
           {(days.length > 0 || blocks.length > 0) && (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               <span className="label">Templates</span>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {days.map((t) => (
                   <button key={t.id} type="button" className="chip" onClick={() => pick(() => onTemplate(t))}>
                     📅 {t.name}
@@ -66,7 +67,7 @@ export default function ExtrasSheet({ days, blocks, onGroup, onSection, onTempla
                 ))}
                 {blocks.map((t) => (
                   <button key={t.id} type="button" className="chip" onClick={() => pick(() => onTemplate(t))}>
-                    ☆ {t.name}
+                    <Star /> {t.name}
                   </button>
                 ))}
               </div>
@@ -79,7 +80,7 @@ export default function ExtrasSheet({ days, blocks, onGroup, onSection, onTempla
                 ✎ Escrever / colar
               </button>
               <button type="button" className="btn" onClick={() => pick(onNote)}>
-                📝 Nota da sessão
+                <StickyNote /> Nota da sessão
               </button>
             </div>
             {paste && (

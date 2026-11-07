@@ -25,7 +25,7 @@ export default function MethodFields({ item, onChange }: { item: Item; onChange:
   return (
     <div className="flex flex-col gap-2">
       <span className="label">Método da série</span>
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {METHODS.map(([k, label]) => (
           <button
             key={k}

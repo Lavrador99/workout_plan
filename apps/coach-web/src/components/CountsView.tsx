@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
 import { canonPatterns, FOCUS_KINDS, groupByPeriod, tally, type Period } from "../lib/movement";
 import type { Exercise, Focus, Session } from "../lib/types";
@@ -38,7 +39,7 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
       />
       <div className="flex items-center gap-2">
         <button type="button" className="btn" disabled={at >= groups.length - 1} onClick={() => setAt(at + 1)}>
-          ←
+          <ArrowLeft />
         </button>
         <div className="flex-1 text-center">
           <div className="font-semibold capitalize">{group.label}</div>
@@ -57,7 +58,7 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
           {focuses.map((f) => {
             const hit = t.focus.get(f.id);
             return (
-              <div key={f.id} className="flex flex-col gap-0.5">
+              <div key={f.id} className="flex flex-col gap-1">
                 <Bar label={`${f.name} · ${FOCUS_KINDS.find(([k]) => k === f.kind)?.[2]}`} n={hit?.sets ?? 0} total={t.sets} />
                 {hit && <span className="text-xs text-muted truncate">{[...hit.exercises].join(" · ")}</span>}
               </div>

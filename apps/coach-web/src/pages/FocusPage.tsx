@@ -1,3 +1,5 @@
+import { ask } from "../components/Dialogs";
+import { toast } from "../components/Toast";
 import { useState } from "react";
 import { ChipGroups } from "../components/Chips";
 import ExerciseInput from "../components/ExerciseInput";
@@ -42,7 +44,7 @@ export default function FocusPage() {
 
   return (
     <>
-    <PageHeader title="Perfis">
+    <PageHeader title="Perfis" back={["library"]}>
       <Tabs options={FOCUS_KINDS.map(([k, label]) => [k, label] as const)} value={kind} onChange={setKind} />
     </PageHeader>
     <div className="page">
@@ -87,7 +89,7 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
 
   const addExercise = (text: string) => {
     const ex = matchExercise(exercises, parseItemLine(text).name);
-    if (!ex) return alert("Esse exercício não está na biblioteca.");
+    if (!ex) return toast("Esse exercício não está na biblioteca.");
     if (!f.exerciseIds.includes(ex.id)) setF({ ...f, exerciseIds: [...f.exerciseIds, ex.id] });
   };
 
@@ -112,7 +114,7 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
       <div className="flex flex-col gap-1">
         <span className="label">Exercícios-chave</span>
         {f.exerciseIds.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {f.exerciseIds.map((id) => (
               <button key={id} type="button" className="chip chip-on" onClick={() => setF({ ...f, exerciseIds: f.exerciseIds.filter((x) => x !== id) })}>
                 {byId.get(id)?.name ?? "(apagado)"} ✕
@@ -127,7 +129,7 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
         <textarea className="input py-2 min-h-[80px]" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
       </label>
       {clients.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <span className="label mr-1">Clientes</span>
           {clients.map((c) => (
             <button key={c.id} type="button" className="chip" onClick={() => go("client", c.id)}>
@@ -144,7 +146,7 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
           type="button"
           className="btn text-danger"
           onClick={async () => {
-            if (!confirm(`Apagar a ${label.toLowerCase()} «${focus.name}»?`)) return;
+            if (!(await ask(`Apagar a ${label.toLowerCase()} «${focus.name}»?`))) return;
             await remove("focuses", focus.id);
             onClose();
           }}

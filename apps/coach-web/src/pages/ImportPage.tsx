@@ -1,3 +1,4 @@
+import { toast } from "../components/Toast";
 import { useMemo, useState } from "react";
 import { linkItems, newSession, save } from "../lib/db";
 import PageHeader from "../components/PageHeader";
@@ -32,7 +33,7 @@ export default function ImportPage({ clientId }: { clientId: string }) {
       n++;
     }
     setBusy(false);
-    alert(`${n} sessões importadas.`);
+    toast(`${n} sessões importadas.`);
     back("client", clientId);
   };
 

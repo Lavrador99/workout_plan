@@ -1,3 +1,6 @@
+import { PageLoading } from "../components/States";
+import { ChevronRight, TriangleAlert } from "lucide-react";
+import { ask } from "../components/Dialogs";
 import { useEffect, useRef, useState } from "react";
 import PageHeader, { NotFound } from "../components/PageHeader";
 import ResultCard, { fmtFinal } from "../components/ResultCard";
@@ -38,8 +41,8 @@ export default function AssessmentPage({ id }: { id: string }) {
   };
   useEffect(() => () => void flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (stored === null || (stored?.deleted && !a)) return <NotFound title="Avaliação" back={[""]} />;
-  if (!a) return null;
+  if (stored === null || (stored?.deleted && !a)) return <NotFound title="Avaliação" back={["clients"]} />;
+  if (!a) return <PageLoading title="Avaliação" back={["clients"]} />;
 
   const update = (next: Assessment) => {
     setA(next);
@@ -54,8 +57,8 @@ export default function AssessmentPage({ id }: { id: string }) {
     update({ ...a, results: [...a.results, ...added] });
     setChosen(added[0]?.id);
   };
-  const removeResult = (r: TestResult) => {
-    if (r.trials.some((t) => t.value != null) && !confirm(`Tirar ${r.name} desta avaliação? Os valores registados perdem-se.`)) return;
+  const removeResult = async (r: TestResult) => {
+    if (r.trials.some((t) => t.value != null) && !(await ask(`Tirar ${r.name} desta avaliação? Os valores registados perdem-se.`))) return;
     update({ ...a, results: a.results.filter((x) => x.id !== r.id) });
   };
 
@@ -77,7 +80,7 @@ export default function AssessmentPage({ id }: { id: string }) {
     <div className="page">
       {client && !client.consentAt && (
         <button type="button" className="text-xs text-warn text-left" onClick={() => go("client", a.clientId, "info")}>
-          ⚠ Sem consentimento registado na ficha. Registar ›
+          <TriangleAlert /> Sem consentimento registado na ficha. Registar <ChevronRight />
         </button>
       )}
 
@@ -104,7 +107,7 @@ export default function AssessmentPage({ id }: { id: string }) {
               test={tests.find((t) => t.id === r.testId)}
               bodyMass={bodyMassAt(assessments ?? [], a)}
               onChange={setResult}
-              onRemove={() => removeResult(r)}
+              onRemove={() => void removeResult(r)}
             />
           ))}
         </ul>
@@ -140,7 +143,7 @@ export default function AssessmentPage({ id }: { id: string }) {
               type="button"
               className="btn text-danger"
               onClick={async () => {
-                if (!confirm("Apagar esta avaliação?")) return;
+                if (!(await ask("Apagar esta avaliação?"))) return;
                 latest.current = null;
                 clearTimeout(pending.current);
                 await remove("assessments", a.id);

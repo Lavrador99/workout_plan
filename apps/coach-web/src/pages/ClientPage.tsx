@@ -1,5 +1,10 @@
+import { PageLoading } from "../components/States";
+import { ChevronRight, Copy, TriangleAlert, X } from "lucide-react";
+import { ask, askText } from "../components/Dialogs";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { exportClient, purgeClient, remove, save } from "../lib/db";
+import { registerPayment } from "../lib/agendaActions";
+import { fmtMoney, fmtMonth, monthKey, owedMonths, setFee } from "../lib/payments";
 import { downloadText } from "../lib/exportExercises";
 import { fmtLoad } from "../lib/format";
 import AssessmentsTab from "../components/AssessmentsTab";
@@ -53,7 +58,7 @@ const TABS = [
   ["info", "Ficha"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
-type Section = "person" | "training" | "progress" | "health" | "notes" | "data";
+type Section = "person" | "payments" | "training" | "progress" | "health" | "notes" | "data";
 
 /** Sessions shown at first; a long history opens on demand. */
 const PAGE = 20;
@@ -98,8 +103,8 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const focusIds = stored?.focusIds;
   const mine = useMemo(() => (focuses ?? []).filter((f) => focusIds?.includes(f.id)), [focuses, focusIds]);
 
-  if (stored === null) return <NotFound title="Cliente" back={[""]} />;
-  if (!c) return null;
+  if (stored === null) return <NotFound title="Cliente" back={["clients"]} />;
+  if (!c) return <PageLoading title="Cliente" back={["clients"]} />;
 
   const edit = (patch: Partial<Client>) => setC({ ...c, ...patch });
   const persist = () => {
@@ -118,29 +123,32 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const age = c.birthYear ? new Date().getFullYear() - c.birthYear : null;
   const focusNames = (focuses ?? []).filter((f) => c.focusIds?.includes(f.id)).map((f) => f.name);
   const list = sessions ?? [];
+  const today = todayISO();
+  const owed = owedMonths(c, today);
 
   const sectionRows: [Section, string, string, string?][] = [
     ["person", "Dados pessoais", [age && `${age} anos`, c.sex && SEXES.find(([k]) => k === c.sex)?.[1], c.heightCm && `${c.heightCm} cm`, handedLabel(c.dominantHand) && `mão ${handedLabel(c.dominantHand)?.toLowerCase()}`].filter(Boolean).join(" · ") || "Por preencher"],
+    ["payments", "Pagamentos", !c.monthlyFee ? "Sem mensalidade" : owed.length ? `Por pagar: ${fmtMoney(owed.length * c.monthlyFee)}` : `${fmtMoney(c.monthlyFee)}/mês · em dia`, owed.length ? "text-warn" : undefined],
     ["training", "Treino e objetivos", [c.level, c.position, c.weeklyFrequency && `${c.weeklyFrequency}×/sem`, ...(c.goals ?? []), ...focusNames].filter(Boolean).join(" · ") || "Por preencher"],
     ["progress", "Índice de progresso", `${goalLabel(c.primaryGoal) ?? "Objetivo principal por escolher"}${c.weights ? " · pesos próprios" : ""}`],
     ["health", "Saúde e cuidados", [c.injuries, c.hrMax && `FC máx ${c.hrMax}`, c.hrRest && `repouso ${c.hrRest}`].filter(Boolean).join(" · ") || "Sem lesões registadas"],
     ["notes", "Notas e records", c.notes.split("\n")[0] || "Sem notas"],
-    ["data", "Consentimento e dados", c.consentAt ? `Consentimento em ${fmtDate(c.consentAt)}` : "⚠ Sem consentimento registado", c.consentAt ? undefined : "text-warn"],
+    ["data", "Consentimento e dados", c.consentAt ? `Consentimento em ${fmtDate(c.consentAt)}` : "Sem consentimento registado", c.consentAt ? undefined : "text-warn"],
   ];
 
   return (
     <>
-      <PageHeader title={c.name} back={[""]}>
+      <PageHeader title={c.name} back={["clients"]}>
         <Tabs options={TABS} value={tab} onChange={(t) => replaceRoute("client", id, t)} />
       </PageHeader>
       <div className="page">
-        {c.injuries && <div className="text-sm text-danger">⚠ {c.injuries}</div>}
+        {c.injuries && <div className="text-sm text-danger"><TriangleAlert /> {c.injuries}</div>}
 
         {tab === "sessions" && (
           <>
             <div className="flex gap-2">
               <button type="button" className="btn-accent flex-1" onClick={() => void openNewSession(id, list[0])} disabled={!list.length}>
-                ⧉ Duplicar último
+                <Copy /> Duplicar último
               </button>
               <button type="button" className="btn flex-1" onClick={() => void openNewSession(id)}>
                 + Sessão em branco
@@ -148,8 +156,8 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted">{list.length === 1 ? "1 sessão" : `${list.length} sessões`}</span>
-              <button type="button" className="text-xs text-accent2" onClick={() => go("import", id)}>
-                Importar treinos antigos ›
+              <button type="button" className="text-xs text-accent" onClick={() => go("import", id)}>
+                Importar treinos antigos <ChevronRight />
               </button>
             </div>
             <ul className="flex flex-col gap-2">
@@ -168,7 +176,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
                         <div className="text-xs text-muted truncate">{ex.slice(0, 6).join(" · ")}</div>
                       </button>
                       <button type="button" className="px-3 text-muted border-l border-border text-sm" onClick={() => void openNewSession(id, s)} title="Duplicar para hoje" aria-label={`Duplicar sessão de ${fmtDate(s.date)} para hoje`}>
-                        ⧉
+                        <Copy />
                       </button>
                     </div>
                   </li>
@@ -199,7 +207,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
                 <tbody>
                   {marks.map((m) => (
                     <tr key={m.name} className="border-b border-border last:border-0 cursor-pointer" onClick={() => go("history", id, m.item.exerciseId ?? `n:${m.item.name}`)}>
-                      <td className="py-2 text-accent2">{m.name}</td>
+                      <td className="py-2 text-accent">{m.name}</td>
                       <td className="text-right font-semibold whitespace-nowrap">
                         {m.reps != null ? `${m.reps} × ` : ""}
                         {fmtLoad({ ...m.item, loadMax: null }, m.load)}
@@ -228,7 +236,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
                     <span className="font-medium block">{title}</span>
                     <span className={`block text-xs truncate ${tone ?? "text-muted"}`}>{summary}</span>
                   </span>
-                  <span className="text-muted">›</span>
+                  <span className="text-muted"><ChevronRight /></span>
                 </button>
               </li>
             ))}
@@ -243,6 +251,14 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
           <Field label="Nome">
             <input className="input" value={c.name} onChange={(e) => edit({ name: e.target.value })} />
           </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Telefone">
+              <input className="input" type="tel" autoComplete="off" value={c.phone ?? ""} onChange={(e) => edit({ phone: e.target.value })} />
+            </Field>
+            <Field label="Email">
+              <input className="input" type="email" autoComplete="off" autoCapitalize="off" value={c.email ?? ""} onChange={(e) => edit({ email: e.target.value })} />
+            </Field>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label={`Ano nasc.${age ? ` (${age})` : ""}`}>
               <input className="input" inputMode="numeric" value={c.birthYear ?? ""} onChange={(e) => edit({ birthYear: num(e.target.value) })} />
@@ -263,6 +279,32 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
             <span className="label">Pé dominante</span>
             <ChipPick options={HANDED.map(([, l]) => l)} value={handedLabel(c.dominantFoot)} onChange={(v) => choose({ dominantFoot: handedValue(v) })} />
           </div>
+        </FichaSheet>
+      )}
+
+      {section === "payments" && (
+        <FichaSheet title="Pagamentos" onClose={closeSection} onBlur={persist}>
+          <Field label="Mensalidade (€)">
+            <input className="input" inputMode="decimal" defaultValue={c.monthlyFee ?? ""} onChange={(e) => edit(setFee(c, num(e.target.value), today))} />
+          </Field>
+          {c.monthlyFee ? (
+            <button type="button" className="btn-accent" onClick={() => void registerPayment(c.id, c.name, owed[0] ?? monthKey(today))}>
+              Registar pagamento de <span className="capitalize">{fmtMonth(owed[0] ?? monthKey(today))}</span>
+            </button>
+          ) : null}
+          {owed.length > 0 && <p className="text-sm text-warn">Por pagar: <span className="capitalize">{owed.map(fmtMonth).join(", ")}</span></p>}
+          <ul className="flex flex-col divide-y divide-border">
+            {[...(c.payments ?? [])].reverse().map((p) => (
+              <li key={p.id} className="flex items-center gap-2 py-1 text-sm">
+                <span className="flex-1 capitalize">{fmtMonth(p.month)} {p.month.slice(0, 4)}</span>
+                <span className="text-muted">{fmtDate(p.date)}</span>
+                <span className="font-semibold">{fmtMoney(p.amount)}</span>
+                <button type="button" className="btn-ghost w-10 px-0 text-muted" aria-label={`Apagar pagamento de ${fmtMonth(p.month)}`} onClick={() => choose({ payments: c.payments?.filter((x) => x.id !== p.id) })}>
+                  <X />
+                </button>
+              </li>
+            ))}
+          </ul>
         </FichaSheet>
       )}
 
@@ -315,7 +357,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
                     }}
                   />
                 ) : (
-                  <button type="button" className="btn-ghost text-accent2 self-start -ml-3" onClick={() => go("focus")}>
+                  <button type="button" className="btn-ghost text-accent self-start -ml-3" onClick={() => go("focus")}>
                     Criar em Perfis →
                   </button>
                 )}
@@ -377,10 +419,10 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
                 type="button"
                 className="btn text-danger"
                 onClick={async () => {
-                  if (!confirm(`Apagar ${c.name}? As sessões ficam guardadas mas escondidas.`)) return;
+                  if (!(await ask(`Apagar ${c.name}? As sessões ficam guardadas mas escondidas.`))) return;
                   gone.current = true;
                   await remove("clients", c.id);
-                  back("");
+                  back("clients");
                 }}
               >
                 Apagar cliente
@@ -389,11 +431,11 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
                 type="button"
                 className="btn text-danger"
                 onClick={async () => {
-                  const typed = prompt(`Apagar definitivamente ${c.name}, com todas as sessões e avaliações? Não dá para desfazer. Escreve o nome para confirmar.`);
+                  const typed = (await askText(`Apagar definitivamente ${c.name}, com todas as sessões e avaliações? Não dá para desfazer. Escreve o nome para confirmar.`));
                   if (typed?.trim() !== c.name.trim()) return;
                   gone.current = true;
                   await purgeClient(c.id);
-                  back("");
+                  back("clients");
                 }}
               >
                 Apagar definitivamente

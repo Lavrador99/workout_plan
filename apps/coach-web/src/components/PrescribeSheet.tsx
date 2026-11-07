@@ -1,3 +1,4 @@
+import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { matchExercise } from "../lib/db";
 import { fmtRx } from "../lib/format";
@@ -32,13 +33,10 @@ export const CATEGORIES = [
 
 const KIND_LABEL: Record<Block["kind"], string> = { list: "Lista", sets: "Séries", superset: "Superset", circuit: "Circuito", emom: "EMOM", amrap: "AMRAP" };
 
-const LEVEL: Record<string, string> = { fácil: "🟢", médio: "🟡", difícil: "🔴" };
+const LEVELS = ["fácil", "médio", "difícil"];
 
 export function levelDots(ex: Exercise): string {
-  return Object.keys(LEVEL)
-    .filter((l) => ex.tags.includes(l))
-    .map((l) => LEVEL[l])
-    .join("");
+  return LEVELS.filter((l) => ex.tags.includes(l)).join(", ");
 }
 
 interface Props {
@@ -141,13 +139,13 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
           <Steps step={draft ? 2 : 1} />
           <span className="text-xs text-muted truncate flex-1 text-right">{block.title || KIND_LABEL[block.kind]}</span>
           <button type="button" className="btn" onClick={onClose}>
-            {added.length ? "✓ Concluir" : "✕"}
+            {added.length ? "Concluir" : "Fechar"}
           </button>
         </header>
 
         {added.length > 0 && (
           <div className="px-3 pt-2 text-xs text-success truncate">
-            ✓ {added.length} adicionado{added.length > 1 ? "s" : ""}: {added.join(" · ")}
+            <Check /> {added.length} adicionado{added.length > 1 ? "s" : ""}: {added.join(" · ")}
           </div>
         )}
 
@@ -165,7 +163,7 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitSearch()}
             />
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-3 px-3">
               <button type="button" className={`chip ${!tag ? "chip-on" : ""}`} onClick={() => setTag("")}>
                 {q.trim() ? "Todos" : "Mais usados"}
               </button>
@@ -179,7 +177,7 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
             <ul className="card divide-y divide-border">
               {name && !exact && (
                 <li>
-                  <button type="button" className="w-full text-left px-3 py-3 text-accent2" onClick={submitSearch}>
+                  <button type="button" className="w-full text-left px-3 py-3 text-accent" onClick={submitSearch}>
                     {typed.sets.length ? (
                       <>
                         + Adicionar já: <b>{q.trim()}</b>
@@ -194,14 +192,14 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
               )}
               {results.map((e) => (
                 <li key={e.id}>
-                  <button type="button" className="w-full text-left px-3 py-2.5 active:bg-card2 flex items-center gap-2" onClick={() => choose(e, e.name)}>
+                  <button type="button" className="w-full text-left px-3 py-3 active:bg-card2 flex items-center gap-2" onClick={() => choose(e, e.name)}>
                     <span className="flex-1 min-w-0">
                       <span className="font-medium">{e.name}</span>
                       {e.pt && <span className="block text-xs text-muted truncate">{e.pt}</span>}
                     </span>
-                    <span className="text-xs">{levelDots(e)}</span>
+                    <span className="text-xs text-muted">{levelDots(e)}</span>
                     {(usage.get(e.id) ?? 0) > 0 && <span className="text-xs text-muted tabular-nums">{usage.get(e.id)}×</span>}
-                    <span className="text-muted">›</span>
+                    <span className="text-muted"><ChevronRight /></span>
                   </button>
                 </li>
               ))}
@@ -214,8 +212,8 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
         ) : (
           <div className="flex flex-col gap-4 p-3 flex-1">
             <div className="flex items-start gap-2">
-              <button type="button" className="btn-ghost -ml-2 text-accent2" onClick={() => setDraft(null)}>
-                ← Trocar
+              <button type="button" className="btn-ghost -ml-2 text-accent" onClick={() => setDraft(null)}>
+                <ArrowLeft /> Trocar
               </button>
               <div className="flex-1 min-w-0">
                 <input className="input font-bold text-lg" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
@@ -239,7 +237,7 @@ export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Pro
 
             <div className="sticky bottom-0 -mx-3 mt-auto px-3 py-3 bg-bg/95 backdrop-blur border-t border-border safe-bottom flex flex-col gap-2">
               <div className="text-sm">
-                <span className="font-semibold">{draft.name || "—"}</span> <span className="text-accent2">{fmtRx(draft)}</span>
+                <span className="font-semibold">{draft.name || "—"}</span> <span className="text-accent">{fmtRx(draft)}</span>
               </div>
               <div className="grid grid-cols-[1fr_2fr] gap-2">
                 <button type="button" className="btn" disabled={!draft.name.trim()} onClick={() => commit(false)}>
@@ -267,7 +265,7 @@ function Steps({ step }: { step: 1 | 2 }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       {s(1, "Exercício")}
-      <span className="text-muted">›</span>
+      <span className="text-muted"><ChevronRight /></span>
       {s(2, "Prescrição")}
     </div>
   );

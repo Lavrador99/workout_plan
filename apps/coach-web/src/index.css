@@ -1,16 +1,66 @@
+@import "@fontsource-variable/inter";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Colours as RGB channels, so Tailwind can add opacity. Light unless dark is asked for. */
+:root {
+  color-scheme: light;
+  --c-bg: 246 246 243;
+  --c-fg: 28 28 26;
+  --c-card: 255 255 255;
+  --c-card2: 240 240 235;
+  --c-border: 222 222 214;
+  --c-accent: 78 92 0;
+  --c-accent2: 10 105 160;
+  --c-danger: 190 30 30;
+  --c-warn: 150 84 0;
+  --c-success: 15 115 58;
+  --c-muted: 100 100 94;
+  --c-on-accent: 255 255 255;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg: 15 15 15;
+  --c-fg: 240 240 240;
+  --c-card: 26 26 26;
+  --c-card2: 34 34 34;
+  --c-border: 42 42 42;
+  --c-accent: 232 255 71;
+  --c-accent2: 71 196 255;
+  --c-danger: 255 71 71;
+  --c-warn: 255 173 71;
+  --c-success: 71 255 138;
+  --c-muted: 136 136 136;
+  --c-on-accent: 0 0 0;
+}
 
 html {
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: #0f0f0f;
-  color: #f0f0f0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-fg));
+  font-family: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv11", "tnum";
   overscroll-behavior-y: none;
+}
+
+/* Icons follow the text around them, in size and colour. */
+svg.lucide {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+  vertical-align: -0.2em;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--c-accent));
+  outline-offset: 2px;
 }
 
 input,
@@ -24,19 +74,19 @@ select {
     @apply bg-card border border-border rounded-xl;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 min-h-[40px] text-sm font-semibold bg-card2 border border-border active:scale-[0.97] transition disabled:opacity-40;
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 min-h-[44px] text-sm font-semibold bg-card2 border border-border active:scale-[0.97] transition disabled:opacity-40;
   }
   .btn-accent {
-    @apply btn bg-accent text-black border-accent;
+    @apply btn bg-accent text-on-accent border-accent;
   }
   .btn-ghost {
     @apply btn bg-transparent border-transparent;
   }
   .input {
-    @apply w-full bg-card2 border border-border rounded-lg px-3 min-h-[40px] text-[16px] outline-none focus:border-accent;
+    @apply w-full bg-card2 border border-border rounded-lg px-3 min-h-[44px] text-[16px] outline-none focus:border-accent;
   }
   .chip {
-    @apply shrink-0 inline-flex items-center rounded-full px-3 h-8 text-xs font-semibold border border-border bg-card2 text-muted whitespace-nowrap;
+    @apply shrink-0 inline-flex items-center rounded-full px-3 h-10 text-xs font-semibold border border-border bg-card2 text-muted whitespace-nowrap;
   }
   .chip-on {
     @apply bg-accent/20 border-accent text-accent;
@@ -45,7 +95,7 @@ select {
     @apply text-xs uppercase tracking-wide text-muted;
   }
   .page {
-    @apply flex flex-col gap-3 p-3;
+    @apply flex flex-col gap-4 p-4;
   }
   .row {
     @apply w-full text-left px-3 py-3 flex items-center gap-2 active:bg-card2;
@@ -63,6 +113,18 @@ select {
 }
 .sticky-top {
   top: env(safe-area-inset-top);
+}
+/* just above the fixed tab bar */
+.bottom-nav {
+  bottom: calc(4.25rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  .bottom-nav {
+    bottom: 1rem;
+  }
+  .pb-nav {
+    padding-bottom: 2rem !important;
+  }
 }
 /* room for the fixed tab bar */
 .pb-nav {

@@ -1,3 +1,6 @@
+/** Colours live in index.css, one set per theme. */
+const token = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,19 +10,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0f0f0f',
-        card: '#1a1a1a',
-        card2: '#222222',
-        border: '#2a2a2a',
-        accent: '#e8ff47',
-        accent2: '#47c4ff',
-        danger: '#ff4747',
-        warn: '#ffad47',
-        success: '#47ff8a',
-        muted: '#888888',
+        bg: token('bg'),
+        fg: token('fg'),
+        card: token('card'),
+        card2: token('card2'),
+        border: token('border'),
+        accent: token('accent'),
+        accent2: token('accent2'),
+        danger: token('danger'),
+        warn: token('warn'),
+        success: token('success'),
+        muted: token('muted'),
+        'on-accent': token('on-accent'),
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+        sans: ['"Inter Variable"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
       },
       borderRadius: {
         DEFAULT: '12px',

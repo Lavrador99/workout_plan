@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { matchExercise, save } from "../lib/db";
 import { useExerciseIndex, useExercises } from "../lib/hooks";
@@ -25,7 +26,7 @@ export function ProgressionsView({ exercises }: { exercises: Exercise[] }) {
         <ul className="card divide-y divide-border">
           {list.map((f) => (
             <li key={f.base.id}>
-              <button type="button" className="row py-2.5" onClick={() => setOpen(f.base.id)}>
+              <button type="button" className="row py-3" onClick={() => setOpen(f.base.id)}>
                 <span className="flex-1 min-w-0">
                   <span className="font-medium">{f.base.name}</span>
                   <span className="block text-xs text-muted truncate">até {f.chain[f.chain.length - 1].name}</span>
@@ -52,7 +53,7 @@ export function ProgressionsView({ exercises }: { exercises: Exercise[] }) {
 
 function ChainLine({ family, current }: { family: Family; current?: string }) {
   return (
-    <ol className="flex flex-col gap-0.5 mt-1">
+    <ol className="flex flex-col gap-1 mt-1">
       {family.chain.map((e, i) => (
         <li key={e.id} className={`text-sm flex gap-2 ${e.id === current ? "text-accent font-semibold" : ""}`}>
           <span className="text-muted tabular-nums w-4 text-right">{i + 1}</span>
@@ -91,7 +92,7 @@ function PasteFamilies({ exercises, onDone }: { exercises: Exercise[]; onDone: (
         onChange={(e) => setText(e.target.value)}
       />
       {parsed.map((f, fi) => (
-        <ol key={fi} className="flex flex-col gap-0.5 text-sm">
+        <ol key={fi} className="flex flex-col gap-1 text-sm">
           {f.map((l, i) => {
             const guess = !l.ex ? likelyMeant(l.name, index.search(l.name, 5)) : undefined;
             return (
@@ -100,12 +101,12 @@ function PasteFamilies({ exercises, onDone }: { exercises: Exercise[]; onDone: (
                 <span className="flex-1 min-w-0">
                   <span className={i === 0 ? "font-semibold" : ""}>{l.name}</span>{" "}
                   {l.ex ? (
-                    <span className="text-xs text-success whitespace-nowrap">✓ {l.ex.name !== l.name ? l.ex.name : "existe"}</span>
+                    <span className="text-xs text-success whitespace-nowrap"><Check /> {l.ex.name !== l.name ? l.ex.name : "existe"}</span>
                   ) : (
                     <span className="text-xs text-warn whitespace-nowrap">+ novo</span>
                   )}
                   {guess && (
-                    <button type="button" className="block text-xs underline text-accent2 text-left" onClick={() => fix(l.name, guess.name)}>
+                    <button type="button" className="block text-xs underline text-accent text-left" onClick={() => fix(l.name, guess.name)}>
                       Querias dizer «{guess.name}»?
                     </button>
                   )}
@@ -154,14 +155,14 @@ export function FamilyEditor({ base, exercises }: { base: Exercise; exercises: E
           <li key={id} className="flex items-center gap-1 py-0.5 text-sm">
             <span className="text-muted tabular-nums w-4 text-right mr-1">{i + 2}</span>
             <span className="flex-1 min-w-0 truncate">{byId.get(id)?.name}</span>
-            <button type="button" className="btn-ghost px-2 min-h-[32px]" onClick={() => move(i, -1)} aria-label="Mais fácil">
-              ↑
+            <button type="button" className="btn-ghost px-2 min-h-[40px]" onClick={() => move(i, -1)} aria-label="Mais fácil">
+              <ArrowUp />
             </button>
-            <button type="button" className="btn-ghost px-2 min-h-[32px]" onClick={() => move(i, 1)} aria-label="Mais difícil">
-              ↓
+            <button type="button" className="btn-ghost px-2 min-h-[40px]" onClick={() => move(i, 1)} aria-label="Mais difícil">
+              <ArrowDown />
             </button>
-            <button type="button" className="btn-ghost px-2 min-h-[32px] text-muted" onClick={() => set(ids.filter((x) => x !== id))} aria-label="Tirar">
-              ✕
+            <button type="button" className="btn-ghost px-2 min-h-[40px] text-muted" onClick={() => set(ids.filter((x) => x !== id))} aria-label="Tirar">
+              <X />
             </button>
           </li>
         ))}
@@ -210,7 +211,7 @@ export function LevelPicker({ item, onChange }: { item: Item; onChange: (i: Item
   return (
     <div className="flex flex-col gap-1">
       <span className="label">Progressão · {fam.base.name}</span>
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {fam.chain.map((e, i) => (
           <button key={e.id} type="button" className={`chip ${e.id === item.exerciseId ? "chip-on" : ""}`} onClick={() => onChange(asLevel(item, e))}>
             {i + 1}. {e.name}
@@ -232,13 +233,13 @@ export function EasierHarder({ item, onChange }: { item: Item; onChange: (i: Ite
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
       <button type="button" className="btn justify-start min-w-0" disabled={!down} onClick={() => down && onChange(asLevel(item, down))}>
-        <span className="truncate">‹ {down ? "Mais fácil" : "—"}</span>
+        <span className="truncate"><ChevronLeft /> {down ? "Mais fácil" : "—"}</span>
       </button>
       <span className="text-xs text-muted tabular-nums">
         nível {level + 1}/{fam.chain.length}
       </span>
       <button type="button" className="btn justify-end min-w-0" disabled={!up} onClick={() => up && onChange(asLevel(item, up))}>
-        <span className="truncate">{up ? "Mais difícil" : "—"} ›</span>
+        <span className="truncate">{up ? "Mais difícil" : "—"} <ChevronRight /></span>
       </button>
     </div>
   );

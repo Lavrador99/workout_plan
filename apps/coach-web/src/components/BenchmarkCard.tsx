@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { benchmark, clientContext, fmtPosition, latestComparable, type Benchmark, type Tier } from "../lib/benchmark";
 import type { VersionSeries } from "../lib/assessment";
@@ -17,7 +18,7 @@ function Row({ b, unit, brief }: { b: Benchmark; unit: string; brief?: boolean }
   const d = b.dataset;
   const median = d.percentiles?.find(([p]) => p === 50)?.[1];
   return (
-    <li className="flex flex-col gap-0.5">
+    <li className="flex flex-col gap-1">
       <div className="flex items-baseline gap-2">
         <span className="font-bold text-lg shrink-0">{fmtPosition(b.position)}</span>
         <span className="text-sm flex-1 min-w-0">{d.label}</span>
@@ -48,7 +49,7 @@ export default function BenchmarkCard({ client, testId, v }: { client: Client; t
     return (
       <button type="button" className="card p-3 text-left text-sm" onClick={() => go("client", client.id, "info")}>
         <span className="label block">Comparação científica</span>
-        Para comparar, falta preencher na ficha: {outcome.missing.join(" e ")}. <span className="text-accent2">Abrir ficha ›</span>
+        Para comparar, falta preencher na ficha: {outcome.missing.join(" e ")}. <span className="text-accent">Abrir ficha <ChevronRight /></span>
       </button>
     );
 
@@ -61,7 +62,7 @@ export default function BenchmarkCard({ client, testId, v }: { client: Client; t
       <ul>
         <Row b={outcome.benchmarks[0]} unit={v.unit} brief />
       </ul>
-      <button type="button" className="text-sm text-accent2 text-left" onClick={() => setDetails(true)}>
+      <button type="button" className="text-sm text-accent text-left" onClick={() => setDetails(true)}>
         {outcome.benchmarks.length > 1 ? `Ver as ${outcome.benchmarks.length} referências e fontes ›` : "Ver referência e fonte ›"}
       </button>
       {details && (
@@ -77,7 +78,7 @@ export default function BenchmarkCard({ client, testId, v }: { client: Client; t
               <p key={text}>{text}</p>
             ))}
             {[...new Map(outcome.benchmarks.flatMap((b) => (b.source ? [[b.source.id, b.source] as const] : []))).values()].map((source) => (
-              <a key={source.id} className="text-accent2" href={source.url} target="_blank" rel="noreferrer">
+              <a key={source.id} className="text-accent" href={source.url} target="_blank" rel="noreferrer">
                 {source.citation}
               </a>
             ))}

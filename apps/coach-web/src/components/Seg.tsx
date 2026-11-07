@@ -6,7 +6,7 @@ export default function Seg({ options, value, onChange }: { options: [string, st
         <button
           key={v}
           type="button"
-          className={`px-3 h-9 text-sm ${value === v ? "bg-accent text-black font-semibold" : "bg-card2 text-muted"}`}
+          className={`px-3 h-10 text-sm ${value === v ? "bg-accent text-on-accent font-semibold" : "bg-card2 text-muted"}`}
           onClick={() => onChange(v)}
         >
           {label}

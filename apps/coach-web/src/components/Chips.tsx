@@ -1,7 +1,7 @@
 /** Wrapping chip toggles: several values (multi) or one value that a second tap clears. */
 export default function Chips({ options, value, onChange }: { options: string[]; value: string[]; onChange: (v: string[]) => void }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {options.map((o) => {
         const on = value.includes(o);
         return (

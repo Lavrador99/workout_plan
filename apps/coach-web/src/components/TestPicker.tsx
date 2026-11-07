@@ -22,7 +22,7 @@ export default function TestPicker({ tests, picked, onAdd, onClose }: Props) {
   return (
     <Sheet title="Adicionar testes" tall onClose={onClose}>
       <input className="input" placeholder="Procurar teste…" value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {testGroups(tests).map((g) => {
           const missing = free.filter((t) => t.groups.includes(g));
           return (
@@ -57,7 +57,7 @@ export default function TestPicker({ tests, picked, onAdd, onClose }: Props) {
         })}
         {list.length === 0 && <p className="text-sm text-muted">Nenhum teste por adicionar.</p>}
       </div>
-      <button type="button" className="btn-ghost text-accent2 self-start -ml-3" onClick={() => go("library", "tests")}>
+      <button type="button" className="btn-ghost text-accent self-start -ml-3" onClick={() => go("library", "tests")}>
         Gerir testes →
       </button>
       <SheetFooter>

@@ -1,3 +1,4 @@
+import { ask } from "../components/Dialogs";
 import { useMemo, useRef, useState } from "react";
 import Chips, { ChipGroups, ChipPick } from "../components/Chips";
 import { NumberField } from "../components/ResultCard";
@@ -115,8 +116,8 @@ function TestEditor({ test, tests, locked, onClose, onOpen }: { test: TestDef; t
     if (g && !t.groups.includes(g)) choose({ groups: [...t.groups, g] });
     setNewGroup("");
   };
-  const newVersion = () => {
-    if (confirm(`Criar a versão ${t.version + 1} do protocolo? Os resultados antigos ficam guardados, mas deixam de ser comparados com os novos.`)) choose({ version: t.version + 1 });
+  const newVersion = async () => {
+    if ((await ask(`Criar a versão ${t.version + 1} do protocolo? Os resultados antigos ficam guardados, mas deixam de ser comparados com os novos.`))) choose({ version: t.version + 1 });
   };
   const duplicate = async () => {
     const copy = await save("tests", { ...t, id: uid(), name: `${t.name} (cópia)`, version: 1, updatedAt: 0 });
@@ -284,7 +285,7 @@ function TestEditor({ test, tests, locked, onClose, onOpen }: { test: TestDef; t
           type="button"
           className="btn text-danger"
           onClick={async () => {
-            if (!confirm(`Apagar ${t.name}? Os resultados já registados ficam guardados.`)) return;
+            if (!(await ask(`Apagar ${t.name}? Os resultados já registados ficam guardados.`))) return;
             deleted.current = true;
             await remove("tests", t.id);
             onClose();

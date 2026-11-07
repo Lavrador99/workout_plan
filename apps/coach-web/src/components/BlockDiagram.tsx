@@ -32,7 +32,7 @@ export default function BlockDiagram({ block }: { block: Block }) {
         </div>
       )}
       {(k === "sets" || k === "list" || k === "superset") && main.some((i) => i.sets.length) && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {main.map((it, i) => (
             <SetBars key={it.id} item={it} tag={k === "superset" ? `${letter(0)}${i + 1}` : letter(i)} />
           ))}
@@ -53,7 +53,7 @@ function Flow({ block, items, loop }: { block: Block; items: Item[]; loop?: bool
       {items.map((it, i) => (
         <span key={it.id} className="contents">
           {i > 0 && <span className="text-muted">{circuit && block.rest ? `→ ${block.rest}s →` : "→"}</span>}
-          <span className="rounded-md border border-accent/50 bg-accent/10 px-1.5 py-0.5 max-w-[9rem] truncate">
+          <span className="rounded-md border border-accent/50 bg-accent/10 px-2 py-0.5 max-w-[9rem] truncate">
             <b>{circuit ? i + 1 : `${letter(0)}${i + 1}`}</b> {it.name}
             {circuit && block.work ? <span className="text-muted"> {block.work}s</span> : null}
           </span>
@@ -93,12 +93,12 @@ function SetBars({ item, tag }: { item: Item; tag: string }) {
       <span className="w-20 shrink-0 truncate self-center">
         <b>{tag}</b> {item.name}
       </span>
-      <div className="flex items-end gap-0.5 min-w-0 overflow-x-auto">
+      <div className="flex items-end gap-1 min-w-0 overflow-x-auto">
         {item.sets.map((s, i) => {
           const h = s.load != null ? 10 + (s.load / max) * 26 : 18;
           const color = s.type === "warmup" ? "bg-border" : s.type === "failure" ? "bg-danger/70" : s.type === "drop" ? "bg-accent2/70" : "bg-accent/70";
           return (
-            <span key={i} className="w-7 shrink-0 flex flex-col items-center gap-0.5 text-[10px]" title={s.type ? SET_TYPE[s.type].label : "efetiva"}>
+            <span key={i} className="w-7 shrink-0 flex flex-col items-center gap-1 text-[10px]" title={s.type ? SET_TYPE[s.type].label : "efetiva"}>
               <span className={`w-5 rounded-sm ${color}`} style={{ height: h }} />
               <span className="tabular-nums leading-none">{timed ? fmtSec(s.duration) : s.reps ?? "–"}</span>
               <span className="tabular-nums leading-none text-muted">{s.rest != null ? fmtSec(s.rest) : ""}</span>
@@ -106,7 +106,7 @@ function SetBars({ item, tag }: { item: Item; tag: string }) {
           );
         })}
       </div>
-      {item.method && <span className="text-accent2 self-center">{fmtMethod(item.method)}</span>}
+      {item.method && <span className="text-accent self-center">{fmtMethod(item.method)}</span>}
       {!item.method && item.sets.every((s) => s.load == null) ? null : (
         <span className="text-muted self-center tabular-nums whitespace-nowrap">{fmtNum(max)}kg</span>
       )}

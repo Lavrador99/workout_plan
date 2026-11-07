@@ -1,3 +1,5 @@
+import { ArrowDown, ArrowUp, Copy, Ellipsis, Play, Star } from "lucide-react";
+import { ask, askText } from "./Dialogs";
 import { useRef, useState } from "react";
 import { copyBlock, save } from "../lib/db";
 import { fmtCircuitHeader } from "../lib/format";
@@ -98,7 +100,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
           <header className="flex items-center gap-2 pt-2">
             <span className="label flex-1">{block.title}</span>
             <button type="button" className="btn-ghost text-muted" onClick={() => setSettings(true)} aria-label="Opções do bloco">
-              ⋯
+              <Ellipsis />
             </button>
           </header>
         )
@@ -122,11 +124,11 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
         )}
         {isCircuit && (
           <button type="button" className="btn-accent" onClick={() => setTimer(true)}>
-            ▶ Timer
+            <Play /> Timer
           </button>
         )}
         <button type="button" className="btn-ghost text-muted" onClick={() => setSettings(true)} aria-label="Opções do bloco">
-          ⋯
+          <Ellipsis />
         </button>
       </header>
       )}
@@ -136,7 +138,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
           <input className="input" value={block.title} placeholder="Título do bloco (opcional)" onChange={(e) => onChange({ ...block, title: e.target.value })} />
           <div className="flex flex-col gap-1">
             <span className="label">Secção</span>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {SECTIONS.map((sec) => (
                 <button key={sec} type="button" className={`chip ${block.section === sec ? "chip-on" : ""}`} onClick={() => onChange({ ...block, section: block.section === sec ? undefined : sec })}>
                   {sec}
@@ -155,7 +157,7 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
           )}
           {block.kind === "amrap" && <Stepper label="Tempo limite" suffix="s" value={block.work} step={60} onChange={(v) => onChange({ ...block, work: v })} />}
           {block.kind === "circuit" && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {PRESETS.map(([label, p]) => (
                 <button key={label} type="button" className="chip" onClick={() => onChange({ ...block, ...p })}>
                   {label}
@@ -173,25 +175,25 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
           )}
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn" onClick={() => onMove(-1)}>
-              ↑ Subir
+              <ArrowUp /> Subir
             </button>
             <button type="button" className="btn" onClick={() => onMove(1)}>
-              ↓ Descer
+              <ArrowDown /> Descer
             </button>
             <button
               type="button"
               className="btn"
               onClick={async () => {
-                const name = prompt("Nome do template", block.title || "")?.trim();
+                const name = (await askText("Nome do template", block.title || ""))?.trim();
                 if (name) await save<Template>("templates", { id: uid(), updatedAt: 0, name, block: copyBlock(block) });
               }}
             >
-              ☆ Template
+              <Star /> Template
             </button>
             <button type="button" className="btn" onClick={onDuplicate}>
-              ⧉ Duplicar
+              <Copy /> Duplicar
             </button>
-            <button type="button" className="btn text-danger ml-auto" onClick={() => confirm("Apagar este bloco?") && onDelete()}>
+            <button type="button" className="btn text-danger ml-auto" onClick={async () => (await ask("Apagar este bloco?")) && onDelete()}>
               Apagar bloco
             </button>
           </div>

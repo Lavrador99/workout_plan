@@ -1,3 +1,4 @@
+import { Ellipsis, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useBackClose } from "../lib/hooks";
@@ -57,7 +58,7 @@ export default function Sheet({ title, subtitle, onClose, children, tall, persis
         aria-modal="true"
         aria-labelledby={heading}
         tabIndex={-1}
-        className={`max-w-2xl w-full mx-auto flex flex-col bg-card rounded-t-2xl sm:rounded-2xl border-t sm:border border-border outline-none sheet-rise ${tall ? "h-[92dvh] sm:h-[80dvh]" : "max-h-[92dvh] sm:max-h-[80dvh]"}`}
+        className={`max-w-2xl w-full mx-auto flex flex-col bg-card rounded-t-xl sm:rounded-xl border-t sm:border border-border outline-none sheet-rise ${tall ? "h-[92dvh] sm:h-[80dvh]" : "max-h-[92dvh] sm:max-h-[80dvh]"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="shrink-0 flex items-center gap-2 pl-4 pr-2 pt-3 pb-2 border-b border-border">
@@ -68,7 +69,7 @@ export default function Sheet({ title, subtitle, onClose, children, tall, persis
             {subtitle && <p className="text-xs text-muted truncate">{subtitle}</p>}
           </div>
           <button type="button" className="btn-ghost w-10 px-0 text-muted" aria-label="Fechar" onClick={onClose}>
-            ✕
+            <X />
           </button>
         </header>
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
@@ -104,7 +105,7 @@ export function Menu({ title, items, label = "Mais opções" }: { title: string;
   return (
     <>
       <button type="button" className="btn-ghost w-10 px-0 text-muted shrink-0" aria-label={label} aria-haspopup="dialog" onClick={() => setShown(true)}>
-        ⋯
+        <Ellipsis />
       </button>
       {shown && (
         <Sheet title={title} transient onClose={() => setShown(false)}>

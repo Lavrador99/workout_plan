@@ -85,6 +85,12 @@ export function newClient(name: string): Client {
   return { id: uid(), updatedAt: 0, name, injuries: "", notes: "", birthYear: null, hrMax: null, hrRest: null };
 }
 
+/** Change a client from outside its page: always on top of the stored record. */
+export async function patchClient(id: string, patch: (c: Client) => Partial<Client>): Promise<void> {
+  const c = await db.clients.get(id);
+  if (c) await save("clients", { ...c, ...patch(c) });
+}
+
 // ── Focuses (sports, pathologies, asymmetries) ────────────────────────────────
 
 export function newFocus(kind: Focus["kind"], name: string): Focus {
@@ -167,9 +173,9 @@ export function templateBlocks(t: Template): Block[] {
   return t.blocks?.length ? t.blocks : [t.block];
 }
 
-/** Copy of a session for today: new ids, nothing ticked. */
-export function duplicateSession(s: Session): Session {
-  return { ...newSession(s.clientId), title: s.title, blocks: s.blocks.map(copyBlock), ...(s.noAdherence ? { noAdherence: true } : {}), ...(s.activity ? { activity: s.activity } : {}) };
+/** Copy of a session, for today unless told otherwise: new ids, nothing ticked. */
+export function duplicateSession(s: Session, clientId = s.clientId, date = todayISO()): Session {
+  return { ...newSession(clientId), date, title: s.title, blocks: s.blocks.map(copyBlock), ...(s.noAdherence ? { noAdherence: true } : {}), ...(s.activity ? { activity: s.activity } : {}) };
 }
 
 // ── Tests and assessments ───────────────────────────────────────────────────

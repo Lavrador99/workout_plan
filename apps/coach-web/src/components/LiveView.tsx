@@ -1,3 +1,5 @@
+import { Check, Play, X } from "lucide-react";
+import { ask } from "./Dialogs";
 import { fmtSegment, fmtZone, zoneName, zoneRange } from "../lib/run";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { fmtCircuitHeader, fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
@@ -88,9 +90,9 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
 
   const skip = () => setCursor(nextOpen(s, steps, curIdx) ?? cur);
 
-  const finish = () => {
+  const finish = async () => {
     const left = steps.length - doneCount;
-    if (!confirm(left ? `Terminar o treino? Ficam ${left} por fazer.` : "Terminar o treino?")) return;
+    if (!(await ask(left ? `Terminar o treino? Ficam ${left} por fazer.` : "Terminar o treino?"))) return;
     onChange({ ...s, endedAt: Date.now() });
     onMinimize();
   };
@@ -103,7 +105,7 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
     <div className="fixed inset-0 z-50 bg-bg flex flex-col safe-top">
       <div className="max-w-2xl w-full mx-auto flex flex-col flex-1 min-h-0">
         <header className="flex items-center gap-2 px-3 py-2">
-          <span className="flex items-center gap-1.5 font-bold tabular-nums">
+          <span className="flex items-center gap-2 font-bold tabular-nums">
             <span className="w-2.5 h-2.5 rounded-full bg-danger animate-pulse" />
             {fmtClock(now - (s.startedAt ?? now))}
           </span>
@@ -122,19 +124,19 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
         </div>
 
         {restLeft != null && (
-          <div className={`flex items-center gap-2 px-3 py-2 ${restLeft > 0 ? "bg-accent2 text-black" : "bg-success text-black"}`}>
+          <div className={`flex items-center gap-2 px-3 py-2 ${restLeft > 0 ? "bg-accent2 text-on-accent" : "bg-success text-on-accent"}`}>
             <span className="text-sm font-semibold uppercase">{restLeft > 0 ? "Descanso" : "Vai!"}</span>
             <span className="text-3xl font-black tabular-nums">{restLeft > 0 ? fmtClock(restLeft * 1000) : "✓"}</span>
             {restLeft > 0 && (
-              <div className="ml-auto flex gap-1.5">
-                <button type="button" className="btn bg-black/15 border-transparent text-black" onClick={() => setRestEnd((e) => (e ?? 0) - 15000)}>
+              <div className="ml-auto flex gap-2">
+                <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd((e) => (e ?? 0) - 15000)}>
                   −15
                 </button>
-                <button type="button" className="btn bg-black/15 border-transparent text-black" onClick={() => setRestEnd((e) => (e ?? 0) + 15000)}>
+                <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd((e) => (e ?? 0) + 15000)}>
                   +15
                 </button>
-                <button type="button" className="btn bg-black/15 border-transparent text-black" onClick={() => setRestEnd(null)} aria-label="Acabar descanso">
-                  ✕
+                <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd(null)} aria-label="Acabar descanso">
+                  <X />
                 </button>
               </div>
             )}
@@ -144,7 +146,7 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
         <div className="flex-1 overflow-y-auto overscroll-contain p-3 flex flex-col gap-4 safe-bottom">
           {!cur || !block ? (
             <div className="card p-6 flex flex-col items-center gap-3 text-center">
-              <span className="text-5xl">✓</span>
+              <span className="text-5xl"><Check /></span>
               <span className="text-xl font-bold">Tudo feito</span>
               <button type="button" className="btn-accent h-14 w-full text-lg" onClick={finish}>
                 Terminar treino
@@ -157,12 +159,12 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
               <ul className="flex flex-col gap-1">
                 {block.items.map((it) => (
                   <li key={it.id} className="text-lg">
-                    <span className="font-semibold">{it.name}</span> <span className="text-accent2 text-base">{fmtRx(it)}</span>
+                    <span className="font-semibold">{it.name}</span> <span className="text-accent text-base">{fmtRx(it)}</span>
                   </li>
                 ))}
               </ul>
               <button type="button" className="btn h-14 text-lg" onClick={() => setTimer(true)}>
-                ▶ Timer
+                <Play /> Timer
               </button>
               <DoneButton done={isDone(s, cur)} label="Bloco feito" onClick={tick} />
             </section>
@@ -195,11 +197,11 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
 function DoneButton({ done, label, onClick }: { done: boolean; label: string; onClick: () => void }) {
   return done ? (
     <button type="button" className="btn h-14 text-success border-success/50" onClick={onClick}>
-      ✓ Feito · desfazer
+      <Check /> Feito · desfazer
     </button>
   ) : (
     <button type="button" className="btn-accent h-16 text-xl" onClick={onClick}>
-      ✓ {label}
+      <Check /> {label}
     </button>
   );
 }
@@ -244,7 +246,7 @@ function SetCard({
       <div className="flex flex-col gap-1">
         <span className="label">{set ? setLabel(item, (step as Extract<Step, { kind: "set" }>).si) : item.role === "filler" ? "Intercalado" : "Exercício"}</span>
         <h1 className="text-3xl font-black leading-tight">{item.name || "—"}</h1>
-        {!set && fmtRx(item) && <span className="text-accent2">{fmtRx(item)}</span>}
+        {!set && fmtRx(item) && <span className="text-accent">{fmtRx(item)}</span>}
         {details && <span className="text-sm text-muted">{details}</span>}
         {set?.zone && <ZoneGoal zone={set.zone} />}
         {set && <LastTime item={item} si={(step as Extract<Step, { kind: "set" }>).si} session={session} />}
@@ -271,7 +273,7 @@ function SetCard({
             )}
           </div>
           {!item.run && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <span className="label w-10">{rpe ? "RPE" : "RIR"}</span>
               {(rpe ? [6, 7, 8, 9, 10] : [0, 1, 2, 3, 4]).map((v) => (
                 <button key={v} type="button" className={`flex-1 h-10 rounded-lg border text-sm font-semibold ${set.rir === v ? "bg-accent/20 border-accent text-accent" : "border-border bg-card2 text-muted"}`} onClick={() => onEdit("rir", set.rir === v ? null : v)}>
@@ -311,7 +313,7 @@ function LastTime({ item, si, session }: { item: Item; si: number; session: Sess
   const load = fmtLoad({ ...prev.item, loadMax: null }, p.load);
   return (
     <span className="text-sm text-muted">
-      Última vez: <span className="font-semibold text-white">{[vol, load].filter(Boolean).join(" × ") || fmtRx(prev.item)}</span>
+      Última vez: <span className="font-semibold text-fg">{[vol, load].filter(Boolean).join(" × ") || fmtRx(prev.item)}</span>
       {p.done === false && " (não feita)"}
     </span>
   );
@@ -360,7 +362,7 @@ function stepText(s: Session, st: Step): string {
 function ZoneGoal({ zone }: { zone: RunZone }) {
   const client = useContext(SessionCtx)?.client;
   const range = zoneRange(zone, client);
-  return <span className="text-accent2 font-semibold">{[fmtZone(zone), zoneName(zone), range].filter(Boolean).join(" · ")}</span>;
+  return <span className="text-accent font-semibold">{[fmtZone(zone), zoneName(zone), range].filter(Boolean).join(" · ")}</span>;
 }
 
 function NextUp({ session, step }: { session: Session; step: Step }) {
@@ -402,7 +404,7 @@ function Overview({ session: s, steps, current, onJump }: { session: Session; st
                   key={i}
                   type="button"
                   aria-label={`Série ${i + 1}`}
-                  className={`w-7 h-7 rounded-full border text-[11px] font-bold ${
+                  className={`w-10 h-10 rounded-full border text-xs font-bold ${
                     sameStep(st, current) ? "border-accent text-accent" : isDone(s, st) ? "bg-success/20 border-success text-success" : "border-border text-muted"
                   }`}
                   onClick={() => onJump(st)}

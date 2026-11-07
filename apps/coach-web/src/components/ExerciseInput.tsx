@@ -76,7 +76,7 @@ export default function ExerciseInput({ placeholder, initial = "", autoFocus, on
             <li key={ex.id}>
               <button
                 type="button"
-                className="w-full text-left px-3 py-2.5 active:bg-card2 border-b border-border last:border-0"
+                className="w-full text-left px-3 py-3 active:bg-card2 border-b border-border last:border-0"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => pick(ex)}
               >
@@ -86,7 +86,7 @@ export default function ExerciseInput({ placeholder, initial = "", autoFocus, on
             </li>
           ))}
           {namePart && !exact && (
-            <li className="px-3 py-2.5 text-sm text-accent2">
+            <li className="px-3 py-3 text-sm text-accent">
               + Novo na biblioteca: <b>«{namePart}»</b> <span className="text-muted">(Enter para criar)</span>
             </li>
           )}

@@ -18,8 +18,8 @@ interface Props {
 }
 
 const LINES = [
-  { color: "#e8ff47", dash: undefined },
-  { color: "#47c4ff", dash: "5 4" },
+  { color: "rgb(var(--c-accent))", dash: undefined },
+  { color: "rgb(var(--c-accent2))", dash: "5 4" },
 ];
 
 /** Line over time, with an optional second line and goal: 2px line, 8px markers, tap/hover tooltip. */
@@ -71,32 +71,32 @@ export default function LineChart({ points, unit, second = [], names, goal }: Pr
       >
         {ticks.map((v, i) => (
           <g key={i}>
-            <line x1={pad.l} x2={W - pad.r} y1={y(v)} y2={y(v)} stroke="#2a2a2a" strokeWidth="1" />
-            <text x={pad.l - 6} y={y(v) + 4} fontSize="10" textAnchor="end" fill="#888">
+            <line x1={pad.l} x2={W - pad.r} y1={y(v)} y2={y(v)} stroke="rgb(var(--c-border))" strokeWidth="1" />
+            <text x={pad.l - 6} y={y(v) + 4} fontSize="10" textAnchor="end" fill="rgb(var(--c-muted))">
               {fmtNum(v)}
             </text>
           </g>
         ))}
-        <text x={pad.l} y={H - 6} fontSize="10" fill="#888">
+        <text x={pad.l} y={H - 6} fontSize="10" fill="rgb(var(--c-muted))">
           {fmtDate(dates[0]).slice(0, 5)}
         </text>
-        <text x={W - pad.r} y={H - 6} fontSize="10" textAnchor="end" fill="#888">
+        <text x={W - pad.r} y={H - 6} fontSize="10" textAnchor="end" fill="rgb(var(--c-muted))">
           {fmtDate(dates[dates.length - 1]).slice(0, 5)}
         </text>
         {goal != null && (
           <g>
-            <line x1={pad.l} x2={W - pad.r} y1={y(goal)} y2={y(goal)} stroke="#47ff8a" strokeWidth="1" strokeDasharray="2 3" />
-            <text x={W - pad.r} y={y(goal) - 4} fontSize="10" textAnchor="end" fill="#47ff8a">
+            <line x1={pad.l} x2={W - pad.r} y1={y(goal)} y2={y(goal)} stroke="rgb(var(--c-success))" strokeWidth="1" strokeDasharray="2 3" />
+            <text x={W - pad.r} y={y(goal) - 4} fontSize="10" textAnchor="end" fill="rgb(var(--c-success))">
               objetivo
             </text>
           </g>
         )}
-        {active && <line x1={x(active)} x2={x(active)} y1={pad.t} y2={H - pad.b} stroke="#888" strokeWidth="1" strokeDasharray="3 3" />}
+        {active && <line x1={x(active)} x2={x(active)} y1={pad.t} y2={H - pad.b} stroke="rgb(var(--c-muted))" strokeWidth="1" strokeDasharray="3 3" />}
         {series.map((list, i) => (
           <g key={i}>
             <path d={pathOf(list)} fill="none" stroke={LINES[i].color} strokeWidth="2" strokeDasharray={LINES[i].dash} strokeLinejoin="round" strokeLinecap="round" />
             {list.map((p, j) => (
-              <circle key={j} cx={x(p.date)} cy={y(p.value)} r={active === p.date ? 5 : 4} fill={LINES[i].color} stroke="#1a1a1a" strokeWidth="2" />
+              <circle key={j} cx={x(p.date)} cy={y(p.value)} r={active === p.date ? 5 : 4} fill={LINES[i].color} stroke="rgb(var(--c-card))" strokeWidth="2" />
             ))}
           </g>
         ))}

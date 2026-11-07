@@ -74,7 +74,7 @@ function TempoField({ value, onChange }: { value: string; onChange: (t: string) 
   return (
     <div className="flex flex-col gap-1">
       <span className="label">Cadência (excêntrica-pausa-concêntrica-pausa)</span>
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         <button type="button" className={`chip ${!value ? "chip-on" : ""}`} onClick={() => onChange("")}>
           —
         </button>
@@ -84,7 +84,7 @@ function TempoField({ value, onChange }: { value: string; onChange: (t: string) 
           </button>
         ))}
         <input
-          className="input min-h-[32px] h-8 w-24 shrink-0 text-sm text-center"
+          className="input min-h-[40px] h-10 w-24 shrink-0 text-sm text-center"
           placeholder="outra"
           value={TEMPOS.includes(text) ? "" : text}
           onChange={(e) => setText(e.target.value)}

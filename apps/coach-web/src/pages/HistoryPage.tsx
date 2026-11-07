@@ -52,7 +52,7 @@ export default function HistoryPage({ clientId, exKey }: { clientId: string; exK
           const done = o.item.sets.filter((s) => s.done).length;
           return (
             <li key={i}>
-              <button type="button" className="w-full text-left px-3 py-2.5 flex gap-3 items-baseline" onClick={() => go("session", o.session.id)}>
+              <button type="button" className="w-full text-left px-3 py-3 flex gap-3 items-baseline" onClick={() => go("session", o.session.id)}>
                 <span className="text-sm font-semibold w-24 shrink-0">{fmtDate(o.session.date)}</span>
                 <span className="flex-1 text-sm">
                   {o.item.name !== target.name && <span className="text-muted">{o.item.name} · </span>}

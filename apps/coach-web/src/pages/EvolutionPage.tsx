@@ -1,3 +1,4 @@
+import { PageLoading } from "../components/States";
 import BenchmarkCard from "../components/BenchmarkCard";
 import LineChart, { type Point } from "../components/LineChart";
 import PageHeader from "../components/PageHeader";
@@ -75,7 +76,7 @@ function VersionSection({ v, showVersion, assessments, target, test, testId, cli
           const speed = averageSpeed(distance, v.both.find((p) => p.assessmentId === a.id)?.value ?? null);
           return (
             <li key={a.id}>
-              <button type="button" className="w-full text-left px-3 py-2 flex flex-col gap-0.5" onClick={() => go("assessment", a.id)}>
+              <button type="button" className="w-full text-left px-3 py-2 flex flex-col gap-1" onClick={() => go("assessment", a.id)}>
                 <span className="flex items-baseline gap-2">
                   <span className="text-sm">{fmtDate(a.date)}</span>
                   <span className="flex-1 min-w-0 truncate text-xs text-muted">{a.title}</span>
@@ -100,7 +101,7 @@ export default function EvolutionPage({ clientId, testId }: { clientId: string; 
   const assessments = useAssessments(clientId);
   const tests = useTests();
   const goals = useGoals(clientId);
-  if (!assessments || !tests || !client || !goals) return null;
+  if (!assessments || !tests || !client || !goals) return <PageLoading title="Evolução" back={["clients"]} />;
 
   const versions = series(assessments, testId).reverse();
   const test = tests.find((t) => t.id === testId);

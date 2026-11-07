@@ -1,3 +1,4 @@
+import { ChevronRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { asymmetry, averageSpeed, finalValue, fmtAsymmetry, MAX_E1RM_REPS, relativeStrength, SIDE_SHORT, SIDES, type changeTone } from "../lib/assessment";
 import { fmtDate, fmtNum, num } from "../lib/text";
@@ -27,7 +28,7 @@ export function NumberField({ value, disabled, onChange, label }: { value: numbe
 
 function TrialCell({ trial, label, estimated, onChange }: { trial: Trial; label: string; estimated: boolean; onChange: (t: Trial) => void }) {
   return (
-    <div className="flex flex-col gap-0.5 min-w-0">
+    <div className="flex flex-col gap-1 min-w-0">
       {estimated ? (
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
           <NumberField value={trial.value} disabled={trial.invalid} label={`${label}, carga`} onChange={(value) => onChange({ ...trial, value })} />
@@ -127,7 +128,7 @@ export default function ResultCard({ result: r, previous, date, test, bodyMass, 
   if (!open)
     return (
       <li className="card">
-        <button type="button" className="w-full text-left px-3 py-2.5 flex items-center gap-2" aria-expanded={false} onClick={onToggle}>
+        <button type="button" className="w-full text-left px-3 py-3 flex items-center gap-2" aria-expanded={false} onClick={onToggle}>
           <span className={`w-2 h-2 rounded-full shrink-0 ${final ? "bg-success" : "bg-border"}`} />
           <span className="font-medium flex-1 min-w-0 truncate">{r.name}</span>
           <span className={`text-sm shrink-0 ${final ? "font-semibold" : "text-muted"}`}>{final || "—"}</span>
@@ -138,20 +139,20 @@ export default function ResultCard({ result: r, previous, date, test, bodyMass, 
   return (
     <li ref={card} className="card border-accent/50 p-3 flex flex-col gap-2 scroll-mt-20 scroll-mb-24">
       <div className="flex items-center gap-1">
-        <button type="button" className="flex-1 min-w-0 flex items-baseline gap-1.5 text-left" aria-expanded onClick={onToggle}>
+        <button type="button" className="flex-1 min-w-0 flex items-baseline gap-2 text-left" aria-expanded onClick={onToggle}>
           <h3 className="font-semibold min-w-0 truncate">{r.name}</h3>
           <span className="text-xs text-muted shrink-0">{r.unit}</span>
         </button>
-        <button type="button" className="btn-ghost min-h-[32px] px-2 text-muted" aria-label={`Ficha de ${r.name}`} aria-expanded={info} onClick={() => setInfo(!info)}>
+        <button type="button" className="btn-ghost min-h-[40px] px-2 text-muted" aria-label={`Ficha de ${r.name}`} aria-expanded={info} onClick={() => setInfo(!info)}>
           ⓘ
         </button>
-        <button type="button" className="btn-ghost min-h-[32px] px-2 text-muted" aria-label={`Tirar ${r.name}`} onClick={onRemove}>
-          ✕
+        <button type="button" className="btn-ghost min-h-[40px] px-2 text-muted" aria-label={`Tirar ${r.name}`} onClick={onRemove}>
+          <X />
         </button>
       </div>
 
       {info && (
-        <dl className="text-sm flex flex-col gap-1.5 bg-card2 rounded-lg p-2">
+        <dl className="text-sm flex flex-col gap-2 bg-card2 rounded-lg p-2">
           {test ? (
             (
               [
@@ -178,7 +179,7 @@ export default function ResultCard({ result: r, previous, date, test, bodyMass, 
       {rows.map(([side, cells]) => (
         <div key={side ?? "both"} className="flex items-start gap-2">
           {side && <span className="w-4 shrink-0 text-sm font-semibold text-muted leading-10">{SIDE_SHORT[side]}</span>}
-          <div className="grid gap-1.5 flex-1 min-w-0" style={{ gridTemplateColumns: `repeat(${r.scale ? 1 : columns}, minmax(0, 1fr))` }}>
+          <div className="grid gap-2 flex-1 min-w-0" style={{ gridTemplateColumns: `repeat(${r.scale ? 1 : columns}, minmax(0, 1fr))` }}>
             {cells.map(([trial, i], n) => {
               const label = `${r.name}${side ? ` ${SIDE_SHORT[side]}` : ""}, tentativa ${n + 1}`;
               return r.scale ? (
@@ -203,7 +204,7 @@ export default function ResultCard({ result: r, previous, date, test, bodyMass, 
           )}
         </span>
         {!r.scale && (
-          <button type="button" className="text-xs text-accent2 shrink-0" onClick={addTrial}>
+          <button type="button" className="text-xs text-accent shrink-0" onClick={addTrial}>
             + tentativa
           </button>
         )}
@@ -225,7 +226,7 @@ export default function ResultCard({ result: r, previous, date, test, bodyMass, 
       )}
       {onNext && (
         <button type="button" className="btn self-end" onClick={onNext}>
-          Seguinte ›
+          Seguinte <ChevronRight />
         </button>
       )}
     </li>

@@ -42,6 +42,26 @@ export interface Client extends SyncMeta {
   /** Every change of weights, oldest first. */
   weightLog?: WeightChange[];
   consentAt?: string | null; // YYYY-MM-DD, when the client consented to their data being kept
+  phone?: string;
+  email?: string;
+  /** Days the client did not train: kept apart so no empty session reaches the training history. */
+  absences?: Absence[];
+  monthlyFee?: number | null;
+  /** First month the fee is owed, YYYY-MM. */
+  feeFrom?: string | null;
+  payments?: Payment[];
+}
+
+export interface Absence {
+  date: string; // YYYY-MM-DD
+  kind: "missed" | "cancelled"; // faltou / desmarcou
+}
+
+export interface Payment {
+  id: string;
+  month: string; // YYYY-MM, the month it covers
+  date: string; // YYYY-MM-DD, when it was received
+  amount: number;
 }
 
 /** What a session is. Unset = treino. */

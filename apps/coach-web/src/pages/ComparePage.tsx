@@ -1,3 +1,4 @@
+import { PageLoading } from "../components/States";
 import { changeTone, compare, fmtChange, SIDE_SHORT, testMdc, type CompareRow } from "../lib/assessment";
 import PageHeader, { NotFound } from "../components/PageHeader";
 import { TONE_CLASS } from "../components/ResultCard";
@@ -25,7 +26,7 @@ export default function ComparePage({ clientId, a, b }: { clientId: string; a: s
   const second = useAssessment(b);
   const library = useTests() ?? [];
   if (first === null || second === null) return <NotFound title="Comparação" back={["client", clientId, "assessments"]} />;
-  if (!first || !second) return null;
+  if (!first || !second) return <PageLoading title="Comparar" back={["clients"]} />;
 
   const [older, newer] = first.date < second.date || (first.date === second.date && first.updatedAt <= second.updatedAt) ? [first, second] : [second, first];
   const rows = compare(older, newer, (r) => testMdc(library.find((t) => t.id === r.testId), r.version));

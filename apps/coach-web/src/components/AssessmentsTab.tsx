@@ -1,3 +1,4 @@
+import { Copy } from "lucide-react";
 import { useState } from "react";
 import { asymmetry, change, changeTone, finalValue, fmtAsymmetry, previousResult, repeatResults, testMdc } from "../lib/assessment";
 import { newAssessment, save } from "../lib/db";
@@ -38,14 +39,14 @@ export default function AssessmentsTab({ clientId }: { clientId: string }) {
           + Nova avaliação
         </button>
         <button type="button" className="btn flex-1" disabled={!last} onClick={() => last && void open({ ...newAssessment(clientId), title: last.title, results: repeatResults(last.results, tests) })}>
-          ⧉ Repetir última
+          <Copy /> Repetir última
         </button>
       </div>
 
       {results.length > 0 && (
         <section className="card p-3 flex flex-col gap-2">
           <h2 className="label">Última avaliação · {fmtDate(last.date)}</h2>
-          <ul className="flex flex-col gap-1.5 text-sm">
+          <ul className="flex flex-col gap-2 text-sm">
             {results.map((r) => {
               const asym = asymmetry(r);
               return (

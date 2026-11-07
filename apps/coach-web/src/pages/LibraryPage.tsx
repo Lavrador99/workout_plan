@@ -1,9 +1,12 @@
+import { Check, ChevronRight, Play, Star, TriangleAlert, X } from "lucide-react";
+import { ask, askText } from "../components/Dialogs";
+import { toast } from "../components/Toast";
 import { useMemo, useState } from "react";
 import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../lib/db";
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
 import { downloadText, exercisesCsv } from "../lib/exportExercises";
 import { fmtBlock } from "../lib/format";
-import { replaceRoute, useExerciseIndex, useExercises, useTemplates, useUsage } from "../lib/hooks";
+import { replaceRoute, useExerciseIndex, useExercises, useTemplates, useUsage, go } from "../lib/hooks";
 import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
 import { todayISO, uid } from "../lib/text";
@@ -36,7 +39,7 @@ export default function LibraryPage({ view: routeView }: { view?: string }) {
   const exercises = useExercises() ?? [];
   return (
     <>
-      <PageHeader title="Biblioteca">
+      <PageHeader title="Biblioteca" actions={<button type="button" className="btn shrink-0" onClick={() => go("focus")}>Perfis <ChevronRight /></button>}>
         <Tabs options={VIEWS} value={view} onChange={(v) => replaceRoute("library", v)} />
       </PageHeader>
       <div className="page">
@@ -77,7 +80,7 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
   };
   const restore = async () => {
     const n = await seedLibrary(true);
-    alert(n ? `${n} exercícios/templates da biblioteca base adicionados ou completados.` : "A biblioteca base já está toda cá.");
+    toast(n ? `${n} exercícios/templates da biblioteca base adicionados ou completados.` : "A biblioteca base já está toda cá.");
   };
 
   const toggle = (id: string) => setSelected((sel) => (sel?.includes(id) ? sel.filter((x) => x !== id) : [...(sel ?? []), id]));
@@ -119,7 +122,7 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
         <Duplicates pairs={dups} usage={usage} />
       ) : (
         <>
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-3 px-3">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-3 px-3">
             <button type="button" className={`chip ${!tag ? "chip-on" : ""}`} onClick={() => setTag("")}>
               Todos
             </button>
@@ -139,21 +142,21 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
             </div>
           )}
           {list.length === 0 ? (
-            <p className="text-sm text-muted">{filter === "review" ? "✓ Está tudo completo." : "Nada encontrado."}</p>
+            <p className="text-sm text-muted">{filter === "review" ? "Está tudo completo." : "Nada encontrado."}</p>
           ) : (
             <ul className="card divide-y divide-border">
               {list.slice(0, shown).map((ex) => {
                 const miss = missing.get(ex.id);
                 return (
                   <li key={ex.id}>
-                    <button type="button" className="row py-2.5" onClick={() => (selected ? toggle(ex.id) : setEditing(ex.id))}>
-                      {selected && <span className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center text-xs ${selected.includes(ex.id) ? "bg-accent border-accent text-black" : "border-border"}`}>{selected.includes(ex.id) && "✓"}</span>}
+                    <button type="button" className="row py-3" onClick={() => (selected ? toggle(ex.id) : setEditing(ex.id))}>
+                      {selected && <span className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center text-xs ${selected.includes(ex.id) ? "bg-accent border-accent text-on-accent" : "border-border"}`}>{selected.includes(ex.id) && "✓"}</span>}
                       <span className="flex-1 min-w-0">
                         <span className="font-medium">{ex.name}</span>
                         <span className="block text-xs text-muted truncate">{[ex.pt, ...ex.aliases].filter(Boolean).join(" · ")}</span>
-                        {miss && <span className="block text-xs text-warn">⚠ sem {miss.join(" nem ")}</span>}
+                        {miss && <span className="block text-xs text-warn"><TriangleAlert /> sem {miss.join(" nem ")}</span>}
                       </span>
-                      <span className="text-xs">{levelDots(ex)}</span>
+                      <span className="text-xs text-muted">{levelDots(ex)}</span>
                       <span className="text-xs text-muted tabular-nums">{usage.get(ex.id) ?? 0}×</span>
                     </button>
                   </li>
@@ -206,7 +209,7 @@ function MergeBar({ list, usage, onDone }: { list: Exercise[]; usage: Map<string
   const [busy, setBusy] = useState(false);
   const merge = async (keep: Exercise) => {
     const others = list.filter((e) => e.id !== keep.id);
-    if (!confirm(`Juntar ${others.map((e) => `«${e.name}»`).join(", ")} em «${keep.name}»?\nOs nomes passam a sinónimos e as sessões ficam ligadas a «${keep.name}».`)) return;
+    if (!(await ask(`Juntar ${others.map((e) => `«${e.name}»`).join(", ")} em «${keep.name}»?\nOs nomes passam a sinónimos e as sessões ficam ligadas a «${keep.name}».`))) return;
     setBusy(true);
     for (const o of others) await mergeExercises(o.id, keep.id);
     onDone();
@@ -227,9 +230,9 @@ function MergeBar({ list, usage, onDone }: { list: Exercise[]; usage: Map<string
 }
 
 function Duplicates({ pairs, usage }: { pairs: DuplicatePair[]; usage: Map<string, number> }) {
-  if (!pairs.length) return <p className="text-sm text-muted">✓ Sem duplicados à vista.</p>;
+  if (!pairs.length) return <p className="text-sm text-muted"><Check /> Sem duplicados à vista.</p>;
   const keep = async (keep: Exercise, drop: Exercise) => {
-    if (confirm(`Juntar «${drop.name}» em «${keep.name}»? O nome fica como sinónimo e as sessões passam para «${keep.name}».`)) await mergeExercises(drop.id, keep.id);
+    if ((await ask(`Juntar «${drop.name}» em «${keep.name}»? O nome fica como sinónimo e as sessões passam para «${keep.name}».`))) await mergeExercises(drop.id, keep.id);
   };
   const distinct = async ({ a, b }: DuplicatePair) => {
     await save("exercises", { ...a, distinct: [...new Set([...(a.distinct ?? []), b.id])] });
@@ -269,7 +272,7 @@ function TemplateList({ list }: { list: Template[] }) {
         <li key={t.id} className="p-3 flex gap-2 items-start">
           <details className="flex-1 min-w-0">
             <summary className="font-semibold cursor-pointer">
-              ☆ {t.name} <span className="text-xs text-muted font-normal">· {templateBlocks(t).length} bloco(s)</span>
+              <Star /> {t.name} <span className="text-xs text-muted font-normal">· {templateBlocks(t).length} bloco(s)</span>
             </summary>
             <pre className="text-xs text-muted whitespace-pre-wrap font-sans mt-2">{templateBlocks(t).map(fmtBlock).join("\n\n")}</pre>
           </details>
@@ -277,14 +280,14 @@ function TemplateList({ list }: { list: Template[] }) {
             type="button"
             className="btn"
             onClick={async () => {
-              const name = prompt("Nome do template", t.name)?.trim();
+              const name = (await askText("Nome do template", t.name))?.trim();
               if (name) await save("templates", { ...t, name });
             }}
           >
             ✎
           </button>
-          <button type="button" className="btn text-danger" onClick={async () => confirm(`Apagar o template «${t.name}»?`) && (await remove("templates", t.id))}>
-            ✕
+          <button type="button" className="btn text-danger" onClick={async () => (await ask(`Apagar o template «${t.name}»?`)) && (await remove("templates", t.id))}>
+            <X />
           </button>
         </li>
       ))}
@@ -320,7 +323,7 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
   };
 
   const video = demo.trim() || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${ex.name} exercise`)}`;
-  const warn = (ok: boolean) => (ok ? "" : " ⚠");
+  const warn = (ok: boolean) => (ok ? "" : " (em falta)");
 
   return (
     <>
@@ -356,21 +359,21 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
             <input className="input" inputMode="url" value={demo} onChange={(e) => setDemo(e.target.value)} />
           </Labelled>
           <a className="btn self-start" href={video} target="_blank" rel="noreferrer">
-            ▶ Ver vídeo
+            <Play /> Ver vídeo
           </a>
         </>
       )}
 
       {tab === "patterns" && (
         <>
-          <span className={`label ${patterns.length ? "" : "text-warn"}`}>{!patterns.length ? "⚠ Escolhe pelo menos um" : ex.patterns ? "Padrões de movimento" : "Sugeridos pelo nome"}</span>
+          <span className={`label ${patterns.length ? "" : "text-warn"}`}>{!patterns.length ? "Escolhe pelo menos um" : ex.patterns ? "Padrões de movimento" : "Sugeridos pelo nome"}</span>
           <ChipGroups groups={PATTERN_GROUPS} value={patterns} onChange={setPatterns} />
         </>
       )}
 
       {tab === "muscles" && (
         <>
-          <span className={`label ${muscles.length ? "" : "text-warn"}`}>{!muscles.length ? "⚠ Escolhe pelo menos um" : ex.muscles ? "Músculos" : "Sugeridos"}</span>
+          <span className={`label ${muscles.length ? "" : "text-warn"}`}>{!muscles.length ? "Escolhe pelo menos um" : ex.muscles ? "Músculos" : "Sugeridos"}</span>
           <ChipGroups groups={MUSCLE_CHIP_GROUPS} value={muscles} onChange={setMuscles} />
         </>
       )}
@@ -388,7 +391,7 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
                 type="button"
                 className="btn justify-start"
                 onClick={async () => {
-                  if (!confirm(`Juntar «${ex.name}» a «${o.name}»?`)) return;
+                  if (!(await ask(`Juntar «${ex.name}» a «${o.name}»?`))) return;
                   await mergeExercises(ex.id, o.id);
                   onClose();
                 }}
@@ -401,7 +404,7 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
             type="button"
             className="btn text-danger self-start"
             onClick={async () => {
-              if (!confirm(`Apagar «${ex.name}» da biblioteca? As sessões antigas mantêm o nome.`)) return;
+              if (!(await ask(`Apagar «${ex.name}» da biblioteca? As sessões antigas mantêm o nome.`))) return;
               await remove("exercises", ex.id);
               onClose();
             }}

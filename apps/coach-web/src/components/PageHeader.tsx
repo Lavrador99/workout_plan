@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { back as goBack } from "../lib/hooks";
 
@@ -14,11 +15,11 @@ interface Props {
 /** The top of every page, always the same: back, title, its context, its actions. */
 export default function PageHeader({ title, subtitle, back, actions, children }: Props) {
   return (
-    <header className="sticky sticky-top z-30 bg-bg/95 backdrop-blur border-b border-border px-3 pt-1.5">
-      <div className="flex items-center gap-1 min-h-[48px] pb-1.5">
+    <header className="sticky sticky-top z-30 bg-bg/95 backdrop-blur border-b border-border px-4 pt-2">
+      <div className="flex items-center gap-1 min-h-[48px] pb-2">
         {back && (
           <button type="button" className="btn-ghost -ml-2 w-10 px-0 text-lg shrink-0" aria-label="Voltar" onClick={() => goBack(...back)}>
-            ←
+            <ArrowLeft />
           </button>
         )}
         <div className="flex-1 min-w-0">

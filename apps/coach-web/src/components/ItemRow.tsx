@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, Check, Copy } from "lucide-react";
 import { useContext, useMemo, useState } from "react";
 import { fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
 import { history, suggest } from "../lib/history";
@@ -58,19 +59,19 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
       {handle}
       <button type="button" className="flex-1 min-w-0 text-left flex flex-wrap items-baseline gap-x-2" onClick={() => setOpen(!open)}>
         <span className={`font-semibold ${filler ? "text-sm text-muted" : ""}`}>{item.name || "—"}</span>
-        <span className="text-sm text-accent2">{rx}</span>
+        <span className="text-sm text-accent">{rx}</span>
         {(item.grip || item.stance) && <span className="text-xs text-muted">{[item.grip && `pega ${item.grip}`, item.stance && `pés ${item.stance}`].filter(Boolean).join(" · ")}</span>}
       </button>
       </div>
 
       {item.sets.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-1.5">
+        <div className="flex flex-wrap gap-2 mt-2">
           {item.sets.map((s, i) => (
             <button
               key={i}
               type="button"
               onClick={() => toggleDone(i)}
-              className={`rounded-full px-2.5 h-8 text-xs font-semibold border transition ${
+              className={`rounded-full px-3 h-10 text-xs font-semibold border transition ${
                 s.done ? "bg-success/20 border-success text-success" : s.type === "warmup" ? "border-dashed border-border bg-transparent text-muted" : "border-border bg-card2 text-muted"
               }`}
             >
@@ -78,7 +79,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
               {chipText(item, s)}
             </button>
           ))}
-          {!!item.extraLeft && <span className="rounded-full px-2 h-8 inline-flex items-center text-xs text-accent border border-accent/40">E +{item.extraLeft}</span>}
+          {!!item.extraLeft && <span className="rounded-full px-2 h-10 inline-flex items-center text-xs text-accent border border-accent/40">E +{item.extraLeft}</span>}
         </div>
       )}
 
@@ -111,7 +112,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
                   {item.sets.map((s, i) => (
                     <tr key={i} className={s.type === "warmup" ? "text-muted" : ""}>
                       <td className="w-12 pr-1">
-                        <button type="button" className="w-11 h-9 rounded-lg border border-border text-xs font-semibold" onClick={() => setRow(i, cycleType(s))}>
+                        <button type="button" className="w-11 h-10 rounded-lg border border-border text-xs font-semibold" onClick={() => setRow(i, cycleType(s))}>
                           {s.type && s.type !== "work" ? SET_TYPE[s.type].short : i + 1 - item.sets.slice(0, i).filter((x) => x.type === "warmup").length}
                         </button>
                       </td>
@@ -133,7 +134,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
                           className={`w-9 h-9 rounded-lg border ${s.done ? "bg-success/20 border-success text-success" : "border-border text-muted"}`}
                           onClick={() => toggleDone(i)}
                         >
-                          ✓
+                          <Check />
                         </button>
                       </td>
                     </tr>
@@ -143,7 +144,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
               <p className="text-xs text-muted -mt-2">
                 Tipo: nº = efetiva · A aquecimento · F até à falha · D drop. Desc. em segundos. Deixa vazio para o atleta escolher.
               </p>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                 <button type="button" className="chip" onClick={() => onChange(pyramid(item))}>
                   ↗ Pirâmide
                 </button>
@@ -187,17 +188,17 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
 
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn" onClick={() => onMove(-1)}>
-              ↑
+              <ArrowUp />
             </button>
             <button type="button" className="btn" onClick={() => onMove(1)}>
-              ↓
+              <ArrowDown />
             </button>
             <button type="button" className="btn" onClick={() => onChange({ ...item, role: filler ? "main" : "filler" })}>
               {filler ? "Tornar principal" : "Intercalado ( )"}
             </button>
             {onDuplicate && (
               <button type="button" className="btn" onClick={onDuplicate}>
-                ⧉ Duplicar
+                <Copy /> Duplicar
               </button>
             )}
             <button type="button" className="btn text-danger" onClick={onDelete}>
@@ -239,7 +240,7 @@ export function LastTime({ item, onApply }: { item: Item; onApply: (i: Item) => 
             {sg.label}
           </button>
         )}
-        <button type="button" className="btn-ghost text-accent2" onClick={() => go("history", ctx.clientId, item.exerciseId ?? `n:${item.name}`)}>
+        <button type="button" className="btn-ghost text-accent" onClick={() => go("history", ctx.clientId, item.exerciseId ?? `n:${item.name}`)}>
           Histórico ({occ.length}) →
         </button>
       </div>
@@ -251,7 +252,7 @@ function NumCell({ value, onChange }: { value: number | null | undefined; onChan
   return (
     <input
       key={String(value)}
-      className="input min-h-[36px] text-center px-1"
+      className="input min-h-[40px] text-center px-1"
       inputMode="decimal"
       defaultValue={fmtNum(value)}
       onBlur={(e) => {

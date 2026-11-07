@@ -1,3 +1,7 @@
+import { PageLoading } from "../components/States";
+import { ArrowUp, Check, Play, X } from "lucide-react";
+import { ask, askText } from "../components/Dialogs";
+import { toast } from "../components/Toast";
 import { ACTIVITIES } from "../lib/balance";
 import { useEffect, useRef, useState } from "react";
 import BlockCard, { KIND_DEFAULTS } from "../components/BlockCard";
@@ -6,6 +10,7 @@ import ExtrasSheet from "../components/ExtrasSheet";
 import LiveView, { fmtClock, useNow } from "../components/LiveView";
 import PageHeader, { NotFound } from "../components/PageHeader";
 import PrescribeSheet from "../components/PrescribeSheet";
+import AssignSheet from "../components/AssignSheet";
 import { Menu } from "../components/Sheet";
 import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
 import { fmtSession } from "../lib/format";
@@ -44,6 +49,7 @@ export default function SessionPage({ id }: { id: string }) {
   /** Where "+ Exercício" adds: the last plain block, or a new one made on the first add. */
   const [target, setTarget] = useState<Block | null>(null);
   const [copied, setCopied] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const current = useRef<Session | null>(null);
   const [newBlock, setNewBlock] = useState<string | null>(null);
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -79,8 +85,8 @@ export default function SessionPage({ id }: { id: string }) {
     pending.current = setTimeout(() => void flush(), 400);
   };
 
-  if (stored === null) return <NotFound title="Sessão" back={[""]} />;
-  if (!s) return null;
+  if (stored === null) return <NotFound title="Sessão" back={["clients"]} />;
+  if (!s) return <PageLoading title="Sessão" back={["clients"]} />;
   current.current = s;
 
   const setBlocks = (blocks: Block[]) => update({ ...s, blocks });
@@ -127,11 +133,11 @@ export default function SessionPage({ id }: { id: string }) {
   const applyDay = (t: Template) => update({ ...s, title: s.title || t.title || t.name, blocks: [...s.blocks, ...templateBlocks(t).map(copyBlock)] });
 
   const saveDay = async () => {
-    const name = prompt("Nome do template de dia", s.title)?.trim();
+    const name = (await askText("Nome do template de dia", s.title))?.trim();
     if (!name) return;
     const blocks = s.blocks.map(copyBlock);
     await save<Template>("templates", { id: uid(), updatedAt: 0, name, title: s.title, block: blocks[0], blocks });
-    alert(`Template «${name}» guardado.`);
+    toast(`Template «${name}» guardado.`);
   };
 
   const applyText = (text: string) => {
@@ -146,7 +152,7 @@ export default function SessionPage({ id }: { id: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      prompt("Copia o texto:", text);
+      (await askText("Copia o texto:", text));
     }
   };
   const share = () => navigator.share?.({ text: text.replace(/\*\*/g, "*") }).catch(() => {});
@@ -158,7 +164,7 @@ export default function SessionPage({ id }: { id: string }) {
   };
 
   const del = async () => {
-    if (!confirm("Apagar esta sessão?")) return;
+    if (!(await ask("Apagar esta sessão?"))) return;
     clearTimeout(pending.current);
     latest.current = null;
     await remove("sessions", s.id);
@@ -168,7 +174,7 @@ export default function SessionPage({ id }: { id: string }) {
   const ctx = { clientId: s.clientId, sessionId: s.id, date: s.date, sessions: clientSessions ?? [], client };
 
   /** Apply "progress" to every exercise that was fully done last time. */
-  const progressAll = () => {
+  const progressAll = async () => {
     let n = 0;
     const blocks = s.blocks.map((b) => ({
       ...b,
@@ -180,8 +186,8 @@ export default function SessionPage({ id }: { id: string }) {
         return sg.apply(it);
       }),
     }));
-    if (!n) return alert("Nada para progredir: nenhum exercício foi feito por completo na última vez.");
-    if (confirm(`Subir ${n} exercício(s) que foram feitos por completo na última vez?`)) setBlocks(blocks);
+    if (!n) return toast("Nada para progredir: nenhum exercício foi feito por completo na última vez.");
+    if ((await ask(`Subir ${n} exercício(s) que foram feitos por completo na última vez?`))) setBlocks(blocks);
   };
 
   const done = s.blocks.reduce((n, b) => n + b.items.reduce((m, i) => m + i.sets.filter((x) => x.done).length, 0), 0);
@@ -210,23 +216,25 @@ export default function SessionPage({ id }: { id: string }) {
         <>
           {total > 0 && done === 0 && (
             <button type="button" className="btn text-accent shrink-0" onClick={progressAll}>
-              ↑ Progressão
+              <ArrowUp /> Progressão
             </button>
           )}
           <Menu
             title="Opções da sessão"
             items={[
-              { label: copied ? "✓ Copiado" : "Copiar texto", onClick: copy, keepOpen: true },
+              { label: copied ? "Copiado" : "Copiar texto", onClick: copy, keepOpen: true },
               "share" in navigator && { label: "Partilhar", onClick: share },
               { label: "Duplicar para hoje", onClick: duplicate },
+              s.blocks.length > 0 && { label: "Copiar para outros clientes", onClick: () => void flush().then(() => setAssigning(true)) },
               { label: s.noAdherence ? "Contar para a adesão" : "Não contar para a adesão", onClick: () => update({ ...s, noAdherence: !s.noAdherence }) },
-              s.blocks.length > 0 && { label: "☆ Guardar como template de dia", onClick: saveDay },
+              s.blocks.length > 0 && { label: "Guardar como template de dia", onClick: saveDay },
               { label: "Apagar sessão", onClick: del, danger: true },
             ]}
           />
         </>
       }
     />
+    {assigning && <AssignSheet session={s} onClose={() => setAssigning(false)} />}
     <div className="page">
       <div className="grid grid-cols-[auto_1fr] gap-2">
         <input type="date" className="input w-auto" value={s.date} onChange={(e) => update({ ...s, date: e.target.value })} />
@@ -274,7 +282,7 @@ export default function SessionPage({ id }: { id: string }) {
                 {b.section}
                 {empty && (
                   <button type="button" className="text-muted" onClick={() => setBlocks(s.blocks.filter((x) => x.id !== b.id))} aria-label="Tirar secção">
-                    ✕
+                    <X />
                   </button>
                 )}
               </h2>
@@ -336,7 +344,7 @@ function LiveBar({ session: s, onStart }: { session: Session; onStart: () => voi
   if (!s.startedAt)
     return (
       <button type="button" className="btn-accent h-14 text-lg" onClick={onStart}>
-        ▶ Iniciar treino
+        <Play /> Iniciar treino
       </button>
     );
   if (!s.endedAt)
@@ -348,8 +356,8 @@ function LiveBar({ session: s, onStart }: { session: Session; onStart: () => voi
     );
   return (
     <div className="flex items-center gap-2 text-sm text-muted">
-      <span className="text-success">✓</span> Treino de {Math.max(1, Math.round((s.endedAt - s.startedAt) / 60000))} min
-      <button type="button" className="btn-ghost ml-auto text-accent2" onClick={onStart}>
+      <span className="text-success"><Check /></span> Treino de {Math.max(1, Math.round((s.endedAt - s.startedAt) / 60000))} min
+      <button type="button" className="btn-ghost ml-auto text-accent" onClick={onStart}>
         Retomar
       </button>
     </div>

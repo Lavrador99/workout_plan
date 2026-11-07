@@ -5,6 +5,18 @@ PWA para prescrever e registar treinos personalizados. Funciona sem rede (dados 
 - Produção: `https://<user>.github.io/workout_plan/coach/` (publicado pelo mesmo workflow do GitHub Pages)
 - Dev: `npm run dev:coach` · Testes do parser: `npm run test:coach`
 
+## Dia a dia
+
+- **Hoje**: quem treina no dia (a partir dos dias de treino da ficha e das sessões), a semana, pagamentos pendentes e clientes a acompanhar. ✓ conclui a sessão, ⋯ marca falta; tudo com **Anular** na mensagem que aparece.
+- **Finanças**: mensalidades, quem pagou e quem deve, por mês. Um registo operacional, não contabilidade.
+- Tecla `/` no PC: vai para a pesquisa da página.
+
+As faltas e os pagamentos ficam na ficha do cliente, por isso sincronizam sem alterar a API.
+
+## Interface
+
+Inter e ícones Lucide (incluídos na app, funcionam sem rede). Grelha de 4/8 px, botões e campos de 44 px, raios de 8 a 12 px, neutros com uma cor de destaque; verde, âmbar e vermelho só para estados. As cores vivem em `src/index.css`, por tema. Confirmações com `ask()`/`askText()` (`components/Dialogs.tsx`), nunca `confirm()`/`prompt()`.
+
 ## Escrita rápida
 
 Uma linha por exercício; linha em branco = novo bloco; `( )` = intercalado.

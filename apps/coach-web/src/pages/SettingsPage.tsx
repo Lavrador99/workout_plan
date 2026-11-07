@@ -1,10 +1,13 @@
+import { ask } from "../components/Dialogs";
 import { useState } from "react";
 import PageHeader from "../components/PageHeader";
+import Seg from "../components/Seg";
 import { InstallCard } from "../components/PwaBanners";
 import { exportBackup, importBackup, type Backup } from "../lib/db";
 import { useSyncStatus } from "../lib/hooks";
 import { usePwa } from "../lib/pwa";
 import { getConfig, setConfig, syncNow, testConnection } from "../lib/sync";
+import { getTheme, setTheme, THEMES, type Theme } from "../lib/theme";
 
 export default function SettingsPage() {
   const status = useSyncStatus();
@@ -15,6 +18,7 @@ export default function SettingsPage() {
   const [editing, setEditing] = useState(!cfg);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [theme, pickTheme] = useState(getTheme);
 
   const download = async () => {
     const b = await exportBackup();
@@ -95,8 +99,8 @@ export default function SettingsPage() {
             <button
               type="button"
               className="btn text-danger"
-              onClick={() => {
-                if (confirm("Desligar a sincronização neste dispositivo? Os dados ficam cá.")) {
+              onClick={async () => {
+                if ((await ask("Desligar a sincronização neste dispositivo? Os dados ficam cá."))) {
                   void setConfig(null);
                   setEditing(true);
                 }
@@ -106,7 +110,19 @@ export default function SettingsPage() {
             </button>
           </div>
         )}
-        {msg && <p className="text-sm text-accent2">{msg}</p>}
+        {msg && <p className="text-sm text-accent">{msg}</p>}
+      </section>
+
+      <section className="card p-3 flex flex-col gap-2">
+        <h2 className="font-bold">Aspeto</h2>
+        <Seg
+          options={THEMES}
+          value={theme}
+          onChange={(v) => {
+            setTheme(v as Theme);
+            pickTheme(v as Theme);
+          }}
+        />
       </section>
 
       <InstallCard />
@@ -115,11 +131,11 @@ export default function SettingsPage() {
         <h2 className="font-bold mb-1">App</h2>
         <div className="flex justify-between">
           <span className="text-muted">Instalada</span>
-          <span>{pwa.installed ? "✓ sim" : "não"}</span>
+          <span>{pwa.installed ? "sim" : "não"}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted">Dados protegidos pelo browser</span>
-          <span className={pwa.persisted === false && status.state === "off" ? "text-danger" : ""}>{pwa.persisted == null ? "…" : pwa.persisted ? "✓ sim" : "não"}</span>
+          <span className={pwa.persisted === false && status.state === "off" ? "text-danger" : ""}>{pwa.persisted == null ? "…" : pwa.persisted ? "sim" : "não"}</span>
         </div>
         {pwa.persisted === false && status.state === "off" && (
           <p className="text-xs text-muted">O browser pode apagar dados de sites pouco usados. Instalar a app e ligar a sincronização evita perdas.</p>
