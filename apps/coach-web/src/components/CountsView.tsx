@@ -1,5 +1,6 @@
+import { useViewState } from "../lib/hooks";
 import { ArrowLeft } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { canonPatterns, FOCUS_KINDS, focusSide, groupByPeriod, tally, type Period } from "../lib/movement";
 import type { Exercise, Focus, Session, Side } from "../lib/types";
 
@@ -16,8 +17,8 @@ const PERIODS: [Period, string][] = [
 
 /** Sets per movement pattern, grip, stance and client focus, for one session / week / month / year, or all time. */
 export default function CountsView({ sessions, exercises, focuses }: { sessions: Session[]; exercises: Exercise[]; focuses: Focus[] }) {
-  const [period, setPeriod] = useState<Period>("week");
-  const [at, setAt] = useState(0);
+  const [period, setPeriod] = useViewState<Period>("counts:period", "week");
+  const [at, setAt] = useViewState("counts:at", 0);
   const groups = useMemo(() => groupByPeriod(sessions, period), [sessions, period]);
   const byId = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const group = groups[Math.min(at, groups.length - 1)];

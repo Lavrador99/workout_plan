@@ -1,9 +1,9 @@
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { matchExercise } from "../lib/db";
 import { fmtRx } from "../lib/format";
 import { history } from "../lib/history";
-import { useBackClose, useExerciseIndex, useExercises, useUsage } from "../lib/hooks";
+import { useBackClose, useExerciseIndex, useExercises, useUsage, useViewState } from "../lib/hooks";
 import { emptyItem, parseItemLine } from "../lib/parser";
 import { SessionCtx } from "../lib/sessionContext";
 import { newSegment, RUN_TAG } from "../lib/run";
@@ -48,15 +48,20 @@ interface Props {
   onClose: () => void;
 }
 
+/** View-state prefix of the sheet of one block; clear it when the sheet opens anew. */
+export const sheetKey = (blockId: string) => `prescribe:${blockId}:`;
+
 export default function PrescribeSheet({ block, onAddText, onAdd, onClose }: Props) {
   const ctx = useContext(SessionCtx);
   const exercises = useExercises() ?? [];
   const usage = useUsage();
   const index = useExerciseIndex();
-  const [q, setQ] = useState("");
-  const [tag, setTag] = useState("");
-  const [draft, setDraft] = useState<Item | null>(null);
-  const [added, setAdded] = useState<string[]>([]);
+  // kept as a draft: leaving for the history of an exercise and coming back finds it as it was
+  const key = sheetKey(block.id);
+  const [q, setQ] = useViewState(key + "q", "");
+  const [tag, setTag] = useViewState(key + "tag", "");
+  const [draft, setDraft] = useViewState<Item | null>(key + "draft", null);
+  const [added, setAdded] = useViewState<string[]>(key + "added", []);
   const searchRef = useRef<HTMLInputElement>(null);
   useBackClose(onClose);
 

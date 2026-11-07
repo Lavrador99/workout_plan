@@ -15,7 +15,7 @@ import { Menu } from "../components/Sheet";
 import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
 import { fmtSession } from "../lib/format";
 import { history, suggest } from "../lib/history";
-import { back, go, useClient, useSession, useSessions, useTemplates } from "../lib/hooks";
+import { back, clearViewState, go, useClient, useSession, useSessions, useTemplates, useViewState } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { itemsFromLine, parseSessionText } from "../lib/parser";
 import { useReorder } from "../lib/reorder";
@@ -45,13 +45,13 @@ export default function SessionPage({ id }: { id: string }) {
   const templates = useTemplates();
   const [s, setS] = useState<Session | null>(null);
   const [extras, setExtras] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
+  const [showNotes, setShowNotes] = useViewState("notes", false);
   /** Where "+ Exercício" adds: the last plain block, or a new one made on the first add. */
-  const [target, setTarget] = useState<Block | null>(null);
+  const [target, setTarget] = useViewState<Block | null>("prescribe", null);
   const [copied, setCopied] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const current = useRef<Session | null>(null);
-  const [newBlock, setNewBlock] = useState<string | null>(null);
+  const [newBlock, setNewBlock] = useViewState<string | null>("newBlock", null);
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<Session | null>(null);
   const reorder = useReorder(s?.blocks ?? [], (blocks) => s && update({ ...s, blocks }));
@@ -108,6 +108,7 @@ export default function SessionPage({ id }: { id: string }) {
 
   const openPicker = () => {
     const last = s.blocks[s.blocks.length - 1];
+    clearViewState("prescribe:");
     setTarget(last && isPlain(last) ? last : { id: uid(), kind: "sets", section: last?.section, title: "", items: [] });
   };
 

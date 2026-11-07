@@ -6,7 +6,7 @@ import Sheet, { Menu } from "../components/Sheet";
 import { addDays, agendaFor, daysBetween, isInactive, lastDoneByClient, matchesClient, weekOf, type AgendaEntry, type AgendaStatus } from "../lib/agenda";
 import { clearAbsence, completeEntry, markAbsence, prepareSession, registerPayment } from "../lib/agendaActions";
 import { WEEKDAYS } from "../lib/balance";
-import { go, useClients, useSessions } from "../lib/hooks";
+import { go, useClients, useSessions, useViewState } from "../lib/hooks";
 import { fmtMoney, fmtMonth, owedMonths } from "../lib/payments";
 import { fmtDate, todayISO } from "../lib/text";
 
@@ -71,7 +71,7 @@ export default function HomePage() {
   const sessions = useSessions();
   const today = todayISO();
   const [day, setDay] = useState(shownDay ?? today);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useViewState("q", "");
   const [adding, setAdding] = useState(false);
 
   const pick = (d: string) => {

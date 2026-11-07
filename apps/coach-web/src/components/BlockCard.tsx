@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, Copy, Ellipsis, Play, Star } from "lucide-react";
 import { ask, askText } from "./Dialogs";
 import { useRef, useState } from "react";
+import { clearViewState, useViewState } from "../lib/hooks";
 import { copyBlock, save } from "../lib/db";
 import { fmtCircuitHeader } from "../lib/format";
 import { itemsFromLine } from "../lib/parser";
@@ -11,7 +12,7 @@ import BlockDiagram, { kindLabel } from "./BlockDiagram";
 import DragHandle from "./DragHandle";
 import CircuitTimer from "./CircuitTimer";
 import ItemRow from "./ItemRow";
-import PrescribeSheet from "./PrescribeSheet";
+import PrescribeSheet, { sheetKey } from "./PrescribeSheet";
 import Seg from "./Seg";
 import Sheet from "./Sheet";
 import Stepper from "./Stepper";
@@ -57,7 +58,7 @@ export const KIND_DEFAULTS: Partial<Record<BlockKind, Partial<Block>>> = {
 
 export default function BlockCard({ block, onChange, onDelete, onMove, onDuplicate, handle, autoPick, plain }: Props) {
   const [settings, setSettings] = useState(false);
-  const [picking, setPicking] = useState(!!autoPick);
+  const [picking, setPicking] = useViewState(`pick:${block.id}`, !!autoPick);
   const [timer, setTimer] = useState(false);
   const [diagram, setDiagram] = useState(false);
   const isCircuit = block.kind === "circuit" || block.kind === "emom" || block.kind === "amrap";
@@ -218,7 +219,10 @@ export default function BlockCard({ block, onChange, onDelete, onMove, onDuplica
       </div>
 
       {!plain && (
-        <button type="button" className="btn w-full mt-2 border-dashed text-accent" onClick={() => setPicking(true)}>
+        <button type="button" className="btn w-full mt-2 border-dashed text-accent" onClick={() => {
+          clearViewState(sheetKey(block.id));
+          setPicking(true);
+        }}>
           + Exercício
         </button>
       )}

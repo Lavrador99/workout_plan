@@ -7,7 +7,7 @@ import Sheet, { SheetFooter, SheetTabs } from "../components/Sheet";
 import Tabs from "../components/Tabs";
 import { mdc95, TEST_CATEGORIES } from "../lib/assessment";
 import { newTest, remove, save } from "../lib/db";
-import { useTests, useUsedVersions } from "../lib/hooks";
+import { useTests, useUsedVersions, useViewState } from "../lib/hooks";
 import { canonMuscles, canonPatterns, MUSCLE_CHIP_GROUPS, PATTERN_GROUPS } from "../lib/movement";
 import { fmtNum, norm, num, uid } from "../lib/text";
 import type { Aggregate, Direction, Strength, TestCategory, TestDef } from "../lib/types";
@@ -33,8 +33,8 @@ export function testGroups(tests: TestDef[]): string[] {
 export default function TestsView() {
   const tests = useTests() ?? [];
   const used = useUsedVersions();
-  const [q, setQ] = useState("");
-  const [group, setGroup] = useState<string | undefined>();
+  const [q, setQ] = useViewState("tests:q", "");
+  const [group, setGroup] = useViewState<string | undefined>("tests:group", undefined);
   const [editing, setEditing] = useState<string | null>(null);
 
   const groups = useMemo(() => testGroups(tests), [tests]);

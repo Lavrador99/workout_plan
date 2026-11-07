@@ -5,7 +5,7 @@ import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
 import type { Assessment, Client, Exercise, Focus, Goal, ProgressSnapshot, Session, Template, TestDef } from "./types";
 
-export { back, go, replaceRoute, useBackClose, useRoute } from "./nav";
+export { back, clearViewState, go, replaceRoute, useBackClose, useRoute, useViewState } from "./nav";
 
 const NO_VERSIONS = new Map<string, Set<number>>();
 

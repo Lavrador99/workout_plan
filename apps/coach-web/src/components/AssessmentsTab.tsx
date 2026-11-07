@@ -1,8 +1,7 @@
 import { Copy } from "lucide-react";
-import { useState } from "react";
 import { asymmetry, change, changeTone, finalValue, fmtAsymmetry, previousResult, repeatResults, testMdc } from "../lib/assessment";
 import { newAssessment, save } from "../lib/db";
-import { go, useAssessments, useTests } from "../lib/hooks";
+import { go, useAssessments, useTests, useViewState } from "../lib/hooks";
 import { fmtDate, fmtNum } from "../lib/text";
 import type { Assessment, TestDef, TestResult } from "../lib/types";
 import { fmtFinal, TONE_CLASS } from "./ResultCard";
@@ -28,7 +27,7 @@ export default function AssessmentsTab({ clientId }: { clientId: string }) {
   const list = assessments ?? [];
   const last = list.find((a) => a.results.some((r) => fmtFinal(r))) ?? list[0]; // a new one is empty until filled in
   const results = last?.results.filter((r) => fmtFinal(r)) ?? [];
-  const [picked, setPicked] = useState<string[]>([]);
+  const [picked, setPicked] = useViewState<string[]>("assessments:picked", []);
   /** Two at most: a third tick replaces the first one. */
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id].slice(-2)));
 

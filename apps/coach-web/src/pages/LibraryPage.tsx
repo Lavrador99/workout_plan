@@ -6,7 +6,7 @@ import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
 import { downloadText, exercisesCsv } from "../lib/exportExercises";
 import { fmtBlock } from "../lib/format";
-import { replaceRoute, useExerciseIndex, useExercises, useTemplates, useUsage, go } from "../lib/hooks";
+import { go, replaceRoute, useExerciseIndex, useExercises, useTemplates, useUsage, useViewState } from "../lib/hooks";
 import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
 import { todayISO, uid } from "../lib/text";
@@ -55,12 +55,12 @@ export default function LibraryPage({ view: routeView }: { view?: string }) {
 function ExercisesView({ exercises }: { exercises: Exercise[] }) {
   const usage = useUsage();
   const index = useExerciseIndex();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useViewState("q", "");
   const [editing, setEditing] = useState<string | null>(null);
-  const [tag, setTag] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [tag, setTag] = useViewState("tag", "");
+  const [filter, setFilter] = useViewState<Filter>("filter", "all");
   const [selected, setSelected] = useState<string[] | null>(null);
-  const [shown, setShown] = useState(PAGE);
+  const [shown, setShown] = useViewState("shown", PAGE);
 
   const missing = useMemo(() => new Map(exercises.map((e) => [e.id, missingInfo(e)] as const).filter(([, m]) => m.length)), [exercises]);
   const dups = useMemo(() => findDuplicates(exercises), [exercises]);

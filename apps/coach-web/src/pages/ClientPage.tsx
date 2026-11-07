@@ -15,7 +15,7 @@ import PageHeader, { NotFound } from "../components/PageHeader";
 import ProgressSheet from "../components/ProgressSheet";
 import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
-import { back, go, replaceRoute, useClient, useExercises, useFocuses, useSessions } from "../lib/hooks";
+import { back, go, replaceRoute, useClient, useExercises, useFocuses, useSessions, useViewState } from "../lib/hooks";
 import { ACTIVITIES, changeSchedule, currentDays, WEEKDAYS } from "../lib/balance";
 import { FOCUS_KINDS } from "../lib/movement";
 import { goalLabel } from "../lib/progress";
@@ -89,7 +89,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const exercises = useExercises();
   const focuses = useFocuses();
   const [c, setC] = useState<Client | null>(null);
-  const [section, setSection] = useState<Section | null>(null);
+  const [section, setSection] = useViewState<Section | null>("section", null);
   const [shown, setShown] = useState(() => shownOf.get(id) ?? PAGE);
   const gone = useRef(false);
   const tab: Tab = TABS.find(([k]) => k === routeTab)?.[0] ?? "sessions";

@@ -1,8 +1,8 @@
 import { ArrowDown, ArrowUp, Check, ChevronRight, Copy } from "lucide-react";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useMemo } from "react";
 import { fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
 import { history, suggest } from "../lib/history";
-import { go } from "../lib/hooks";
+import { go, useViewState } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
 import { addBackoff, addDrop, addWarmups, cycleType, pyramid } from "../lib/rx";
@@ -42,9 +42,9 @@ function chipText(item: Item, s: SetRow): string {
 }
 
 export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate, handle }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useViewState(`open:${item.id}`, false);
   // per-set table starts open only when the sets actually differ
-  const [rows, setRows] = useState(() => varied(item.sets));
+  const [rows, setRows] = useViewState(`rows:${item.id}`, () => varied(item.sets));
   const timed = item.sets.some((s) => s.duration != null);
   const filler = item.role === "filler";
   const rx = fmtRx(item);

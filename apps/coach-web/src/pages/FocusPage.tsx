@@ -8,7 +8,7 @@ import Seg from "../components/Seg";
 import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
 import { matchExercise, newFocus, remove, save } from "../lib/db";
-import { go, useClients, useExercises, useFocuses } from "../lib/hooks";
+import { go, useClients, useExercises, useFocuses, useViewState } from "../lib/hooks";
 import { canonMuscles, canonPatterns, FOCUS_KINDS, focusSide, PATTERN_GROUPS } from "../lib/movement";
 import { parseItemLine } from "../lib/parser";
 import type { Client, Exercise, Focus, FocusKind } from "../lib/types";
@@ -30,7 +30,7 @@ export default function FocusPage() {
   const focuses = useFocuses() ?? [];
   const clients = useClients() ?? [];
   const exercises = useExercises() ?? [];
-  const [kind, setKind] = useState<FocusKind>("sport");
+  const [kind, setKind] = useViewState<FocusKind>("kind", "sport");
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
 

@@ -8,7 +8,7 @@ import Sheet, { SheetFooter } from "../components/Sheet";
 import TestPicker from "../components/TestPicker";
 import { bodyMassAt, newResult, previousResult } from "../lib/assessment";
 import { remove, save } from "../lib/db";
-import { back, go, useAssessment, useAssessments, useClient, useTests } from "../lib/hooks";
+import { back, go, useAssessment, useAssessments, useClient, useTests, useViewState } from "../lib/hooks";
 import { fmtDate } from "../lib/text";
 import type { Assessment, TestDef, TestResult } from "../lib/types";
 
@@ -21,9 +21,9 @@ export default function AssessmentPage({ id }: { id: string }) {
   const tests = useTests() ?? [];
   const [a, setA] = useState<Assessment | null>(null);
   const [picking, setPicking] = useState(false);
-  const [details, setDetails] = useState(false);
+  const [details, setDetails] = useViewState("details", false);
   /** The test being recorded; until one is chosen, the first still empty. */
-  const [chosen, setChosen] = useState<string | null | undefined>();
+  const [chosen, setChosen] = useViewState<string | null | undefined>("chosen", undefined);
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<Assessment | null>(null);
 

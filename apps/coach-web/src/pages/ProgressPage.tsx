@@ -1,12 +1,12 @@
 import { PageLoading } from "../components/States";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Section } from "../components/CountsView";
 import LineChart, { type Point } from "../components/LineChart";
 import PageHeader, { NotFound } from "../components/PageHeader";
 import { CompareBars, MonthBars } from "../components/ProgressBars";
 import Seg from "../components/Seg";
 import { monthlyAdherence, PERIODS, presetRange, type Preset } from "../lib/balance";
-import { useAssessments, useClient, useGoals, useSessions, useSnapshots, useTests } from "../lib/hooks";
+import { useAssessments, useClient, useGoals, useSessions, useSnapshots, useTests, useViewState } from "../lib/hooks";
 import { comparableHistory, compareRows, highlights } from "../lib/ipi";
 import { DIMENSIONS, IMPORTANCE } from "../lib/progress";
 import { fmtDate, fmtNum, todayISO } from "../lib/text";
@@ -82,7 +82,7 @@ export default function ProgressPage({ clientId }: { clientId: string }) {
   const assessments = useAssessments(clientId);
   const goals = useGoals(clientId);
   const tests = useTests();
-  const [period, setPeriod] = useState<Period>("all");
+  const [period, setPeriod] = useViewState<Period>("period", "all");
   const range = presetRange(period, todayISO());
 
   const { list, sameMethod, left } = useMemo(() => comparableHistory(snapshots ?? []), [snapshots]);

@@ -1,10 +1,10 @@
 import { TriangleAlert } from "lucide-react";
 import { askText } from "../components/Dialogs";
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { InstallCard } from "../components/PwaBanners";
 import { newClient, save } from "../lib/db";
-import { go, useClients, useSessions } from "../lib/hooks";
+import { go, useClients, useSessions, useViewState } from "../lib/hooks";
 import PageHeader from "../components/PageHeader";
 import { isInactive, lastDoneByClient, matchesClient, nextTraining } from "../lib/agenda";
 import { owedMonths } from "../lib/payments";
@@ -21,8 +21,8 @@ type Filter = (typeof FILTERS)[number][0];
 export default function ClientsPage() {
   const clients = useClients();
   const sessions = useSessions();
-  const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [q, setQ] = useViewState("q", "");
+  const [filter, setFilter] = useViewState<Filter>("filter", "all");
   const today = todayISO();
 
   const rows = useMemo(() => {
