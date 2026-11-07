@@ -90,6 +90,12 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
 
   const skip = () => setCursor(nextOpen(s, steps, curIdx) ?? cur);
 
+  /** A dot of the plan: the current set is ticked like "Feito" (rest included), any other just flips. */
+  const toggle = (st: Step) => {
+    if (sameStep(st, cur)) return tick();
+    onChange(setDone(s, st, !isDone(s, st)));
+  };
+
   const finish = async () => {
     const left = steps.length - doneCount;
     if (!(await ask(left ? `Terminar o treino? Ficam ${left} por fazer.` : "Terminar o treino?"))) return;
@@ -186,7 +192,7 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
 
           {nextStep && !sameStep(nextStep, cur) && <NextUp session={s} step={nextStep} />}
 
-          <Overview session={s} steps={steps} current={cur} onJump={setCursor} />
+          <Overview session={s} steps={steps} current={cur} onJump={setCursor} onToggle={toggle} />
         </div>
       </div>
       {timer && block && <CircuitTimer block={block} onClose={() => setTimer(false)} />}
@@ -374,8 +380,20 @@ function NextUp({ session, step }: { session: Session; step: Step }) {
   );
 }
 
-/** Every exercise with a dot per set: tap to go there. */
-function Overview({ session: s, steps, current, onJump }: { session: Session; steps: Step[]; current?: Step; onJump: (st: Step) => void }) {
+/** Every exercise with a dot per set: tap a dot to mark it done or not, the name to go there. */
+function Overview({
+  session: s,
+  steps,
+  current,
+  onJump,
+  onToggle,
+}: {
+  session: Session;
+  steps: Step[];
+  current?: Step;
+  onJump: (st: Step) => void;
+  onToggle: (st: Step) => void;
+}) {
   const rows: { key: string; name: string; steps: Step[] }[] = [];
   for (const st of steps) {
     const key = st.kind === "block" ? `b${st.bi}` : `i${st.bi}:${st.ii}`;
@@ -399,19 +417,24 @@ function Overview({ session: s, steps, current, onJump }: { session: Session; st
               {r.name}
             </button>
             <div className="flex gap-1 shrink-0">
-              {r.steps.map((st, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  aria-label={`Série ${i + 1}`}
-                  className={`w-10 h-10 rounded-full border text-xs font-bold ${
-                    sameStep(st, current) ? "border-accent text-accent" : isDone(s, st) ? "bg-success/20 border-success text-success" : "border-border text-muted"
-                  }`}
-                  onClick={() => onJump(st)}
-                >
-                  {isDone(s, st) ? "✓" : i + 1}
-                </button>
-              ))}
+              {r.steps.map((st, i) => {
+                const done = isDone(s, st);
+                const here = sameStep(st, current);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Série ${i + 1}: ${done ? "feita" : "por fazer"}`}
+                    aria-pressed={done}
+                    className={`w-10 h-10 rounded-full border text-xs font-bold transition active:scale-90 ${
+                      done ? "bg-success/20 border-success text-success" : here ? "border-accent text-accent" : "border-border text-muted"
+                    } ${here ? "ring-2 ring-accent ring-offset-1 ring-offset-bg" : ""}`}
+                    onClick={() => onToggle(st)}
+                  >
+                    {done ? "✓" : i + 1}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );

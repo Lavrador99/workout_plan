@@ -9,14 +9,15 @@ import Stepper from "./Stepper";
 
 type Key = "tempo" | "method" | "hold" | "rm" | "extra" | "grip" | "stance";
 
+/** In the order the chips show. */
 const LABELS: Record<Key, string> = {
+  extra: "Séries extra",
+  grip: "Pega",
+  stance: "Pés",
   tempo: "Cadência",
   method: "Método",
   hold: "Isometria",
   rm: "Teste RM",
-  extra: "Séries extra",
-  grip: "Pega",
-  stance: "Pés",
 };
 
 /** Clears the field so removing it leaves no trace in the item. */
