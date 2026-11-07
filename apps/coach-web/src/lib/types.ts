@@ -158,7 +158,8 @@ export interface Item {
   loadMode: LoadMode;
   holdSec?: number | null; // isometric hold per rep (iso 10s)
   tempo?: string; // cadence "3-1-1-0" (eccentric-pause-concentric-pause)
-  extraLeft?: number; // E +1
+  extraLeft?: number; // E +1: extra sets on the left
+  extraRight?: number; // D +1: extra sets on the right
   effort?: "rir" | "rpe"; // what SetRow.rir holds (default RIR)
   method?: ItemMethod;
   rmTest?: number | null; // "8RM: ___"
@@ -232,6 +233,8 @@ export interface Focus extends SyncMeta {
   muscles: string[]; // matched against the exercise tags ("glúteo médio")
   exerciseIds: string[];
   notes: string;
+  /** A one-sided focus (an asymmetry). null = both; unset = read from the name ("glúteo direito"). */
+  side?: Side | null;
 }
 
 export type TestCategory =

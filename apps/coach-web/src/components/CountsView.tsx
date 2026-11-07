@@ -1,7 +1,9 @@
 import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
-import { canonPatterns, FOCUS_KINDS, groupByPeriod, tally, type Period } from "../lib/movement";
-import type { Exercise, Focus, Session } from "../lib/types";
+import { canonPatterns, FOCUS_KINDS, focusSide, groupByPeriod, tally, type Period } from "../lib/movement";
+import type { Exercise, Focus, Session, Side } from "../lib/types";
+
+const SIDE_TO: Record<Side, string> = { left: "à esq.", right: "à dir." };
 import Seg from "./Seg";
 
 const PERIODS: [Period, string][] = [
@@ -57,9 +59,15 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
         <Section title="Perfis do cliente">
           {focuses.map((f) => {
             const hit = t.focus.get(f.id);
+            const side = focusSide(f);
             return (
               <div key={f.id} className="flex flex-col gap-1">
                 <Bar label={`${f.name} · ${FOCUS_KINDS.find(([k]) => k === f.kind)?.[2]}`} n={hit?.sets ?? 0} total={t.sets} />
+                {side && (
+                  <span className={`text-xs ${hit?.extra ? "text-accent" : "text-muted"}`}>
+                    {hit?.extra ? `${hit.extra} série${hit.extra === 1 ? "" : "s"} extra ${SIDE_TO[side]}` : `Sem séries extra ${SIDE_TO[side]}`}
+                  </span>
+                )}
                 {hit && <span className="text-xs text-muted truncate">{[...hit.exercises].join(" · ")}</span>}
               </div>
             );
@@ -76,8 +84,27 @@ export default function CountsView({ sessions, exercises, focuses }: { sessions:
       <Section title="Posição dos pés">
         <Bars entries={[...t.stances.entries()]} total={t.sets} empty="Escolhe a posição dos pés no exercício (toca no nome)." />
       </Section>
-      {t.extraLeft > 0 && <p className="text-sm text-muted">Séries com extra do lado esquerdo: <b className="text-accent">{t.extraLeft}</b></p>}
-      <p className="text-xs text-muted">Conta as séries feitas (✓); numa sessão ainda sem nada marcado, as prescritas. Circuitos contam uma série por ronda.</p>
+      {(t.extra.left.sets > 0 || t.extra.right.sets > 0 || focuses.some(focusSide)) && (
+        <Section title="Correção por lado">
+          {(["left", "right"] as const).map((side) => (
+            <div key={side} className="flex flex-col gap-1">
+              <div className="flex items-baseline justify-between text-sm">
+                <span>{side === "left" ? "Esquerdo" : "Direito"}</span>
+                <span className="tabular-nums">
+                  <b className={t.extra[side].sets ? "text-accent" : ""}>{t.extra[side].sets}</b> <span className="text-xs text-muted">séries extra</span>
+                </span>
+              </div>
+              {t.extra[side].sets > 0 && (
+                <span className="text-xs text-muted">
+                  {[...t.extra[side].exercises].map(([name, n]) => `${name} +${n}`).join(" · ")}
+                </span>
+              )}
+            </div>
+          ))}
+          <p className="text-xs text-muted">Escreve E+1 ou D+1 na linha do exercício, ou usa “Séries extra” ao tocar no nome.</p>
+        </Section>
+      )}
+      <p className="text-xs text-muted">Conta as séries feitas (✓); numa sessão ainda sem nada marcado, as prescritas. Circuitos contam uma série por ronda. As séries extra de um lado contam em todos os totais.</p>
     </div>
   );
 }

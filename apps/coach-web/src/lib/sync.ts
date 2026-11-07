@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Table } from "dexie";
-import { db, DEFAULTS, migrateTargets, onLocalChange } from "./db";
+import { db, DEFAULTS, migrateSideNotes, migrateTargets, onLocalChange } from "./db";
 import type { SyncMeta, TableName } from "./types";
 
 const CFG_KEY = "coach_api_cfg";
@@ -146,6 +146,7 @@ async function doSync() {
       if (!more) break;
     }
     await migrateTargets();
+    await migrateSideNotes();
     // ── push ──
     for (const table of TABLES) {
       const t = db[table] as unknown as Table<SyncMeta, string>;

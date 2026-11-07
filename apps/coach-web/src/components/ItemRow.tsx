@@ -49,7 +49,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
   const retype = (text: string) => {
     const p = parseItemLine(text);
     // typed only a name → keep the current prescription
-    const hasRx = p.sets.length > 0 || p.extraLeft || p.rmTest || p.note;
+    const hasRx = p.sets.length > 0 || p.extraLeft || p.extraRight || p.rmTest || p.note;
     onChange(hasRx ? { ...p, id: item.id, role: item.role, exerciseId: undefined } : { ...item, name: p.name, exerciseId: undefined });
   };
 
@@ -80,6 +80,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
             </button>
           ))}
           {!!item.extraLeft && <span className="rounded-full px-2 h-10 inline-flex items-center text-xs text-accent border border-accent/40">E +{item.extraLeft}</span>}
+          {!!item.extraRight && <span className="rounded-full px-2 h-10 inline-flex items-center text-xs text-accent border border-accent/40">D +{item.extraRight}</span>}
         </div>
       )}
 
@@ -166,8 +167,9 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
 
           <MethodFields item={item} onChange={onChange} />
 
-          <div className="grid grid-cols-3 gap-2">
-            <Stepper label="Extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
+          <div className="grid grid-cols-2 gap-2">
+            <Stepper label="Séries extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
+            <Stepper label="Séries extra dir." value={item.extraRight ?? 0} step={1} onChange={(v) => onChange({ ...item, extraRight: v || undefined })} />
             <Stepper label="Isometria" suffix="s" value={item.holdSec} step={1} onChange={(v) => onChange({ ...item, holdSec: v || null })} />
             <Stepper label="Teste RM" value={item.rmTest} step={1} onChange={(v) => onChange({ ...item, rmTest: v || null })} />
           </div>

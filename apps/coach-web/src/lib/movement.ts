@@ -1,7 +1,7 @@
 // Movement patterns, grips and stances, and how sets are counted against them
 // and against a client's sports, pathologies and asymmetries (Focus).
 
-import type { Block, Exercise, Focus, FocusKind, Item, Session } from "./types";
+import type { Block, Exercise, Focus, FocusKind, Item, Session, Side } from "./types";
 import { norm } from "./text";
 
 /** Movement patterns by body region (the region is only for showing them). */
@@ -297,16 +297,23 @@ export interface Tally {
   patterns: Map<string, number>;
   grips: Map<string, number>;
   stances: Map<string, number>;
-  /** Sets per focus id, and how many distinct exercises gave them. */
-  focus: Map<string, { sets: number; exercises: Set<string> }>;
-  /** Sets with extra reps on the left side ("E +1"). */
-  extraLeft: number;
+  /** Sets per focus id, how many distinct exercises gave them, and the extra sets on the focus's side. */
+  focus: Map<string, { sets: number; exercises: Set<string>; extra: number }>;
+  /** Extra sets on one side ("E +1" / "D +1"), per exercise. */
+  extra: Record<Side, { sets: number; exercises: Map<string, number> }>;
+}
+
+/** The side a focus works on: set on the focus, or read from its name ("Glúteo direito"). */
+export function focusSide(f: Focus): Side | null {
+  if (f.side !== undefined) return f.side;
+  const n = norm(f.name);
+  return /\bdireit/.test(n) ? "right" : /\besquerd/.test(n) ? "left" : null;
 }
 
 const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n);
 
 export function tally(sessions: Session[], exercises: Map<string, Exercise>, focuses: Focus[]): Tally {
-  const t: Tally = { sessions: 0, sets: 0, patterns: new Map(), grips: new Map(), stances: new Map(), focus: new Map(), extraLeft: 0 };
+  const t: Tally = { sessions: 0, sets: 0, patterns: new Map(), grips: new Map(), stances: new Map(), focus: new Map(), extra: { left: { sets: 0, exercises: new Map() }, right: { sets: 0, exercises: new Map() } } };
   const patternCache = new Map<string, string[]>();
   for (const s of sessions) {
     if (s.deleted) continue;
@@ -321,16 +328,26 @@ export function tally(sessions: Session[], exercises: Map<string, Exercise>, foc
         const key = ex?.id ?? `n:${norm(it.name)}`;
         let patterns = patternCache.get(key);
         if (!patterns) patternCache.set(key, (patterns = patternsOf(ex ?? { name: it.name, aliases: [], tags: [] })));
-        t.sets += n;
-        for (const p of patterns) add(t.patterns, p, n);
-        if (it.grip) add(t.grips, it.grip, n);
-        if (it.stance) add(t.stances, it.stance, n);
-        if (it.extraLeft) t.extraLeft += n;
+        // the extra sets on one side are sets too, so they count everywhere
+        const extra: Record<Side, number> = { left: it.extraLeft ?? 0, right: it.extraRight ?? 0 };
+        const all = n + extra.left + extra.right;
+        const exName = ex?.name ?? it.name;
+        t.sets += all;
+        for (const p of patterns) add(t.patterns, p, all);
+        if (it.grip) add(t.grips, it.grip, all);
+        if (it.stance) add(t.stances, it.stance, all);
+        for (const side of ["left", "right"] as const) {
+          if (!extra[side]) continue;
+          t.extra[side].sets += extra[side];
+          add(t.extra[side].exercises, exName, extra[side]);
+        }
         for (const f of focuses) {
           if (!hitsFocus(f, ex, patterns)) continue;
-          const cur = t.focus.get(f.id) ?? { sets: 0, exercises: new Set<string>() };
-          cur.sets += n;
-          cur.exercises.add(ex?.name ?? it.name);
+          const cur = t.focus.get(f.id) ?? { sets: 0, exercises: new Set<string>(), extra: 0 };
+          cur.sets += all;
+          const side = focusSide(f);
+          if (side) cur.extra += extra[side];
+          cur.exercises.add(exName);
           t.focus.set(f.id, cur);
         }
       }

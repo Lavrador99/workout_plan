@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCircuitHeader, parseImport, parseItemLine } from "./parser";
+import { parseCircuitHeader, parseImport, parseItemLine, sidesFromNote } from "./parser";
 import { fmtItem, fmtSession } from "./format";
 import type { Session } from "./types";
 
@@ -199,5 +199,24 @@ describe("format round trip", () => {
     expect(txt).toContain("**30/10/2026**\n**Fullbody**");
     expect(txt).toContain('**40"/20" x3 | 1:30 rest**');
     expect(txt).toContain("(Heel touches)");
+  });
+});
+
+describe("extra sets on one side", () => {
+  it("reads E +n and D +n", () => {
+    const r = parseItemLine("Hip thrust 3x10 D+1");
+    expect(r.name).toBe("Hip thrust");
+    expect(r.extraRight).toBe(1);
+    expect(r.extraLeft).toBeUndefined();
+    expect(r.note).toBe("");
+    expect(parseItemLine("Nordic 3x5 (D +2) (E +1)")).toMatchObject({ extraRight: 2, extraLeft: 1 });
+  });
+
+  it("moves D +n left in a note by older versions", () => {
+    const old = { ...parseItemLine("Hip thrust 3x10"), note: "D+1 lento" };
+    expect(sidesFromNote(old)).toMatchObject({ extraRight: 1, note: "lento" });
+    expect(sidesFromNote({ ...old, note: "lento" })).toBeNull();
+    // already set: the note stays as it is
+    expect(sidesFromNote({ ...old, extraRight: 2 })).toBeNull();
   });
 });

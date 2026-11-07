@@ -4,11 +4,12 @@ import { useState } from "react";
 import { ChipGroups } from "../components/Chips";
 import ExerciseInput from "../components/ExerciseInput";
 import PageHeader from "../components/PageHeader";
+import Seg from "../components/Seg";
 import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
 import { matchExercise, newFocus, remove, save } from "../lib/db";
 import { go, useClients, useExercises, useFocuses } from "../lib/hooks";
-import { canonMuscles, canonPatterns, FOCUS_KINDS, PATTERN_GROUPS } from "../lib/movement";
+import { canonMuscles, canonPatterns, FOCUS_KINDS, focusSide, PATTERN_GROUPS } from "../lib/movement";
 import { parseItemLine } from "../lib/parser";
 import type { Client, Exercise, Focus, FocusKind } from "../lib/types";
 
@@ -111,6 +112,15 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
         <input className="input" value={muscles} placeholder="isquiotibiais, adutores, glúteo médio" onChange={(e) => setMuscles(e.target.value)} />
         <span className="text-xs text-muted">Contam os exercícios com estes músculos nas etiquetas ou no nome.</span>
       </label>
+      <div className="flex flex-col gap-1">
+        <span className="label">Lado</span>
+        <Seg
+          options={[["both", "Ambos"], ["left", "Esquerdo"], ["right", "Direito"]]}
+          value={focusSide(f) ?? "both"}
+          onChange={(v) => setF({ ...f, side: v === "both" ? null : (v as "left" | "right") })}
+        />
+        <span className="text-xs text-muted">Num desequilíbrio, as Contagens mostram as séries extra feitas deste lado (E+1 / D+1).</span>
+      </div>
       <div className="flex flex-col gap-1">
         <span className="label">Exercícios-chave</span>
         {f.exerciseIds.length > 0 && (

@@ -53,15 +53,35 @@ function isRxToken(t: string): boolean {
   return /^[x+]?\d/i.test(t);
 }
 
+/**
+ * "D +1" that older versions left in an item's note (they only read "E +1") →
+ * the item's extra sets. Null when there is nothing to move.
+ */
+export function sidesFromNote(item: Item): Item | null {
+  if (!item.note) return null;
+  const out = { ...item };
+  const note = item.note.replace(/\(?\b([ED])\s*\+\s*(\d+)\)?/g, (m, side: string, n: string) => {
+    const key = side === "E" ? "extraLeft" : "extraRight";
+    if (out[key]) return m;
+    out[key] = Number(n);
+    return " ";
+  });
+  if (note === item.note) return null;
+  out.note = note.replace(/\s+/g, " ").trim();
+  return out;
+}
+
 export function parseItemLine(raw: string): Item {
   let line = clean(raw);
   const notes: string[] = [];
   let extraLeft = 0;
+  let extraRight = 0;
   let rmTest: number | null = null;
 
-  // E +1 → extra set on the left side
-  line = line.replace(/\(?\bE\s*\+\s*(\d+)\)?/g, (_, n) => {
-    extraLeft = Number(n);
+  // E +1 / D +1 → extra sets on the left / right side
+  line = line.replace(/\(?\b([ED])\s*\+\s*(\d+)\)?/g, (_, side, n) => {
+    if (side === "E") extraLeft = Number(n);
+    else extraRight = Number(n);
     return " ";
   });
   // 8RM: ___ → rep-max test
@@ -104,6 +124,7 @@ export function parseItemLine(raw: string): Item {
 
   const item = emptyItem(name);
   item.extraLeft = extraLeft || undefined;
+  item.extraRight = extraRight || undefined;
   item.rmTest = rmTest;
   if (tempo) item.tempo = tempo;
 

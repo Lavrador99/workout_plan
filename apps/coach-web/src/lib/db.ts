@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import { goalsFromTargets, testGoal } from "./progress";
+import { sidesFromNote } from "./parser";
 import type { Assessment, Block, Client, Exercise, Focus, Goal, Item, ProgressSnapshot, Session, SyncMeta, TableName, Template, TestDef } from "./types";
 import { norm, todayISO, uid } from "./text";
 
@@ -227,6 +228,28 @@ export async function migrateTargets(): Promise<number> {
       n++;
     }
     await save("clients", client);
+  }
+  return n;
+}
+
+/** Move "D +1" left in item notes by older versions to the items' extra sets. Safe to run any time. */
+export async function migrateSideNotes(): Promise<number> {
+  let n = 0;
+  for (const session of await db.sessions.toArray()) {
+    if (session.deleted) continue;
+    let touched = false;
+    const blocks = session.blocks.map((b) => ({
+      ...b,
+      items: b.items.map((it) => {
+        const moved = sidesFromNote(it);
+        if (!moved) return it;
+        touched = true;
+        return moved;
+      }),
+    }));
+    if (!touched) continue;
+    await save("sessions", { ...session, blocks });
+    n++;
   }
   return n;
 }

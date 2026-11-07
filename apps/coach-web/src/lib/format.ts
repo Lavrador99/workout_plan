@@ -92,6 +92,7 @@ export function fmtRx(item: Item): string {
   if (item.holdSec) parts.push(`iso ${item.holdSec}s`);
   if (item.rmTest) parts.push(`${item.rmTest}RM: ___`);
   if (item.extraLeft) parts.push(`(E +${item.extraLeft})`);
+  if (item.extraRight) parts.push(`(D +${item.extraRight})`);
   if (item.note) parts.push(item.note);
   return parts.join(" ");
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupByPeriod, inferMuscles, inferPatterns, musclesOf, patternsOf, tally, weekStart } from "./movement";
+import { focusSide, groupByPeriod, inferMuscles, inferPatterns, musclesOf, patternsOf, tally, weekStart } from "./movement";
 import { seedExercises, seedProfiles } from "./seed";
 import type { Block, Exercise, Item, Session } from "./types";
 
@@ -84,8 +84,10 @@ describe("tally", () => {
     ]);
     const t = tally([s], lib, []);
     expect(t.grips.get("supinada")).toBe(2);
-    expect(t.stances.get("largura dos ombros")).toBe(1);
-    expect(t.extraLeft).toBe(1);
+    // the extra set on the left is a set too
+    expect(t.stances.get("largura dos ombros")).toBe(2);
+    expect(t.extra.left.sets).toBe(1);
+    expect(t.extra.right.sets).toBe(0);
     expect(t.patterns.get("adução da anca")).toBe(3);
   });
 
@@ -96,6 +98,29 @@ describe("tally", () => {
     const hit = tally([s], lib, [{ ...futebol, muscles: ["squat"] }]).focus.get(futebol.id);
     expect(hit?.sets).toBe(2);
     expect([...(hit?.exercises ?? [])]).toEqual(["Copenhagen Plank", "Back Squat"]);
+  });
+
+  it("counts the extra sets on each side, and on a one-sided focus's side", () => {
+    const s = session("a", "2026-10-26", [
+      block([item("Back Squat", [{ done: true }, { done: true }, { done: true }], { extraRight: 1 }), item("Back Squat", [{ done: true }], { extraLeft: 2 }), item("Pull-up", [{}], { extraRight: 1 })]),
+    ]);
+    const base = { id: "f", updatedAt: 0, kind: "asymmetry" as const, patterns: [], muscles: ["squat"], exerciseIds: [], notes: "" };
+    const t = tally([s], lib, [{ ...base, name: "Glúteo direito" }]);
+    // the pull-up was not done, so its extra set does not count either
+    expect(t.extra.right.sets).toBe(1);
+    expect(t.extra.left.sets).toBe(2);
+    expect([...t.extra.right.exercises]).toEqual([["Back Squat", 1]]);
+    expect(t.sets).toBe(7);
+    expect(t.focus.get("f")).toMatchObject({ sets: 7, extra: 1 });
+  });
+
+  it("reads a focus's side from the name unless it is set", () => {
+    const f = { id: "f", updatedAt: 0, kind: "asymmetry" as const, patterns: [], muscles: [], exerciseIds: [], notes: "" };
+    expect(focusSide({ ...f, name: "Isquiotibial direito" })).toBe("right");
+    expect(focusSide({ ...f, name: "Ombro esquerdo" })).toBe("left");
+    expect(focusSide({ ...f, name: "Glúteo médio" })).toBeNull();
+    expect(focusSide({ ...f, name: "Glúteo direito", side: null })).toBeNull();
+    expect(focusSide({ ...f, name: "Joelho", side: "left" })).toBe("left");
   });
 });
 
