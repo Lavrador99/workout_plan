@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays, agendaFor, isInactive, lastDoneByClient, nextTraining, weekOf, weekdayOf } from "./agenda";
-import type { Client, Session } from "./types";
+import type { Client, Session } from "@treino/core/types";
 
 const client = (over: Partial<Client> = {}): Client => ({ id: "c", updatedAt: 0, name: "Ana", injuries: "", notes: "", ...over });
 const session = (over: Partial<Session> = {}): Session => ({ id: "s", updatedAt: 0, clientId: "c", date: "2026-11-09", title: "", notes: "", blocks: [], ...over });

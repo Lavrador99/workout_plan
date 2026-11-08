@@ -9,7 +9,7 @@ import { change, finalValue, goalProgress, series, testMdc, type Change } from "
 import { adherence, directionFor, sideLists } from "./balance";
 import { benchmark, clientContext, latestComparable } from "./benchmark";
 import { DIMENSIONS, metricProgress, sameWeights, weightsOf } from "./progress";
-import type { Assessment, Client, DimensionId, DimensionState, Focus, Goal, ProgressSnapshot, ProgressStatus, Session, SnapshotDimension, SnapshotIndicator, TestCategory, TestDef, Weights } from "./types";
+import type { Assessment, Client, DimensionId, DimensionState, Focus, Goal, ProgressSnapshot, ProgressStatus, Session, SnapshotDimension, SnapshotIndicator, TestCategory, TestDef, Weights } from "@treino/core/types";
 
 export const METHOD = 1;
 

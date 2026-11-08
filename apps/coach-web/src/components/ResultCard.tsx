@@ -1,8 +1,8 @@
 import { ChevronRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { asymmetry, averageSpeed, finalValue, fmtAsymmetry, MAX_E1RM_REPS, relativeStrength, SIDE_SHORT, SIDES, type changeTone } from "../lib/assessment";
-import { fmtDate, fmtNum, num } from "../lib/text";
-import type { Assessment, Side, TestDef, TestResult, Trial } from "../lib/types";
+import { fmtDate, fmtNum, num } from "@treino/core/text";
+import type { Assessment, Side, TestDef, TestResult, Trial } from "@treino/core/types";
 
 export const TONE_CLASS: Record<ReturnType<typeof changeTone>, string> = { good: "text-success", bad: "text-danger", neutral: "text-muted" };
 

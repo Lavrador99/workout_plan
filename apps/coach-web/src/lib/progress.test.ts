@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { changeWeights, DIMENSIONS, goalsFromTargets, PRIMARY_GOALS, sameWeights, targetsOf, testGoalId, totalOf, weightsOf } from "./progress";
-import type { Client, Goal, Weights } from "./types";
+import type { Client, Goal, Weights } from "@treino/core/types";
 
 const client = (over: Partial<Client> = {}): Client => ({ id: "c", updatedAt: 1, name: "Ana", injuries: "", notes: "", ...over });
 const goal = (over: Partial<Goal> = {}): Goal => ({ id: "g", updatedAt: 1, clientId: "c", title: "", criteria: "", status: "active", ...over });

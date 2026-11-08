@@ -2,8 +2,8 @@ import { Copy } from "lucide-react";
 import { asymmetry, change, changeTone, finalValue, fmtAsymmetry, previousResult, repeatResults, testMdc } from "../lib/assessment";
 import { newAssessment, save } from "../lib/db";
 import { go, useAssessments, useTests, useViewState } from "../lib/hooks";
-import { fmtDate, fmtNum } from "../lib/text";
-import type { Assessment, TestDef, TestResult } from "../lib/types";
+import { fmtDate, fmtNum } from "@treino/core/text";
+import type { Assessment, TestDef, TestResult } from "@treino/core/types";
 import { fmtFinal, TONE_CLASS } from "./ResultCard";
 
 async function open(a: Assessment) {

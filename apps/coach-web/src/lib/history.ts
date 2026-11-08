@@ -1,7 +1,7 @@
 // Per-client exercise history and the progression suggestion built on it.
 
-import type { Item, Session, SetRow } from "./types";
-import { fmtNum, norm } from "./text";
+import type { Item, Session, SetRow } from "@treino/core/types";
+import { fmtNum, norm } from "@treino/core/text";
 
 export interface Occurrence {
   session: Session;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fmtNum, num } from "../lib/text";
+import { fmtNum, num } from "@treino/core/text";
 
 interface Props {
   label: string;

@@ -3,7 +3,7 @@
 // The weights are starting points for the coach, not scientific values.
 
 import { goalProgress } from "./assessment";
-import type { Client, DimensionId, Goal, Importance, PrimaryGoal, Weights } from "./types";
+import type { Client, DimensionId, Goal, Importance, PrimaryGoal, Weights } from "@treino/core/types";
 
 export const DIMENSIONS: { id: DimensionId; label: string }[] = [
   { id: "geral", label: "Condição física geral" },

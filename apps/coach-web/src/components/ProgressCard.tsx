@@ -3,8 +3,8 @@ import { save } from "../lib/db";
 import { go, useAssessments, useFocuses, useGoals, useSessions, useSnapshots, useTests } from "../lib/hooks";
 import { evolution, pendingSnapshots, recalculate, STATUS_LABEL, type IpiInput } from "../lib/ipi";
 import { DIMENSIONS } from "../lib/progress";
-import { fmtDate, fmtNum } from "../lib/text";
-import type { Client, DimensionState, ProgressSnapshot, ProgressStatus, SnapshotDimension } from "../lib/types";
+import { fmtDate, fmtNum } from "@treino/core/text";
+import type { Client, DimensionState, ProgressSnapshot, ProgressStatus, SnapshotDimension } from "@treino/core/types";
 import { Section } from "./CountsView";
 
 const TONE: Record<ProgressStatus, string> = { positive: "text-success", moderate: "text-success", reduced: "text-warn", stagnant: "text-warn", regression: "text-danger", insufficient: "text-muted" };

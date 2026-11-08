@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { MonthAdherence } from "../lib/balance";
 import type { CompareRow } from "../lib/ipi";
-import { fmtNum } from "../lib/text";
+import { fmtNum } from "@treino/core/text";
 
 const SIDE = { left: "esquerdo", right: "direito" };
 

@@ -6,8 +6,8 @@ import { fmtRelative, NumberField, TONE_CLASS } from "../components/ResultCard";
 import { averageSpeed, bodyMassAt, change, changeTone, fmtAsymmetry, fmtChange, goalProgress, series, testMdc, type SeriesPoint, type VersionSeries } from "../lib/assessment";
 import { newGoal, remove, save } from "../lib/db";
 import { go, useAssessments, useClient, useGoals, useTests } from "../lib/hooks";
-import { fmtDate, fmtNum } from "../lib/text";
-import type { Assessment, Client, TestDef } from "../lib/types";
+import { fmtDate, fmtNum } from "@treino/core/text";
+import type { Assessment, Client, TestDef } from "@treino/core/types";
 
 const toPoints = (list: SeriesPoint[]): Point[] => list.map((p) => ({ date: p.date, value: p.value, detail: "" }));
 

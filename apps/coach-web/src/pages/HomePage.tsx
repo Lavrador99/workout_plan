@@ -8,7 +8,7 @@ import { clearAbsence, completeEntry, markAbsence, prepareSession, registerPayme
 import { WEEKDAYS } from "../lib/balance";
 import { go, useClients, useSessions, useViewState } from "../lib/hooks";
 import { fmtMoney, fmtMonth, owedMonths } from "../lib/payments";
-import { fmtDate, todayISO } from "../lib/text";
+import { fmtDate, todayISO } from "@treino/core/text";
 
 const STATUS: Record<AgendaStatus, [string, string]> = {
   planned: ["Previsto", "text-muted"],

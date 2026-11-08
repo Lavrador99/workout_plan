@@ -1,4 +1,4 @@
-import type { Item, ItemMethod } from "../lib/types";
+import type { Item, ItemMethod } from "@treino/core/types";
 import Stepper from "./Stepper";
 
 const METHODS: [ItemMethod["type"] | "", string][] = [

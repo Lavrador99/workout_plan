@@ -1,4 +1,4 @@
-import type { TestDef } from "../types";
+import type { TestDef } from "@treino/core/types";
 
 // Standard error of measurement per test, in its unit. Only values checked against
 // the source, each with the population it comes from: an error only really holds

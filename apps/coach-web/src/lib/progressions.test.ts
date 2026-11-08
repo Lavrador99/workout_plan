@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { families, familyOf, likelyMeant, parseFamilies, step } from "./progressions";
-import type { Exercise } from "./types";
+import type { Exercise } from "@treino/core/types";
 
 const ex = (id: string, name: string, extra: Partial<Exercise> = {}): Exercise => ({ id, updatedAt: 0, name, aliases: [], tags: [], ...extra });
 

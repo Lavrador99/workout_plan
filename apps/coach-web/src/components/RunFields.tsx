@@ -1,7 +1,7 @@
 import { useContext } from "react";
-import { fmtRunTotal, newSegment, zoneName, zoneRange, ZONES } from "../lib/run";
+import { fmtRunTotal, newSegment, zoneName, zoneRange, ZONES } from "@treino/core/run";
 import { SessionCtx } from "../lib/sessionContext";
-import type { Item, RunZone, SetRow } from "../lib/types";
+import type { Item, RunZone, SetRow } from "@treino/core/types";
 import { NumberField } from "./ResultCard";
 import Seg from "./Seg";
 

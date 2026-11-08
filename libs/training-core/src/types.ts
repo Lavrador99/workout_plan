@@ -112,6 +112,9 @@ export type LoadMode =
 /** What the reps number counts. */
 export type RepsUnit = "r" | "passos" | "m";
 
+/** The fields of a set changed while the session runs live. */
+export type SetField = "done" | "reps" | "load" | "rir" | "duration";
+
 /** warmup = aquecimento, work = efetiva, failure = até à falha, drop = redução logo a seguir à anterior. */
 export type SetType = "warmup" | "work" | "failure" | "drop";
 
@@ -130,6 +133,8 @@ export interface SetRow {
   done?: boolean;
   /** Runs: the goal of this segment. */
   zone?: RunZone | null;
+  /** Live session: when each field last changed (ms). Of two changes to the same field, the later one wins (ops.ts). */
+  at?: Partial<Record<SetField, number>> | null;
 }
 
 /** A goal for a stretch of a run: a heart rate or a pace zone. */
@@ -205,6 +210,24 @@ export interface Session extends SyncMeta {
   /** Live session: when the coach started and finished it (ms). */
   startedAt?: number | null;
   endedAt?: number | null;
+  /** Live session: where it is and until when the rest runs, so a screen or the client sees the same. */
+  live?: LiveCursor | null;
+}
+
+/**
+ * One thing to tick in a live session (live.ts). "set" = one set of an item;
+ * "item" = an item with no sets; "block" = a whole circuit/EMOM/AMRAP.
+ * `group` ties together what is done in turns (superset, main + fillers).
+ */
+export type Step =
+  | { kind: "set"; bi: number; ii: number; si: number; group: string }
+  | { kind: "item"; bi: number; ii: number; group: string }
+  | { kind: "block"; bi: number; group: string };
+
+export interface LiveCursor {
+  step: Step | null;
+  restUntil: number | null; // ms
+  at: number; // ms, when it last moved
 }
 
 /**

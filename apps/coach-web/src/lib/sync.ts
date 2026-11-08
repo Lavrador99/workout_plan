@@ -6,7 +6,7 @@
 
 import type { Table } from "dexie";
 import { db, DEFAULTS, migrateSideNotes, migrateTargets, onLocalChange } from "./db";
-import type { SyncMeta, TableName } from "./types";
+import type { SyncMeta, TableName } from "@treino/core/types";
 
 const CFG_KEY = "coach_api_cfg";
 const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots"];

@@ -2,7 +2,7 @@ import { newResult } from "./assessment";
 import { matchExercise } from "./db";
 import { parseItemLine } from "./parser";
 import { PRIMARY_GOALS, testGoal } from "./progress";
-import type { Activity, Assessment, Block, Client, Exercise, Goal, Item, RunZone, Session, SetRow, TestDef, TestResult, Trial, Weights } from "./types";
+import type { Activity, Assessment, Block, Client, Exercise, Goal, Item, RunZone, Session, SetRow, TestDef, TestResult, Trial, Weights } from "@treino/core/types";
 
 // A made-up client called "Teste", to see the assessments with real-looking
 // history: 14 months of a footballer who sprains the left ankle in March 2026,

@@ -5,8 +5,8 @@ import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measureme
 import { DEMO_CLIENT_ID, demoData, fillMissing } from "./seedDemo";
 import { SEED_DAYS } from "./seedTemplates";
 import { SEED_TESTS } from "./seedTests";
-import { norm } from "./text";
-import type { Block, Exercise, Focus, Template, TestDef } from "./types";
+import { norm } from "@treino/core/text";
+import type { Block, Exercise, Focus, Template, TestDef } from "@treino/core/types";
 
 // Base library, merged once per device. Seed records get a fixed id
 // ("seed-back-squat") and updatedAt 1, so every device creates the same

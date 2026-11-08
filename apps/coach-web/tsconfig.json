@@ -20,7 +20,8 @@
     "noUncheckedSideEffectImports": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@treino/core/*": ["../../libs/training-core/src/*"]
     }
   },
   "include": ["src"],

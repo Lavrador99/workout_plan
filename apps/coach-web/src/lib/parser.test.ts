@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseCircuitHeader, parseImport, parseItemLine, sidesFromNote } from "./parser";
-import { fmtItem, fmtSession } from "./format";
-import type { Session } from "./types";
+import { fmtItem, fmtSession } from "@treino/core/format";
+import type { Session } from "@treino/core/types";
 
 const rx = (line: string) => {
   const it = parseItemLine(line);

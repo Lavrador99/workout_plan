@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { changeWeights, DIMENSIONS, goalLabel, PRIMARY_GOALS, sameWeights, totalOf, weightsOf } from "../lib/progress";
-import { fmtDate } from "../lib/text";
-import type { Client, Weights } from "../lib/types";
+import { fmtDate } from "@treino/core/text";
+import type { Client, Weights } from "@treino/core/types";
 import { ChipPick } from "./Chips";
 import { NumberField } from "./ResultCard";
 import Sheet, { SheetFooter } from "./Sheet";

@@ -4,8 +4,8 @@
 import type { VersionSeries } from "./assessment";
 import { SCHMITZ_2018, SCHMITZ_2018_DATASETS } from "./references/schmitz2018";
 import { TOMKINSON_2025, TOMKINSON_2025_DATASETS } from "./references/tomkinson2025";
-import { norm } from "./text";
-import type { Client, Direction, Focus, Strength } from "./types";
+import { norm } from "@treino/core/text";
+import type { Client, Direction, Focus, Strength } from "@treino/core/types";
 
 export type ReferenceLevel = "top-elite" | "elite" | "sub-elite" | "amateur";
 

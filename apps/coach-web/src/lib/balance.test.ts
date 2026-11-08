@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adherence, changeSchedule, currentDays, metricRow, monthlyAdherence, plannedSessions, customRange, directionFor, doneIn, goalBalance, markBalance, pendingMarks, presetRange, testBalance, type Range } from "./balance";
-import type { Assessment, Item, Session, SetRow, TestDef, TestResult } from "./types";
+import type { Assessment, Item, Session, SetRow, TestDef, TestResult } from "@treino/core/types";
 
 const test_ = (over: Partial<TestDef> = {}): TestDef => ({
   id: "t1",

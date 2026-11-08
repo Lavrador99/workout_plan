@@ -1,14 +1,14 @@
 import { ArrowDown, ArrowUp, Check, ChevronRight, Copy } from "lucide-react";
 import { useContext, useMemo } from "react";
-import { fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
+import { fmtLoad, fmtRx, SET_TYPE } from "@treino/core/format";
 import { history, suggest } from "../lib/history";
 import { go, useViewState } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { parseItemLine } from "../lib/parser";
 import { addBackoff, addDrop, addWarmups, cycleType, pyramid } from "../lib/rx";
-import { fmtDate, fmtNum, fmtSec, num } from "../lib/text";
-import { fmtSegment } from "../lib/run";
-import type { Item, SetRow } from "../lib/types";
+import { fmtDate, fmtNum, fmtSec, num } from "@treino/core/text";
+import { fmtSegment } from "@treino/core/run";
+import type { Item, SetRow } from "@treino/core/types";
 import ExerciseInput from "./ExerciseInput";
 import { LevelPicker } from "./Progressions";
 import OptionalFields from "./OptionalFields";

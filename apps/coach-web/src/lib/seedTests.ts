@@ -1,4 +1,4 @@
-import type { TestDef } from "./types";
+import type { TestDef } from "@treino/core/types";
 
 // Base test library. Texts are our own short notes, not any protocol's manual:
 // FMS keeps only the pattern names and the 0–3 score (it is a proprietary system).

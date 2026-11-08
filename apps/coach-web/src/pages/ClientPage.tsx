@@ -6,7 +6,7 @@ import { exportClient, purgeClient, remove, save } from "../lib/db";
 import { registerPayment } from "../lib/agendaActions";
 import { fmtMoney, fmtMonth, monthKey, owedMonths, setFee } from "../lib/payments";
 import { downloadText } from "../lib/exportExercises";
-import { fmtLoad } from "../lib/format";
+import { fmtLoad } from "@treino/core/format";
 import AssessmentsTab from "../components/AssessmentsTab";
 import BalanceTab from "../components/BalanceTab";
 import Chips, { ChipPick } from "../components/Chips";
@@ -19,9 +19,9 @@ import { back, go, replaceRoute, useClient, useExercises, useFocuses, useSession
 import { ACTIVITIES, changeSchedule, currentDays, WEEKDAYS } from "../lib/balance";
 import { FOCUS_KINDS } from "../lib/movement";
 import { goalLabel } from "../lib/progress";
-import { fmtPace, parsePace } from "../lib/run";
-import { fmtDate, num, todayISO } from "../lib/text";
-import type { Client, Item, Session, Side } from "../lib/types";
+import { fmtPace, parsePace } from "@treino/core/run";
+import { fmtDate, num, todayISO } from "@treino/core/text";
+import type { Client, Item, Session, Side } from "@treino/core/types";
 import { openNewSession } from "./SessionPage";
 
 interface Best {

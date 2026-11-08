@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { VersionSeries } from "./assessment";
 import { benchmark, clientContext, DATASETS, evidenceOf, fmtPosition, latestComparable, positionIn, SOURCES, type ClientContext, type ReferenceDataset } from "./benchmark";
 import { seedTests } from "./seed";
-import type { Client, Focus } from "./types";
+import type { Client, Focus } from "@treino/core/types";
 
 const YOYO = { testId: "seed-test-yoyo-ir1", version: 1, direction: "higher" as const };
 const ctx = (over: Partial<ClientContext> = {}): ClientContext => ({ sex: "male", age: 25, level: "competitivo", sports: ["Futebol"], ...over });

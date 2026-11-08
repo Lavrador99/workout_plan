@@ -4,8 +4,8 @@
 // Anything it cannot read is kept in the item's note, never dropped.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { Block, Item, LoadMode, RepsUnit, SetRow } from "./types";
-import { num, uid } from "./text";
+import type { Block, Item, LoadMode, RepsUnit, SetRow } from "@treino/core/types";
+import { num, uid } from "@treino/core/text";
 
 const NUM = String.raw`\d+(?:[.,]\d+)?`;
 

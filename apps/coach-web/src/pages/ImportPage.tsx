@@ -2,10 +2,10 @@ import { toast } from "../components/Toast";
 import { useMemo, useState } from "react";
 import { linkItems, newSession, save } from "../lib/db";
 import PageHeader from "../components/PageHeader";
-import { fmtBlock } from "../lib/format";
+import { fmtBlock } from "@treino/core/format";
 import { back, useClient } from "../lib/hooks";
 import { parseImport } from "../lib/parser";
-import { fmtDate, todayISO } from "../lib/text";
+import { fmtDate, todayISO } from "@treino/core/text";
 
 /** Paste a client's old notes → sessions + library. */
 export default function ImportPage({ clientId }: { clientId: string }) {

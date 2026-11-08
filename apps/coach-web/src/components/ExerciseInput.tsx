@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { matchExercise } from "../lib/db";
 import { useExerciseIndex, useExercises } from "../lib/hooks";
 import { parseItemLine } from "../lib/parser";
-import type { Exercise } from "../lib/types";
+import type { Exercise } from "@treino/core/types";
 
 interface Props {
   placeholder?: string;

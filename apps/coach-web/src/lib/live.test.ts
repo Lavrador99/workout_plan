@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildSteps, editSet, isDone, nextOpen, restAfter, setDone } from "./live";
+import { buildSteps, editSet, isDone, nextOpen, restAfter, setDone } from "@treino/core/live";
 import { parseSessionText } from "./parser";
-import type { Session } from "./types";
+import type { Session } from "@treino/core/types";
 
 const session = (text: string): Session => ({ id: "s", updatedAt: 0, clientId: "c", date: "2026-11-01", title: "", notes: "", ...parseSessionText(text) });
 

@@ -1,7 +1,7 @@
 // Editing helpers for an item's sets, shared by the row editor and the prescribe sheet.
 
 import { loadStep } from "./history";
-import type { Item, SetRow } from "./types";
+import type { Item, SetRow } from "@treino/core/types";
 
 type Field = "reps" | "duration" | "load" | "rir" | "rest";
 

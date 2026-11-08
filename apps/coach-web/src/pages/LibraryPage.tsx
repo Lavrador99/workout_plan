@@ -5,11 +5,11 @@ import { useMemo, useState } from "react";
 import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../lib/db";
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
 import { downloadText, exercisesCsv } from "../lib/exportExercises";
-import { fmtBlock } from "../lib/format";
+import { fmtBlock } from "@treino/core/format";
 import { go, replaceRoute, useExerciseIndex, useExercises, useTemplates, useUsage, useViewState } from "../lib/hooks";
 import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
-import { todayISO, uid } from "../lib/text";
+import { todayISO, uid } from "@treino/core/text";
 import { ChipGroups } from "../components/Chips";
 import PageHeader from "../components/PageHeader";
 import { FamilySection, ProgressionsView } from "../components/Progressions";
@@ -18,7 +18,7 @@ import Sheet, { Menu, SheetFooter, SheetTabs } from "../components/Sheet";
 import Tabs from "../components/Tabs";
 import TestsView from "./TestsPage";
 import { CATEGORIES, levelDots } from "../components/PrescribeSheet";
-import type { Exercise, Template } from "../lib/types";
+import type { Exercise, Template } from "@treino/core/types";
 
 const VIEWS = [
   ["exercises", "Exercícios"],

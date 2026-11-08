@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fmtDate, fmtNum } from "../lib/text";
+import { fmtDate, fmtNum } from "@treino/core/text";
 
 export interface Point {
   date: string; // YYYY-MM-DD

@@ -3,8 +3,8 @@ import { useState } from "react";
 import { benchmark, clientContext, fmtPosition, latestComparable, type Benchmark, type Tier } from "../lib/benchmark";
 import type { VersionSeries } from "../lib/assessment";
 import { go, useFocuses } from "../lib/hooks";
-import { fmtDate, fmtNum } from "../lib/text";
-import type { Client } from "../lib/types";
+import { fmtDate, fmtNum } from "@treino/core/text";
+import type { Client } from "@treino/core/types";
 import Sheet from "./Sheet";
 
 const TIER: Record<Tier, string> = {

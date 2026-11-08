@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { fmtItem, fmtRx } from "./format";
+import { fmtItem, fmtRx } from "@treino/core/format";
 import { suggest } from "./history";
-import { fmtPace, fmtRunTotal, fmtSegment, fmtZone, newSegment, parsePace, zoneName, zoneRange } from "./run";
-import type { Item, RunZone, SetRow } from "./types";
+import { fmtPace, fmtRunTotal, fmtSegment, fmtZone, newSegment, parsePace, zoneName, zoneRange } from "@treino/core/run";
+import type { Item, RunZone, SetRow } from "@treino/core/types";
 
 const hr = (zone: RunZone["zone"]): RunZone => ({ kind: "hr", zone });
 const pace = (zone: RunZone["zone"]): RunZone => ({ kind: "pace", zone });

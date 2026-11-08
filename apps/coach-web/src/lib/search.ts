@@ -1,6 +1,6 @@
 import Fuse from "fuse.js";
-import type { Exercise } from "./types";
-import { norm } from "./text";
+import type { Exercise } from "@treino/core/types";
+import { norm } from "@treino/core/text";
 
 interface Doc {
   ex: Exercise;

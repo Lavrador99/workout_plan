@@ -1,7 +1,7 @@
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { GRIPS, STANCES } from "../lib/movement";
-import type { Item } from "../lib/types";
+import type { Item } from "@treino/core/types";
 import { ChipPick } from "./Chips";
 import MethodFields from "./MethodFields";
 import { TempoField } from "./RxFields";

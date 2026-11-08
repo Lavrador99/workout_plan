@@ -2,8 +2,8 @@ import { toast } from "../components/Toast";
 import type { AgendaEntry } from "./agenda";
 import { db, duplicateSession, newSession, patchClient, remove, save } from "./db";
 import { fmtMonth, newPayment } from "./payments";
-import { todayISO } from "./text";
-import type { Absence } from "./types";
+import { todayISO } from "@treino/core/text";
+import type { Absence } from "@treino/core/types";
 
 // One tap, done, with a way back in the toast. Each writes on the stored record.
 

@@ -9,8 +9,8 @@ import { mdc95, TEST_CATEGORIES } from "../lib/assessment";
 import { newTest, remove, save } from "../lib/db";
 import { useTests, useUsedVersions, useViewState } from "../lib/hooks";
 import { canonMuscles, canonPatterns, MUSCLE_CHIP_GROUPS, PATTERN_GROUPS } from "../lib/movement";
-import { fmtNum, norm, num, uid } from "../lib/text";
-import type { Aggregate, Direction, Strength, TestCategory, TestDef } from "../lib/types";
+import { fmtNum, norm, num, uid } from "@treino/core/text";
+import type { Aggregate, Direction, Strength, TestCategory, TestDef } from "@treino/core/types";
 
 export const DIRECTIONS: [Direction, string][] = [
   ["higher", "Mais é melhor"],

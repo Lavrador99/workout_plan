@@ -8,7 +8,7 @@ import { go, useClients, useSessions, useViewState } from "../lib/hooks";
 import PageHeader from "../components/PageHeader";
 import { isInactive, lastDoneByClient, matchesClient, nextTraining } from "../lib/agenda";
 import { owedMonths } from "../lib/payments";
-import { fmtDate, todayISO } from "../lib/text";
+import { fmtDate, todayISO } from "@treino/core/text";
 
 const FILTERS = [
   ["all", "Todos"],

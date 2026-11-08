@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asymmetry, averageSpeed, bodyMassAt, BODY_MASS_TEST, change, changeTone, compare, e1rm, finalValue, fmtAsymmetry, fmtChange, goalProgress, mdc95, newResult, previousResult, relativeStrength, repeatResults, series, testMdc } from "./assessment";
-import type { Assessment, Side, TestDef, TestResult, Trial } from "./types";
+import type { Assessment, Side, TestDef, TestResult, Trial } from "@treino/core/types";
 
 const test_ = (over: Partial<TestDef> = {}): TestDef => ({
   id: "t1",

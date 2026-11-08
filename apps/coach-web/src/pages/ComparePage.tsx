@@ -3,7 +3,7 @@ import { changeTone, compare, fmtChange, SIDE_SHORT, testMdc, type CompareRow } 
 import PageHeader, { NotFound } from "../components/PageHeader";
 import { TONE_CLASS } from "../components/ResultCard";
 import { go, useAssessment, useClient, useTests } from "../lib/hooks";
-import { fmtDate, fmtNum } from "../lib/text";
+import { fmtDate, fmtNum } from "@treino/core/text";
 
 const NOTE: Partial<Record<CompareRow["status"], string>> = { "different-protocol": "Protocolo diferente: não comparável" };
 

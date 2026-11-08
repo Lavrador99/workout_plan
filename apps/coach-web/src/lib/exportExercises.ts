@@ -1,7 +1,7 @@
 // The exercise library as a spreadsheet (CSV), for reviewing names outside the app.
 
 import { musclesOf, patternsOf } from "./movement";
-import type { Exercise } from "./types";
+import type { Exercise } from "@treino/core/types";
 
 const COLUMNS = ["Nome", "Nome PT", "Sinónimos", "Etiquetas", "Padrões", "Padrões definidos", "Músculos", "Músculos definidos", "Vezes prescrito", "Vídeo", "id"];
 

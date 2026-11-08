@@ -2,7 +2,7 @@
 // Lines use the quick-entry format; after "|" comes the note (alternatives,
 // rest). Exercise names match the base library so history links up.
 
-import type { BlockKind } from "./types";
+import type { BlockKind } from "@treino/core/types";
 
 export interface SeedBlock {
   kind: BlockKind;

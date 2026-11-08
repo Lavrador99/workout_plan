@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { firstWork, setAll, setCount } from "../lib/rx";
-import type { Item, LoadMode } from "../lib/types";
+import type { Item, LoadMode } from "@treino/core/types";
 import Seg from "./Seg";
 import Stepper from "./Stepper";
 

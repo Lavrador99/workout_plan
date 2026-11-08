@@ -1,5 +1,5 @@
-import { uid } from "./text";
-import type { Client, Payment } from "./types";
+import { uid } from "@treino/core/text";
+import type { Client, Payment } from "@treino/core/types";
 
 // Operational view only: who has paid what, month by month. Not accounting.
 

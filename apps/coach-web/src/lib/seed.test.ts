@@ -6,8 +6,8 @@ import { MUSCLES, PATTERNS } from "./movement";
 import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
 import { seedDays, seedExercises, seedProfiles, seedTests } from "./seed";
 import { demoData, fillMissing } from "./seedDemo";
-import type { Exercise, Focus, Client } from "./types";
-import { norm } from "./text";
+import type { Exercise, Focus, Client } from "@treino/core/types";
+import { norm } from "@treino/core/text";
 
 describe("seed library", () => {
   const list = seedExercises();

@@ -1,6 +1,6 @@
 import { currentDays, isDone } from "./balance";
-import { norm } from "./text";
-import type { Absence, Client, Session } from "./types";
+import { norm } from "@treino/core/text";
+import type { Absence, Client, Session } from "@treino/core/types";
 
 // What a day looks like for the coach, worked out from what is already stored:
 // the planned week of each client, their sessions and their absences.

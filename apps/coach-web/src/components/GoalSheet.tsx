@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { newGoal, remove, save } from "../lib/db";
 import { IMPORTANCE } from "../lib/progress";
-import { todayISO } from "../lib/text";
-import type { Goal, GoalStatus, Importance, TestDef } from "../lib/types";
+import { todayISO } from "@treino/core/text";
+import type { Goal, GoalStatus, Importance, TestDef } from "@treino/core/types";
 import { NumberField } from "./ResultCard";
 import Seg from "./Seg";
 import Sheet, { SheetFooter } from "./Sheet";

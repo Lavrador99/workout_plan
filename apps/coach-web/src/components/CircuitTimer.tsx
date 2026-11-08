@@ -1,7 +1,7 @@
 import { Play } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBackClose } from "../lib/hooks";
-import type { Block } from "../lib/types";
+import type { Block } from "@treino/core/types";
 
 interface Phase {
   kind: "prep" | "work" | "rest" | "roundRest";

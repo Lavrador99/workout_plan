@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { history, suggest, topSet } from "./history";
 import { parseItemLine } from "./parser";
-import type { Item, Session } from "./types";
+import type { Item, Session } from "@treino/core/types";
 
 const session = (id: string, date: string, lines: string[], done = true): Session => ({
   id,

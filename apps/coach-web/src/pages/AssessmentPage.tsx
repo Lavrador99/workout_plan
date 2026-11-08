@@ -9,8 +9,8 @@ import TestPicker from "../components/TestPicker";
 import { bodyMassAt, newResult, previousResult } from "../lib/assessment";
 import { remove, save } from "../lib/db";
 import { back, go, useAssessment, useAssessments, useClient, useTests, useViewState } from "../lib/hooks";
-import { fmtDate } from "../lib/text";
-import type { Assessment, TestDef, TestResult } from "../lib/types";
+import { fmtDate } from "@treino/core/text";
+import type { Assessment, TestDef, TestResult } from "@treino/core/types";
 
 /** Recording an assessment, usually on the phone in the gym. */
 export default function AssessmentPage({ id }: { id: string }) {

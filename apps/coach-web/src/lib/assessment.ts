@@ -2,8 +2,8 @@
 // Pure functions, so they work offline and give the same answer on every device.
 // No thresholds on purpose: an asymmetry is shown, never classified as a risk.
 
-import { fmtNum, uid } from "./text";
-import type { Assessment, Direction, Scale, Side, TestCategory, TestDef, TestResult, Trial } from "./types";
+import { fmtNum, uid } from "@treino/core/text";
+import type { Assessment, Direction, Scale, Side, TestCategory, TestDef, TestResult, Trial } from "@treino/core/types";
 
 export const SIDES: Side[] = ["left", "right"];
 export const SIDE_SHORT: Record<Side, string> = { left: "E", right: "D" };

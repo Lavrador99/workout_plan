@@ -9,8 +9,8 @@ import { monthlyAdherence, PERIODS, presetRange, type Preset } from "../lib/bala
 import { useAssessments, useClient, useGoals, useSessions, useSnapshots, useTests, useViewState } from "../lib/hooks";
 import { comparableHistory, compareRows, highlights } from "../lib/ipi";
 import { DIMENSIONS, IMPORTANCE } from "../lib/progress";
-import { fmtDate, fmtNum, todayISO } from "../lib/text";
-import type { DimensionId, DimensionState, ProgressSnapshot, SnapshotDimension, SnapshotIndicator, TestDef } from "../lib/types";
+import { fmtDate, fmtNum, todayISO } from "@treino/core/text";
+import type { DimensionId, DimensionState, ProgressSnapshot, SnapshotDimension, SnapshotIndicator, TestDef } from "@treino/core/types";
 
 type Period = Exclude<Preset, "custom">;
 

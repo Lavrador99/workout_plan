@@ -2,7 +2,7 @@ import { useViewState } from "../lib/hooks";
 import { ArrowLeft } from "lucide-react";
 import { useMemo } from "react";
 import { canonPatterns, FOCUS_KINDS, focusSide, groupByPeriod, tally, type Period } from "../lib/movement";
-import type { Exercise, Focus, Session, Side } from "../lib/types";
+import type { Exercise, Focus, Session, Side } from "@treino/core/types";
 
 const SIDE_TO: Record<Side, string> = { left: "à esq.", right: "à dir." };
 import Seg from "./Seg";

@@ -2,8 +2,8 @@ import { useState } from "react";
 import { addDays } from "../lib/agenda";
 import { duplicateSession, remove, save } from "../lib/db";
 import { useClients } from "../lib/hooks";
-import { fmtDate, todayISO } from "../lib/text";
-import type { Session } from "../lib/types";
+import { fmtDate, todayISO } from "@treino/core/text";
+import type { Session } from "@treino/core/types";
 import Sheet, { SheetFooter } from "./Sheet";
 import { toast } from "./Toast";
 

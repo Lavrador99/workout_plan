@@ -1,8 +1,8 @@
 import Dexie, { type Table } from "dexie";
 import { goalsFromTargets, testGoal } from "./progress";
 import { sidesFromNote } from "./parser";
-import type { Assessment, Block, Client, Exercise, Focus, Goal, Item, ProgressSnapshot, Session, SyncMeta, TableName, Template, TestDef } from "./types";
-import { norm, todayISO, uid } from "./text";
+import type { Assessment, Block, Client, Exercise, Focus, Goal, Item, ProgressSnapshot, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
+import { norm, todayISO, uid } from "@treino/core/text";
 
 // Local-first storage: everything lives in IndexedDB so the app works in the
 // gym without signal. sync.ts pushes/pulls the dirty records when online.

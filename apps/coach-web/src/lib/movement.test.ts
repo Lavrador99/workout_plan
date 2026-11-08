@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { focusSide, groupByPeriod, inferMuscles, inferPatterns, musclesOf, patternsOf, tally, weekStart } from "./movement";
 import { seedExercises, seedProfiles } from "./seed";
-import type { Block, Exercise, Item, Session } from "./types";
+import type { Block, Exercise, Item, Session } from "@treino/core/types";
 
 const ex = (name: string, tags: string[] = [], pt = ""): Exercise => ({ id: name, updatedAt: 0, name, pt, aliases: [], tags });
 

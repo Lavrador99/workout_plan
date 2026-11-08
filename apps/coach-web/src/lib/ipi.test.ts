@@ -2,7 +2,7 @@ import { describe as group, expect, it } from "vitest";
 import { change } from "./assessment";
 import { assessedDates, calculate, comparableHistory, compareRows, describe, dimensionState, evolution, highlights, indicatorScore, latestByDate, pendingSnapshots, recalculate, statusOf, type IpiInput } from "./ipi";
 import { PRIMARY_GOALS } from "./progress";
-import type { Assessment, Client, Goal, ProgressSnapshot, Session, SnapshotIndicator, TestCategory, TestDef, TestResult } from "./types";
+import type { Assessment, Client, Goal, ProgressSnapshot, Session, SnapshotIndicator, TestCategory, TestDef, TestResult } from "@treino/core/types";
 
 const test_ = (id: string, category: TestCategory, over: Partial<TestDef> = {}): TestDef => ({ id, updatedAt: 1, name: id, category, unit: "kg", direction: "higher", sided: false, trials: 1, aggregate: "best", version: 1, groups: [], purpose: "", equipment: "", instructions: "", validity: "", ...over });
 const result = (testId: string, value: number | [number, number]): TestResult => ({ id: `${testId}-${String(value)}`, testId, version: 1, name: testId, unit: "kg", direction: "higher", sided: Array.isArray(value), aggregate: "best", trials: Array.isArray(value) ? [{ side: "left", value: value[0] }, { side: "right", value: value[1] }] : [{ value }] });

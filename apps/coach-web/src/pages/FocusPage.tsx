@@ -11,7 +11,7 @@ import { matchExercise, newFocus, remove, save } from "../lib/db";
 import { go, useClients, useExercises, useFocuses, useViewState } from "../lib/hooks";
 import { canonMuscles, canonPatterns, FOCUS_KINDS, focusSide, PATTERN_GROUPS } from "../lib/movement";
 import { parseItemLine } from "../lib/parser";
-import type { Client, Exercise, Focus, FocusKind } from "../lib/types";
+import type { Client, Exercise, Focus, FocusKind } from "@treino/core/types";
 
 const PLACEHOLDER: Record<FocusKind, string> = {
   sport: "Nova modalidade (ex: Futebol, Padel)…",

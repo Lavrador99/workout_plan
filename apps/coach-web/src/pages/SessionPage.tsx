@@ -13,14 +13,14 @@ import PrescribeSheet from "../components/PrescribeSheet";
 import AssignSheet from "../components/AssignSheet";
 import { Menu } from "../components/Sheet";
 import { copyBlock, duplicateSession, linkItems, newSession, remove, save, templateBlocks } from "../lib/db";
-import { fmtSession } from "../lib/format";
+import { fmtSession } from "@treino/core/format";
 import { history, suggest } from "../lib/history";
 import { back, clearViewState, go, useClient, useSession, useSessions, useTemplates, useViewState } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
 import { itemsFromLine, parseSessionText } from "../lib/parser";
 import { useReorder } from "../lib/reorder";
-import { fmtDate, uid } from "../lib/text";
-import type { Block, Item, Section, Session, Template, Activity } from "../lib/types";
+import { fmtDate, uid } from "@treino/core/text";
+import type { Block, Item, Section, Session, Template, Activity } from "@treino/core/types";
 
 const TITLES = ["Fullbody", "Superiores", "Inferiores", "Hyrox Sim", "Core", "Mobilidade"];
 

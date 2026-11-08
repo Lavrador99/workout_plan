@@ -1,13 +1,13 @@
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { matchExercise } from "../lib/db";
-import { fmtRx } from "../lib/format";
+import { fmtRx } from "@treino/core/format";
 import { history } from "../lib/history";
 import { useBackClose, useExerciseIndex, useExercises, useUsage, useViewState } from "../lib/hooks";
 import { emptyItem, parseItemLine } from "../lib/parser";
 import { SessionCtx } from "../lib/sessionContext";
-import { newSegment, RUN_TAG } from "../lib/run";
-import type { Block, Exercise, Item } from "../lib/types";
+import { newSegment, RUN_TAG } from "@treino/core/run";
+import type { Block, Exercise, Item } from "@treino/core/types";
 import { LastTime } from "./ItemRow";
 import RunFields from "./RunFields";
 import OptionalFields from "./OptionalFields";

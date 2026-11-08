@@ -3,8 +3,8 @@
 // ordered list of exercise ids, so the whole family is one record.
 
 import { matchExercise, save } from "./db";
-import { norm, uid } from "./text";
-import type { Exercise } from "./types";
+import { norm, uid } from "@treino/core/text";
+import type { Exercise } from "@treino/core/types";
 
 export interface Family {
   base: Exercise;

@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import LineChart, { type Point } from "../components/LineChart";
 import PageHeader from "../components/PageHeader";
-import { fmtRx } from "../lib/format";
+import { fmtRx } from "@treino/core/format";
 import { history, topSet } from "../lib/history";
 import { go, useClient, useExercises, useSessions } from "../lib/hooks";
-import { fmtDate } from "../lib/text";
+import { fmtDate } from "@treino/core/text";
 
 /** One exercise for one client: evolution chart + every time it was done. */
 export default function HistoryPage({ clientId, exKey }: { clientId: string; exKey: string }) {

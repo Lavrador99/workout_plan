@@ -1,14 +1,14 @@
 import { Check, Play, X } from "lucide-react";
 import { ask } from "./Dialogs";
-import { fmtSegment, fmtZone, zoneName, zoneRange } from "../lib/run";
+import { fmtSegment, fmtZone, zoneName, zoneRange } from "@treino/core/run";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { fmtCircuitHeader, fmtLoad, fmtRx, SET_TYPE } from "../lib/format";
+import { fmtCircuitHeader, fmtLoad, fmtRx, SET_TYPE } from "@treino/core/format";
 import { history, loadStep } from "../lib/history";
 import { useBackClose } from "../lib/hooks";
-import { addSet, buildSteps, editSet, isDone, nextOpen, restAfter, sameStep, setDone, setItem, type Step } from "../lib/live";
+import { addSet, buildSteps, editSet, isDone, nextOpen, restAfter, sameStep, setDone, setItem, type Step } from "@treino/core/live";
 import { SessionCtx } from "../lib/sessionContext";
-import { fmtNum, fmtSec, num } from "../lib/text";
-import type { Item, Session, SetRow, RunZone } from "../lib/types";
+import { fmtNum, fmtSec, num } from "@treino/core/text";
+import type { Item, Session, SetRow, RunZone } from "@treino/core/types";
 import CircuitTimer, { beep } from "./CircuitTimer";
 import { EasierHarder } from "./Progressions";
 

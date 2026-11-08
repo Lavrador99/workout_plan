@@ -3,9 +3,9 @@
 // A training mark has no measurement error, so it only ever reads as indicative.
 
 import { change, estimatedRm, goalProgress, series, testMdc, type Change, type SeriesPoint, type VersionSeries } from "./assessment";
-import { norm } from "./text";
+import { norm } from "@treino/core/text";
 import { metricProgress } from "./progress";
-import type { Activity, Assessment, Client, Direction, Goal, Item, ScheduleChange, Session, SetRow, Side, TestDef } from "./types";
+import type { Activity, Assessment, Client, Direction, Goal, Item, ScheduleChange, Session, SetRow, Side, TestDef } from "@treino/core/types";
 
 // ── Period ──────────────────────────────────────────────────────────────────
 

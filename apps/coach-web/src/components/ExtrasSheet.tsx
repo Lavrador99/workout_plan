@@ -1,6 +1,6 @@
 import { Star, StickyNote } from "lucide-react";
 import { useState } from "react";
-import type { BlockKind, Section, Template } from "../lib/types";
+import type { BlockKind, Section, Template } from "@treino/core/types";
 import { SECTIONS } from "./BlockCard";
 import Sheet from "./Sheet";
 

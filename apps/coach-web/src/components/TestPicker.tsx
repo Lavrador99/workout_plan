@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { TEST_CATEGORIES } from "../lib/assessment";
 import { go } from "../lib/hooks";
-import { norm } from "../lib/text";
-import type { TestDef } from "../lib/types";
+import { norm } from "@treino/core/text";
+import type { TestDef } from "@treino/core/types";
 import { testGroups } from "../pages/TestsPage";
 import Sheet, { SheetFooter } from "./Sheet";
 

@@ -1,8 +1,8 @@
 // Library exercises that are probably the same one under different names
 // ("Back Squat" / "Back squat", "Pull-up" / "Pullup", "Agachamento búlgaro" / "Agachamento bulgaro c/ halteres"…).
 
-import type { Exercise } from "./types";
-import { norm } from "./text";
+import type { Exercise } from "@treino/core/types";
+import { norm } from "@treino/core/text";
 
 const STOP = new Set(["com", "c", "de", "da", "do", "das", "dos", "em", "no", "na", "the", "with", "w", "and", "of", "on"]);
 

@@ -8,7 +8,11 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@treino/core/*": ["../../libs/training-core/src/*"]
+    }
   },
   "include": ["src"]
 }

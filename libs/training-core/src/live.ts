@@ -1,17 +1,9 @@
 // Running a session live: the order sets are done in, ticking them and
 // editing the numbers as the athlete goes.
 
-import type { Block, Item, Session, SetRow } from "./types";
+import type { Block, Item, Session, SetRow, Step } from "./types";
 
-/**
- * One thing to tick. "set" = one set of an item; "item" = an item with no
- * sets (mobility, "Elephant wall"); "block" = a whole circuit/EMOM/AMRAP.
- * `group` ties together what is done in turns (superset, main + fillers).
- */
-export type Step =
-  | { kind: "set"; bi: number; ii: number; si: number; group: string }
-  | { kind: "item"; bi: number; ii: number; group: string }
-  | { kind: "block"; bi: number; group: string };
+export type { Step };
 
 export const isTimed = (b: Block) => b.kind === "circuit" || b.kind === "emom" || b.kind === "amrap";
 

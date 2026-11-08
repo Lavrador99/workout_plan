@@ -1,12 +1,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { changeTone, fmtChange, SIDE_SHORT } from "../lib/assessment";
 import { adherence, customRange, doneIn, goalBalance, markBalance, metricRow, pendingMarks, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
-import { fmtLoad } from "../lib/format";
+import { fmtLoad } from "@treino/core/format";
 import { go, useAssessments, useGoals, useTests } from "../lib/hooks";
 import { tally } from "../lib/movement";
 import { targetsOf } from "../lib/progress";
-import { fmtDate, fmtNum, todayISO } from "../lib/text";
-import type { Client, Exercise, Focus, Goal, GoalStatus, Session, Side } from "../lib/types";
+import { fmtDate, fmtNum, todayISO } from "@treino/core/text";
+import type { Client, Exercise, Focus, Goal, GoalStatus, Session, Side } from "@treino/core/types";
 import { Bars, Section } from "./CountsView";
 import GoalSheet from "./GoalSheet";
 import ProgressCard from "./ProgressCard";

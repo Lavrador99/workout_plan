@@ -1,0 +1,7 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "training-core",
+  "projectType": "library",
+  "sourceRoot": "libs/training-core/src",
+  "tags": ["scope:shared", "type:lib"]
+}

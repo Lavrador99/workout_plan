@@ -7,7 +7,7 @@
     "dev": "nx run treino-web:serve",
     "build": "cd apps/treino-web && npx vite build && cd ../coach-web && npx vite build",
     "dev:coach": "cd apps/coach-web && npx vite",
-    "test:coach": "cd apps/coach-web && npx vitest run",
+    "test:coach": "cd libs/training-core && npx vitest run && cd ../../apps/coach-web && npx vitest run",
     "dev:api:coach": "cd apps/coach-api && npx wrangler d1 migrations apply coach-db --local && npx wrangler dev",
     "deploy:api": "node apps/coach-api/scripts/deploy.mjs",
     "build:api": "nx run treino-api:build",

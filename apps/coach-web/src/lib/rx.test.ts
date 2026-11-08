@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { fmtCircuitHeader, fmtRx } from "./format";
+import { fmtCircuitHeader, fmtRx } from "@treino/core/format";
 import { suggest } from "./history";
 import { countedSets } from "./movement";
 import { parseItemLine } from "./parser";
 import { addBackoff, addDrop, addWarmups, cycleType, pyramid } from "./rx";
-import type { Block, Item, Session } from "./types";
+import type { Block, Item, Session } from "@treino/core/types";
 
 const bench = (): Item => ({ ...parseItemLine("Supino 4x10 60kg RIR 2 desc 90s"), id: "i" });
 

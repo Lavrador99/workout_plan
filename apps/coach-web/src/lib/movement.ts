@@ -1,8 +1,8 @@
 // Movement patterns, grips and stances, and how sets are counted against them
 // and against a client's sports, pathologies and asymmetries (Focus).
 
-import type { Block, Exercise, Focus, FocusKind, Item, Session, Side } from "./types";
-import { norm } from "./text";
+import type { Block, Exercise, Focus, FocusKind, Item, Session, Side } from "@treino/core/types";
+import { norm } from "@treino/core/text";
 
 /** Movement patterns by body region (the region is only for showing them). */
 export const PATTERN_GROUPS: [string, string[]][] = [

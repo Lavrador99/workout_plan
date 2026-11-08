@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "./db";
 import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
-import type { Assessment, Client, Exercise, Focus, Goal, ProgressSnapshot, Session, Template, TestDef } from "./types";
+import type { Assessment, Client, Exercise, Focus, Goal, ProgressSnapshot, Session, Template, TestDef } from "@treino/core/types";
 
 export { back, clearViewState, go, replaceRoute, useBackClose, useRoute, useViewState } from "./nav";
 

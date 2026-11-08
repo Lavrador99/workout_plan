@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { findDuplicates, nameSimilarity } from "./duplicates";
 import { inferMuscles, missingInfo } from "./movement";
 import { seedExercises } from "./seed";
-import type { Exercise } from "./types";
+import type { Exercise } from "@treino/core/types";
 
 const ex = (id: string, name: string, extra: Partial<Exercise> = {}): Exercise => ({ id, updatedAt: 0, name, aliases: [], tags: [], ...extra });
 

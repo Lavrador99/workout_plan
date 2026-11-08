@@ -4,8 +4,8 @@ import { matchExercise, save } from "../lib/db";
 import { useExerciseIndex, useExercises } from "../lib/hooks";
 import { parseItemLine } from "../lib/parser";
 import { families, familyOf, likelyMeant, parseFamilies, saveFamily, setProgressions, step, type Family } from "../lib/progressions";
-import { uid } from "../lib/text";
-import type { Exercise, Item } from "../lib/types";
+import { uid } from "@treino/core/text";
+import type { Exercise, Item } from "@treino/core/types";
 import ExerciseInput from "./ExerciseInput";
 import Sheet from "./Sheet";
 

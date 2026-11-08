@@ -7,8 +7,8 @@ import { isDone, plannedSessions } from "../lib/balance";
 import { patchClient } from "../lib/db";
 import { go, useClients, useSessions } from "../lib/hooks";
 import { fmtMoney, fmtMonth, monthKey, owedMonths, receivedIn, setFee } from "../lib/payments";
-import { num, todayISO } from "../lib/text";
-import type { Client } from "../lib/types";
+import { num, todayISO } from "@treino/core/text";
+import type { Client } from "@treino/core/types";
 
 function Stat({ label, value, tone = "" }: { label: string; value: string; tone?: string }) {
   return (

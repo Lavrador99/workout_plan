@@ -1,6 +1,6 @@
-import { fmtMethod, SET_TYPE } from "../lib/format";
-import { fmtNum, fmtSec } from "../lib/text";
-import type { Block, Item } from "../lib/types";
+import { fmtMethod, SET_TYPE } from "@treino/core/format";
+import { fmtNum, fmtSec } from "@treino/core/text";
+import type { Block, Item } from "@treino/core/types";
 
 // The structure of a block at a glance: execution order, sets (bar height =
 // load), rests, rounds and intra-set methods.
