@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import { goalsFromTargets, testGoal } from "./progress";
 import { sidesFromNote } from "./parser";
+import type { LiveOp } from "@treino/core/ops";
 import type { Assessment, Block, Client, Exercise, Focus, Goal, Item, ProgressSnapshot, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
 import { norm, todayISO, uid } from "@treino/core/text";
 
@@ -18,6 +19,8 @@ class CoachDB extends Dexie {
   goals!: Table<Goal, string>;
   snapshots!: Table<ProgressSnapshot, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
+  /** Live changes not yet sent to the API, in the order they were made (sessionSave.ts). */
+  ops!: Table<{ seq?: number; sessionId: string; op: LiveOp }, number>;
 
   constructor() {
     super("coach");
@@ -37,6 +40,7 @@ class CoachDB extends Dexie {
     this.version(5)
       .stores({ goals: "id, clientId, updatedAt, dirty", snapshots: "id, clientId, date, updatedAt, dirty" })
       .upgrade((tx) => tx.table("meta").delete("lastSeq"));
+    this.version(6).stores({ ops: "++seq, sessionId" });
   }
 }
 
@@ -164,9 +168,9 @@ export function newSession(clientId: string): Session {
   return { id: uid(), updatedAt: 0, clientId, date: todayISO(), title: "", notes: "", blocks: [] };
 }
 
-/** Fresh copy of a block: new ids, nothing ticked. */
+/** Fresh copy of a block: new ids, nothing ticked, no live change times. */
 export function copyBlock(b: Block): Block {
-  return { ...b, id: uid(), items: b.items.map((i) => ({ ...i, id: uid(), sets: i.sets.map((r) => ({ ...r, done: false })) })) };
+  return { ...b, id: uid(), items: b.items.map((i) => ({ ...i, id: uid(), sets: i.sets.map(({ at: _at, ...r }) => ({ ...r, done: false })) })) };
 }
 
 /** The blocks a template adds: the whole day, or its single block. */

@@ -1,6 +1,6 @@
 # Fase 4 — Ecrã de grupo e app do cliente
 
-Desenho técnico. Estado: **4.0 implementada** (lib partilhada, ops ao vivo, `POST /live/ops`, migração 0004), por publicar. 4.1 em diante por fazer.
+Desenho técnico. Estado: **4.0 publicada** (lib partilhada, ops ao vivo, `POST /live/ops`, migração 0004). **4.1a implementada** (sessão de grupo na `coach-web`, gravação por ops), por publicar. 4.1b em diante por fazer.
 
 Duas funcionalidades novas sobre a mesma base:
 
@@ -112,7 +112,7 @@ type LiveOp = { sessionId: string; at: number } & (
 - `diffOps(antes, depois, at)` gera as ops a partir do que as funções de `live.ts` já fazem; devolve `null` quando a mudança não é só de sets (trocar exercício, apagar set, editar notas) — essa grava-se como sessão inteira, só pelo coach.
 - `POST /live/ops` valida cada op (`parseOp`, só campos conhecidos e valores com limites), aplica à sessão guardada no servidor e grava com `seq` e `updated_at` novos — a sincronização normal da `coach-web` recebe o resultado. A escrita é otimista: só grava se ninguém escreveu a sessão desde que a leu; senão lê de novo (3 tentativas).
 
-**Por fazer na 4.1a:** a `coach-web` ainda grava a sessão inteira por `/sync` durante o treino ao vivo, o que pode apagar ops de um cliente. Passa a usar `diffOps` + `POST /live/ops` enquanto a sessão está a decorrer, e a juntar set a set (por `at`) o que puxa do servidor com o que tem por enviar.
+**Na `coach-web` (4.1a):** `lib/sessionSave.ts` grava cada alteração de uma sessão já no servidor como ops (fila `ops` na IndexedDB), que saem 300 ms depois, antes do pull. A cópia local mantém o `updatedAt` do servidor: no pull, a versão do servidor substitui-a e as ops ainda por enviar são aplicadas por cima. Uma sessão ainda não enviada (`dirty`), uma mudança que não é só de sets, ou sincronização desligada → sessão inteira, como antes. Op recusada pela API (sessão em falta, op inválida) → a sessão vai inteira no push seguinte.
 
 Fora do treino ao vivo (o coach a editar o plano), continua a gravação da sessão inteira. Enquanto uma sessão tem `startedAt` e não tem `endedAt`, a `coach-web` usa ops para os sets.
 

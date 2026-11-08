@@ -15,13 +15,14 @@ import FinancePage from "./pages/FinancePage";
 import HomePage from "./pages/HomePage";
 import ProgressPage from "./pages/ProgressPage";
 import FocusPage from "./pages/FocusPage";
+import GroupPage from "./pages/GroupPage";
 import HistoryPage from "./pages/HistoryPage";
 import ImportPage from "./pages/ImportPage";
 import LibraryPage from "./pages/LibraryPage";
 import SessionPage from "./pages/SessionPage";
 import SettingsPage from "./pages/SettingsPage";
 
-const TAB_OF: Record<string, string> = { focus: "library" };
+const TAB_OF: Record<string, string> = { focus: "library", group: "" };
 for (const page of ["client", "session", "import", "history", "assessment", "evolution", "compare", "progress"]) TAB_OF[page] = "clients";
 
 const TABS = [
@@ -73,6 +74,8 @@ export default function App() {
           <ClientPage key={id} id={id} tab={sub} />
         ) : page === "session" ? (
           <SessionPage key={id} id={id} />
+        ) : page === "group" ? (
+          <GroupPage key={id} ids={id} />
         ) : page === "history" ? (
           <HistoryPage key={id + sub} clientId={id} exKey={sub} />
         ) : page === "assessment" ? (

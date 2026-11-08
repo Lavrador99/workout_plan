@@ -1,7 +1,7 @@
 import { Check, Play, X } from "lucide-react";
 import { ask } from "./Dialogs";
 import { fmtSegment, fmtZone, zoneName, zoneRange } from "@treino/core/run";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { fmtCircuitHeader, fmtLoad, fmtRx, SET_TYPE } from "@treino/core/format";
 import { history, loadStep } from "../lib/history";
 import { useBackClose } from "../lib/hooks";
@@ -51,28 +51,41 @@ interface Props {
   onChange: (s: Session) => void;
   /** Back to the plan; the session keeps running. */
   onMinimize: () => void;
+  /** Shown under the header (the athletes of a group session). */
+  top?: ReactNode;
+  /** The phone's back button calls onMinimize. Off when this view is the page itself. */
+  closeOnBack?: boolean;
+  /** After a set or block is ticked done, with the session as it now is. */
+  onTicked?: (next: Session) => void;
+  /** After "Terminar"; unset = onMinimize. */
+  onFinished?: () => void;
 }
 
 /** Full-screen live session: one set at a time, big numbers, edited as it happens. */
-export default function LiveView({ session: s, onChange, onMinimize }: Props) {
+export default function LiveView({ session: s, onChange, onMinimize, top, closeOnBack = true, onTicked, onFinished }: Props) {
   useWakeLock();
   const now = useNow();
   const steps = useMemo(() => buildSteps(s), [s]);
-  const [cursor, setCursor] = useState<Step | undefined>(() => nextOpen(s, steps));
-  const [restEnd, setRestEnd] = useState<number | null>(null);
   const [timer, setTimer] = useState(false);
-  useBackClose(onMinimize);
+  useBackClose(onMinimize, closeOnBack);
+
+  // Where it is and the rest live in the session, so a screen (or the client) sees the same.
+  const cursor = s.live?.step ?? undefined;
+  const restEnd = s.live?.restUntil ?? null;
+  const live = (step: Step | undefined, restUntil: number | null) => ({ step: step ?? null, restUntil, at: Date.now() });
+  const setCursor = (step: Step | undefined) => onChange({ ...s, live: live(step, restEnd) });
+  const setRestEnd = (restUntil: number | null) => onChange({ ...s, live: live(cursor, restUntil) });
 
   const idx = steps.findIndex((x) => sameStep(x, cursor));
   const cur = idx >= 0 ? steps[idx] : nextOpen(s, steps);
   const curIdx = idx >= 0 ? idx : steps.findIndex((x) => sameStep(x, cur));
   const doneCount = steps.filter((st) => isDone(s, st)).length;
-  const restLeft = restEnd == null ? null : Math.ceil((restEnd - now) / 1000);
+  // "Vai!" stays a moment after the rest ends
+  const restLeft = restEnd == null || now > restEnd + 3000 ? null : Math.ceil((restEnd - now) / 1000);
 
-  // end of rest: beep once, keep "Vai!" for a moment
+  // end of rest: beep once
   useEffect(() => {
     if (restLeft === 0) beep(990, 400);
-    if (restLeft != null && restLeft < -3) setRestEnd(null);
   }, [restLeft]);
 
   const tick = () => {
@@ -81,11 +94,11 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
       onChange(setDone(s, cur, false));
       return;
     }
-    const next = setDone(s, cur, true);
-    onChange(next);
+    const done = setDone(s, cur, true);
     const rest = restAfter(s, steps, cur);
-    setRestEnd(rest > 0 ? Date.now() + rest * 1000 : null);
-    setCursor(nextOpen(next, buildSteps(next), curIdx));
+    const next = { ...done, live: live(nextOpen(done, buildSteps(done), curIdx), rest > 0 ? Date.now() + rest * 1000 : null) };
+    onChange(next);
+    onTicked?.(next);
   };
 
   const skip = () => setCursor(nextOpen(s, steps, curIdx) ?? cur);
@@ -100,7 +113,7 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
     const left = steps.length - doneCount;
     if (!(await ask(left ? `Terminar o treino? Ficam ${left} por fazer.` : "Terminar o treino?"))) return;
     onChange({ ...s, endedAt: Date.now() });
-    onMinimize();
+    (onFinished ?? onMinimize)();
   };
 
   const block = cur ? s.blocks[cur.bi] : undefined;
@@ -128,6 +141,7 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
         <div className="h-1 bg-card2">
           <div className="h-full bg-accent transition-all" style={{ width: `${steps.length ? (100 * doneCount) / steps.length : 0}%` }} />
         </div>
+        {top}
 
         {restLeft != null && (
           <div className={`flex items-center gap-2 px-3 py-2 ${restLeft > 0 ? "bg-accent2 text-on-accent" : "bg-success text-on-accent"}`}>
@@ -135,10 +149,10 @@ export default function LiveView({ session: s, onChange, onMinimize }: Props) {
             <span className="text-3xl font-black tabular-nums">{restLeft > 0 ? fmtClock(restLeft * 1000) : "✓"}</span>
             {restLeft > 0 && (
               <div className="ml-auto flex gap-2">
-                <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd((e) => (e ?? 0) - 15000)}>
+                <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd((restEnd ?? 0) - 15000)}>
                   −15
                 </button>
-                <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd((e) => (e ?? 0) + 15000)}>
+                <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd((restEnd ?? 0) + 15000)}>
                   +15
                 </button>
                 <button type="button" className="btn bg-black/15 border-transparent text-on-accent" onClick={() => setRestEnd(null)} aria-label="Acabar descanso">

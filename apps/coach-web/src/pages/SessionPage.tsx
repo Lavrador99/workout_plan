@@ -17,6 +17,7 @@ import { fmtSession } from "@treino/core/format";
 import { history, suggest } from "../lib/history";
 import { back, clearViewState, go, useClient, useSession, useSessions, useTemplates, useViewState } from "../lib/hooks";
 import { SessionCtx } from "../lib/sessionContext";
+import { saveSessionChange } from "../lib/sessionSave";
 import { itemsFromLine, parseSessionText } from "../lib/parser";
 import { useReorder } from "../lib/reorder";
 import { fmtDate, uid } from "@treino/core/text";
@@ -54,6 +55,8 @@ export default function SessionPage({ id }: { id: string }) {
   const [newBlock, setNewBlock] = useViewState<string | null>("newBlock", null);
   const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
   const latest = useRef<Session | null>(null);
+  /** The session as it was before the edits waiting to be saved: only what changed since is written. */
+  const base = useRef<Session | null>(null);
   const reorder = useReorder(s?.blocks ?? [], (blocks) => s && update({ ...s, blocks }));
   const [live, setLive] = useState(false);
   const resumed = useRef(false);
@@ -72,12 +75,15 @@ export default function SessionPage({ id }: { id: string }) {
     clearTimeout(pending.current);
     pending.current = undefined;
     const s = latest.current;
+    const from = base.current;
     latest.current = null;
-    if (s) await save("sessions", await withLinks(s));
+    base.current = null;
+    if (s) await (from ? saveSessionChange(from, s, withLinks) : save("sessions", await withLinks(s)));
   };
   useEffect(() => () => void flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (next: Session) => {
+    if (!latest.current) base.current = current.current;
     current.current = next;
     setS(next);
     latest.current = next;

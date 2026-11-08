@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import PageHeader from "../components/PageHeader";
 import { PageLoading } from "../components/States";
@@ -6,7 +6,9 @@ import Sheet, { Menu } from "../components/Sheet";
 import { addDays, agendaFor, daysBetween, isInactive, lastDoneByClient, matchesClient, weekOf, type AgendaEntry, type AgendaStatus } from "../lib/agenda";
 import { clearAbsence, completeEntry, markAbsence, prepareSession, registerPayment } from "../lib/agendaActions";
 import { WEEKDAYS } from "../lib/balance";
+import { groupKey } from "../lib/group";
 import { go, useClients, useSessions, useViewState } from "../lib/hooks";
+import { saveSessionChange } from "../lib/sessionSave";
 import { fmtMoney, fmtMonth, owedMonths } from "../lib/payments";
 import { fmtDate, todayISO } from "@treino/core/text";
 
@@ -23,6 +25,19 @@ const STATUS: Record<AgendaStatus, [string, string]> = {
 let shownDay: string | null = null;
 
 const fmtLong = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" });
+
+const isOpen = (e: AgendaEntry) => e.status === "planned" || e.status === "prepared" || e.status === "live";
+
+/** Each one's session for the day (prepared if there is none yet), started, in one live view. */
+async function startGroup(entries: AgendaEntry[], date: string) {
+  const ids: string[] = [];
+  for (const e of entries) {
+    const s = e.session ?? (await prepareSession(e.client.id, date));
+    if (!s.startedAt) await saveSessionChange(s, { ...s, startedAt: Date.now() });
+    ids.push(s.id);
+  }
+  go("group", groupKey(ids));
+}
 
 const openEntry = async (e: AgendaEntry, date: string) => go("session", e.session?.id ?? (await prepareSession(e.client.id, date)).id);
 
@@ -73,6 +88,7 @@ export default function HomePage() {
   const [day, setDay] = useState(shownDay ?? today);
   const [q, setQ] = useViewState("q", "");
   const [adding, setAdding] = useState(false);
+  const [grouping, setGrouping] = useState(false);
 
   const pick = (d: string) => {
     shownDay = d;
@@ -145,7 +161,14 @@ export default function HomePage() {
 
             <div className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:items-start">
             <section className="flex flex-col gap-2">
-              <h2 className="label">{toDo ? `Por fazer: ${toDo}` : "Sessões"}</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="label">{toDo ? `Por fazer: ${toDo}` : "Sessões"}</h2>
+                {day === today && toDo >= 2 && (
+                  <button type="button" className="btn-ghost text-accent text-sm" onClick={() => setGrouping(true)}>
+                    <Users /> Treino de grupo
+                  </button>
+                )}
+              </div>
               {agenda.length === 0 ? (
                 <p className="card p-4 text-sm text-muted">Nada previsto para este dia. Os dias de treino de cada cliente definem-se na ficha, em Treino e objetivos.</p>
               ) : (
@@ -205,6 +228,8 @@ export default function HomePage() {
         )}
       </div>
 
+      {grouping && <GroupSheet entries={agenda.filter(isOpen)} date={day} onClose={() => setGrouping(false)} />}
+
       {adding && (
         <Sheet title="Nova sessão" subtitle={fmtDate(day)} onClose={() => setAdding(false)}>
           {clients.length === 0 && <p className="text-sm text-muted">Ainda não tens clientes.</p>}
@@ -220,5 +245,46 @@ export default function HomePage() {
         </Sheet>
       )}
     </>
+  );
+}
+
+/** Pick who trains together now; everyone still to train today starts ticked. */
+function GroupSheet({ entries, date, onClose }: { entries: AgendaEntry[]; date: string; onClose: () => void }) {
+  const [picked, setPicked] = useState(() => new Set(entries.map((e) => e.key)));
+  const [starting, setStarting] = useState(false);
+  const flip = (key: string) =>
+    setPicked((p) => {
+      const n = new Set(p);
+      if (!n.delete(key)) n.add(key);
+      return n;
+    });
+  const chosen = entries.filter((e) => picked.has(e.key));
+  const start = async () => {
+    setStarting(true);
+    try {
+      await startGroup(chosen, date);
+    } finally {
+      setStarting(false);
+    }
+  };
+  return (
+    <Sheet title="Treino de grupo" subtitle="Cada um segue o seu plano; acompanhas todos no mesmo ecrã." onClose={onClose}>
+      <ul className="flex flex-col -my-2 divide-y divide-border">
+        {entries.map((e) => (
+          <li key={e.key}>
+            <label className="flex items-center gap-3 py-3 cursor-pointer">
+              <input type="checkbox" className="w-5 h-5 accent-[rgb(var(--c-accent))]" checked={picked.has(e.key)} onChange={() => flip(e.key)} />
+              <span className="flex-1 min-w-0">
+                <span className="block font-medium truncate">{e.client.name}</span>
+                <span className="block text-xs text-muted truncate">{e.session?.title || (e.session ? STATUS[e.status][0] : "Sessão nova, a partir da última")}</span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="btn-accent h-12 w-full mt-4" disabled={!chosen.length || starting} onClick={() => void start()}>
+        Começar com {chosen.length} {chosen.length === 1 ? "pessoa" : "pessoas"}
+      </button>
+    </Sheet>
   );
 }
