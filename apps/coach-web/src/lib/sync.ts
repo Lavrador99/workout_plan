@@ -11,7 +11,7 @@ import { db, DEFAULTS, migrateSideNotes, migrateTargets, onLocalChange } from ".
 import type { Session, SyncMeta, TableName } from "@treino/core/types";
 
 const CFG_KEY = "coach_api_cfg";
-const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots", "screenings"];
+const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots", "screenings", "profiles"];
 const KIND: Record<TableName, string> = {
   clients: "client",
   exercises: "exercise",
@@ -23,6 +23,7 @@ const KIND: Record<TableName, string> = {
   goals: "goal",
   snapshots: "snapshot",
   screenings: "screening",
+  profiles: "profile",
 };
 const TABLE_OF = Object.fromEntries(TABLES.map((t) => [KIND[t], t])) as Record<string, TableName>;
 const PUSH_CHUNK = 200;

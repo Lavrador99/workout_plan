@@ -159,3 +159,109 @@ select {
     animation: none;
   }
 }
+
+/* ── Assessment report: a sheet of paper on screen and in print, in either theme ── */
+.report {
+  @apply flex flex-col gap-4 rounded-xl p-6 text-[13px] leading-snug;
+  background: #fff;
+  color: #1c1c1a;
+  border: 1px solid #deded6;
+}
+.report-head {
+  @apply flex items-center gap-3 pb-3;
+  border-bottom: 2px solid #1c1c1a;
+}
+.report-logo {
+  max-height: 56px;
+  max-width: 160px;
+  object-fit: contain;
+}
+.report-title {
+  @apply text-lg font-bold;
+}
+.report-h2 {
+  @apply text-[11px] font-bold uppercase tracking-wide mb-1;
+  color: #4e5c00;
+}
+.report-muted {
+  color: #64645e;
+}
+.report-box {
+  @apply rounded-lg p-3;
+  background: #f6f6f3;
+}
+.report-list {
+  @apply flex flex-col gap-1 pl-5 list-disc;
+}
+.report-table {
+  @apply w-full border-collapse;
+}
+.report-table th,
+.report-table td {
+  @apply py-1 pr-2 text-left align-top;
+}
+.report-table thead th {
+  @apply text-[11px] font-semibold;
+  color: #64645e;
+  border-bottom: 1px solid #deded6;
+}
+.report-table .num {
+  @apply text-right whitespace-nowrap;
+}
+.report-category {
+  @apply pt-3 text-[11px] font-bold uppercase tracking-wide capitalize;
+  color: #4e5c00;
+}
+.report-last td {
+  border-bottom: 1px solid #edede6;
+}
+.report-good {
+  color: #0f733a;
+}
+.report-bad {
+  color: #be1e1e;
+}
+.report-note {
+  @apply mt-2 text-[11px];
+  color: #64645e;
+}
+.report-foot {
+  @apply flex flex-col gap-1 pt-3 text-[11px];
+  color: #64645e;
+  border-top: 1px solid #deded6;
+}
+
+@page {
+  size: A4;
+  margin: 14mm;
+}
+@media print {
+  nav[aria-label="Principal"],
+  .safe-top-strip,
+  header.sticky,
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .pb-nav {
+    padding-bottom: 0 !important;
+  }
+  .page {
+    padding: 0;
+  }
+  .report {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .report-block,
+  .report-group,
+  .report-table tr {
+    break-inside: avoid;
+  }
+}

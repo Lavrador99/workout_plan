@@ -2,7 +2,7 @@ import { newResult } from "./assessment";
 import { matchExercise, newScreening } from "./db";
 import { parseItemLine } from "./parser";
 import { PRIMARY_GOALS, testGoal } from "./progress";
-import type { Activity, Assessment, Block, Client, Exercise, Goal, Item, RunZone, Screening, Session, SetRow, TestDef, TestResult, Trial, Weights } from "@treino/core/types";
+import type { Activity, Assessment, AssessmentReport, Block, Client, Exercise, Goal, Item, RunZone, Screening, Session, SetRow, TestDef, TestResult, Trial, Weights } from "@treino/core/types";
 
 // A made-up client called "Teste", to see the assessments with real-looking
 // history: 14 months of a footballer who sprains the left ankle in March 2026,
@@ -95,6 +95,15 @@ function resultOf(t: TestDef, assessmentId: string, values: Values, right: Value
   return { ...newResult(t), id: `${assessmentId}-${t.id}`, trials, ...(instrument ? { instrument } : {}) };
 }
 
+/** The coach's text on the latest report, so it shows filled in. */
+const DEMO_REPORT: AssessmentReport = {
+  compareWith: null,
+  findings: "O salto vertical está no melhor valor desde que começámos. A força da anca esquerda continua abaixo da direita, e o tornozelo esquerdo ainda dobra menos do que o direito desde a entorse.",
+  priorities: ["Igualar a força dos abdutores da anca esquerda", "Recuperar a mobilidade do tornozelo esquerdo", "Manter a potência durante a época"],
+  plan: "Duas sessões por semana: força unilateral da anca e mobilidade do tornozelo no aquecimento, saltos com pouco volume e técnica em primeiro lugar. Carga ajustada ao calendário de jogos.",
+  nextDate: null,
+};
+
 function assessments(tests: TestDef[]): Assessment[] {
   return VISITS.map(([date, title, conditions], visit) => {
     const id = `seed-demo-a-${date}`;
@@ -106,7 +115,8 @@ function assessments(tests: TestDef[]): Assessment[] {
     // a jump that did not count: hands left the hips
     const cmj = results.find((r) => r.testId === "seed-test-cmj");
     if (visit === 2 && cmj) cmj.trials.push({ value: 39.2, invalid: true });
-    return { id, updatedAt: 1, clientId: DEMO_CLIENT_ID, date, title, conditions, notes: visit === 3 ? "Dorsiflexão esquerda ainda limitada depois da entorse." : "", results };
+    const report = visit === VISITS.length - 1 ? { report: DEMO_REPORT } : {};
+    return { id, updatedAt: 1, clientId: DEMO_CLIENT_ID, date, title, conditions, notes: visit === 3 ? "Dorsiflexão esquerda ainda limitada depois da entorse." : "", results, ...report };
   });
 }
 

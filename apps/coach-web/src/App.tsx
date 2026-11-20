@@ -19,12 +19,13 @@ import GroupPage from "./pages/GroupPage";
 import HistoryPage from "./pages/HistoryPage";
 import ImportPage from "./pages/ImportPage";
 import LibraryPage from "./pages/LibraryPage";
+import ReportPage from "./pages/ReportPage";
 import ScreeningPage from "./pages/ScreeningPage";
 import SessionPage from "./pages/SessionPage";
 import SettingsPage from "./pages/SettingsPage";
 
 const TAB_OF: Record<string, string> = { focus: "library", group: "" };
-for (const page of ["client", "session", "import", "history", "assessment", "evolution", "compare", "progress", "screening"]) TAB_OF[page] = "clients";
+for (const page of ["client", "session", "import", "history", "assessment", "evolution", "compare", "progress", "screening", "report"]) TAB_OF[page] = "clients";
 
 const TABS = [
   ["", "Hoje", CalendarDays],
@@ -59,7 +60,7 @@ export default function App() {
       <div className="fixed top-0 inset-x-0 z-40 bg-bg safe-top-strip" />
       <UpdateBar />
       {page !== "settings" && (sync.state === "off" || sync.state === "error") && (
-        <button type="button" className="w-full text-xs bg-warn/15 text-warn px-3 py-1.5 text-left flex items-center gap-2" onClick={() => go("settings")}>
+        <button type="button" className="no-print w-full text-xs bg-warn/15 text-warn px-3 py-1.5 text-left flex items-center gap-2" onClick={() => go("settings")}>
           <TriangleAlert />
           <span className="flex-1">
             {sync.state === "off"
@@ -81,6 +82,8 @@ export default function App() {
           <HistoryPage key={id + sub} clientId={id} exKey={sub} />
         ) : page === "assessment" ? (
           <AssessmentPage key={id} id={id} />
+        ) : page === "report" ? (
+          <ReportPage key={id} id={id} />
         ) : page === "screening" ? (
           <ScreeningPage key={id} id={id} />
         ) : page === "evolution" ? (

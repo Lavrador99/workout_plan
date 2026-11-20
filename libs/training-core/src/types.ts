@@ -362,6 +362,27 @@ export interface Assessment extends SyncMeta {
   conditions: string; // time of day, surface, fatigue, who assessed
   notes: string;
   results: TestResult[];
+  /** What the coach writes for the client's report. */
+  report?: AssessmentReport | null;
+}
+
+export interface AssessmentReport {
+  compareWith: string | null; // assessment id; null = the previous one with results
+  findings: string;
+  priorities: string[]; // up to 3
+  plan: string;
+  nextDate: string | null; // YYYY-MM-DD
+}
+
+/** The coach, as shown on reports. One record, the same on every device. */
+export interface CoachProfile extends SyncMeta {
+  name: string;
+  title: string;
+  licence: string; // professional title number (IPDJ)
+  phone: string;
+  email: string;
+  instagram: string;
+  logo: string | null; // data URL, reduced on upload
 }
 
 export type GoalStatus = "active" | "achieved" | "dropped";
@@ -499,4 +520,4 @@ export interface Screening extends SyncMeta {
   notes: string;
 }
 
-export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots" | "screenings";
+export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots" | "screenings" | "profiles";

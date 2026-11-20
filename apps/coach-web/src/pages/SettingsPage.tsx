@@ -3,6 +3,7 @@ import { useState } from "react";
 import PageHeader from "../components/PageHeader";
 import Seg from "../components/Seg";
 import { InstallCard } from "../components/PwaBanners";
+import ProfileCard from "../components/ProfileCard";
 import { exportBackup, importBackup, type Backup } from "../lib/db";
 import { useSyncStatus } from "../lib/hooks";
 import { usePwa } from "../lib/pwa";
@@ -112,6 +113,8 @@ export default function SettingsPage() {
         )}
         {msg && <p className="text-sm text-accent">{msg}</p>}
       </section>
+
+      <ProfileCard />
 
       <section className="card p-3 flex flex-col gap-2">
         <h2 className="font-bold">Aspeto</h2>

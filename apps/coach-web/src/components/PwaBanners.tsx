@@ -17,7 +17,7 @@ export function UpdateBar() {
   const { updateReady } = usePwa();
   if (!updateReady) return null;
   return (
-    <div className="flex items-center gap-2 bg-accent2/15 text-accent text-sm px-3 py-2">
+    <div className="no-print flex items-center gap-2 bg-accent2/15 text-accent text-sm px-3 py-2">
       <span className="flex-1">Nova versão disponível.</span>
       <button type="button" className="btn-accent min-h-[40px]" onClick={() => void applyUpdate()}>
         Atualizar

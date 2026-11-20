@@ -1,9 +1,9 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useState } from "react";
-import { db } from "./db";
+import { db, PROFILE_ID } from "./db";
 import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
-import type { Assessment, Client, Exercise, Focus, Goal, ProgressSnapshot, Screening, Session, Template, TestDef } from "@treino/core/types";
+import type { Assessment, Client, CoachProfile, Exercise, Focus, Goal, ProgressSnapshot, Screening, Session, Template, TestDef } from "@treino/core/types";
 
 export { back, clearViewState, go, replaceRoute, useBackClose, useRoute, useViewState } from "./nav";
 
@@ -59,6 +59,14 @@ export function useGoals(clientId: string): Goal[] | undefined {
 
 export function useSnapshots(clientId: string): ProgressSnapshot[] | undefined {
   return useLiveQuery(async () => (await db.snapshots.where("clientId").equals(clientId).toArray()).filter((s) => !s.deleted), [clientId]);
+}
+
+/** null when the coach has not filled it in yet. */
+export function useProfile(): CoachProfile | null | undefined {
+  return useLiveQuery(async () => {
+    const p = await db.profiles.get(PROFILE_ID);
+    return p && !p.deleted ? p : null;
+  }, []);
 }
 
 /** Newest first. */

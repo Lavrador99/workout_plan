@@ -72,9 +72,14 @@ export default function AssessmentPage({ id }: { id: string }) {
       subtitle={[client?.name, fmtDate(a.date)].filter(Boolean).join(" · ")}
       back={["client", a.clientId, "assessments"]}
       actions={
-        <button type="button" className="btn shrink-0" onClick={() => setDetails(true)}>
-          Detalhes
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button type="button" className="btn" disabled={!filled} onClick={() => void flush().then(() => go("report", a.id))}>
+            Relatório
+          </button>
+          <button type="button" className="btn" onClick={() => setDetails(true)}>
+            Detalhes
+          </button>
+        </div>
       }
     />
     <div className="page">

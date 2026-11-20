@@ -26,7 +26,7 @@ interface Row {
   deleted: boolean;
 }
 
-const KINDS = new Set(["client", "exercise", "session", "template", "focus", "test", "assessment", "goal", "snapshot", "screening"]);
+const KINDS = new Set(["client", "exercise", "session", "template", "focus", "test", "assessment", "goal", "snapshot", "screening", "profile"]);
 const PAGE = 500;
 const MAX_PUSH = 200;
 
