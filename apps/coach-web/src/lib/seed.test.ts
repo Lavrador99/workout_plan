@@ -95,7 +95,7 @@ describe("seed tests", () => {
 describe("made-up client Teste", () => {
   const tests = seedTests();
   const library = seedExercises().map((e) => ({ ...e, updatedAt: 1 }) as Exercise);
-  const { client, assessments, sessions, goals } = demoData(tests, library);
+  const { client, assessments, sessions, goals, screenings } = demoData(tests, library);
   const span = (dates: string[]) => (Date.parse(dates[dates.length - 1]) - Date.parse(dates[0])) / 86_400_000;
 
   it("is called Teste and says it is made up", () => {
@@ -110,7 +110,7 @@ describe("made-up client Teste", () => {
   });
 
   it("gives every device the same records", () => {
-    expect(demoData(tests, library)).toEqual({ client, assessments, sessions, goals });
+    expect(demoData(tests, library)).toEqual({ client, assessments, sessions, goals, screenings });
     expect(new Set(sessions.map((s) => s.id)).size).toBe(sessions.length);
     expect(new Set(assessments.flatMap((a) => a.results.map((r) => r.id))).size).toBe(assessments.flatMap((a) => a.results).length);
   });

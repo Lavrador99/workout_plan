@@ -160,7 +160,7 @@ async function seedTestLibrary(): Promise<number> {
 async function seedDemoClient(library: Exercise[]): Promise<number> {
   const cur = await db.clients.get(DEMO_CLIENT_ID);
   if (cur?.deleted) return 0;
-  const { client, assessments, sessions, goals } = demoData(seedTests(), library);
+  const { client, assessments, sessions, goals, screenings } = demoData(seedTests(), library);
   for (const s of sessions) {
     const old = await db.sessions.get(s.id);
     if (!old || old.updatedAt === 1) await db.sessions.put({ ...s, dirty: 1 });
@@ -173,6 +173,10 @@ async function seedDemoClient(library: Exercise[]): Promise<number> {
     const old = await db.goals.get(g.id);
     if (!old) await db.goals.put({ ...g, dirty: 1 });
     else if (!old.deleted && JSON.stringify(fillMissing(old, g)) !== JSON.stringify(old)) await save("goals", fillMissing(old, g));
+  }
+  for (const sc of screenings) {
+    const old = await db.screenings.get(sc.id);
+    if (!old || old.updatedAt === 1) await db.screenings.put({ ...sc, dirty: 1 });
   }
   if (!cur || cur.updatedAt === 1) await db.clients.put({ ...client, dirty: 1 });
   else if (JSON.stringify(fillMissing(cur, client)) !== JSON.stringify(cur)) await save("clients", fillMissing(cur, client));

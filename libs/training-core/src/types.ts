@@ -42,6 +42,12 @@ export interface Client extends SyncMeta {
   /** Every change of weights, oldest first. */
   weightLog?: WeightChange[];
   consentAt?: string | null; // YYYY-MM-DD, when the client consented to their data being kept
+  /** Explicit consent for health data (RGPD art. 9), YYYY-MM-DD. */
+  healthConsentAt?: string | null;
+  /** Consent for photos and video, social media included, YYYY-MM-DD. */
+  imageConsentAt?: string | null;
+  /** For a minor: who answers and consents for them. */
+  guardian?: Guardian | null;
   phone?: string;
   email?: string;
   /** Days the client did not train: kept apart so no empty session reaches the training history. */
@@ -50,6 +56,13 @@ export interface Client extends SyncMeta {
   /** First month the fee is owed, YYYY-MM. */
   feeFrom?: string | null;
   payments?: Payment[];
+}
+
+export interface Guardian {
+  name: string;
+  relation: string; // mãe, pai, tutor
+  phone: string;
+  consentAt: string | null; // YYYY-MM-DD
 }
 
 export interface Absence {
@@ -427,4 +440,63 @@ export interface ProgressSnapshot extends SyncMeta {
   recalculated?: boolean;
 }
 
-export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots";
+export type Disease = "cardiovascular" | "metabolic" | "renal";
+
+/** Signs or symptoms suggestive of cardiovascular, metabolic or renal disease (ACSM). */
+export type Symptom = "chest" | "breath" | "dizziness" | "orthopnea" | "edema" | "palpitations" | "claudication" | "murmur" | "fatigue";
+
+export type Intensity = "light" | "moderate" | "vigorous";
+
+export type MedFlag = "betablocker" | "insulin" | "anticoagulant";
+
+export interface Medication {
+  name: string;
+  flags: MedFlag[];
+}
+
+export interface Injury {
+  id: string;
+  region: string;
+  side: Side | "both" | null;
+  status: "active" | "recovering" | "recovered";
+  since: string; // free: "2024", "março 2026"
+  pain: number | null; // 0–10, now
+  aggravates: string; // movements or positions that make it worse
+  followedBy: string; // physio, doctor, none
+}
+
+/** What the client declared on a date. A new one is a copy: the old ones stay as they were. */
+export interface Screening extends SyncMeta {
+  clientId: string;
+  date: string; // YYYY-MM-DD
+  method: string; // the decision rule (screening.ts)
+  answeredBy: "client" | "guardian";
+
+  regularExercise: boolean | null; // ≥ 30 min moderate, ≥ 3 days a week, for the last 3 months
+  diseases: Disease[];
+  symptoms: Symptom[];
+  wantedIntensity: Intensity | null;
+  clearance: { date: string; by: string; restrictions: string } | null;
+
+  conditions: string[];
+  medications: Medication[];
+  surgeries: string;
+  restingBp: { sys: number | null; dia: number | null } | null;
+
+  injuries: Injury[];
+
+  sleepHours: number | null;
+  sleepQuality: number | null; // 1–5
+  stress: number | null; // 1–5
+  occupation: "seated" | "standing" | "physical" | null;
+  activity: string;
+  history: string;
+  motivation: string;
+
+  pregnancy: { weeks: number | null; obstetricianOk: boolean } | null;
+  postpartum: { weeks: number | null; delivery: "vaginal" | "cesarean" | null; pelvicSymptoms: boolean } | null;
+
+  notes: string;
+}
+
+export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots" | "screenings";

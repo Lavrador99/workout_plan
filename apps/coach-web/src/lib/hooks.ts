@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "./db";
 import { ExerciseIndex } from "./search";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
-import type { Assessment, Client, Exercise, Focus, Goal, ProgressSnapshot, Session, Template, TestDef } from "@treino/core/types";
+import type { Assessment, Client, Exercise, Focus, Goal, ProgressSnapshot, Screening, Session, Template, TestDef } from "@treino/core/types";
 
 export { back, clearViewState, go, replaceRoute, useBackClose, useRoute, useViewState } from "./nav";
 
@@ -59,6 +59,18 @@ export function useGoals(clientId: string): Goal[] | undefined {
 
 export function useSnapshots(clientId: string): ProgressSnapshot[] | undefined {
   return useLiveQuery(async () => (await db.snapshots.where("clientId").equals(clientId).toArray()).filter((s) => !s.deleted), [clientId]);
+}
+
+/** Newest first. */
+export function useScreenings(clientId: string): Screening[] | undefined {
+  return useLiveQuery(async () => {
+    const list = await db.screenings.where("clientId").equals(clientId).toArray();
+    return list.filter((s) => !s.deleted).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
+  }, [clientId]);
+}
+
+export function useScreening(id: string): Screening | null | undefined {
+  return useLiveQuery(async () => (await db.screenings.get(id)) ?? null, [id]);
 }
 
 /** The protocol versions of each test that already have results, in any client's assessment. */

@@ -2,7 +2,7 @@ import { PageLoading } from "../components/States";
 import { ChevronRight, Copy, TriangleAlert, X } from "lucide-react";
 import { ask, askText } from "../components/Dialogs";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { exportClient, purgeClient, remove, save } from "../lib/db";
+import { exportClient, newScreening, purgeClient, remove, save } from "../lib/db";
 import { registerPayment } from "../lib/agendaActions";
 import { fmtMoney, fmtMonth, monthKey, owedMonths, setFee } from "../lib/payments";
 import { downloadText } from "../lib/exportExercises";
@@ -10,18 +10,20 @@ import { fmtLoad } from "@treino/core/format";
 import AssessmentsTab from "../components/AssessmentsTab";
 import BalanceTab from "../components/BalanceTab";
 import Chips, { ChipPick } from "../components/Chips";
+import Field from "../components/Field";
 import CountsView from "../components/CountsView";
 import PageHeader, { NotFound } from "../components/PageHeader";
 import ProgressSheet from "../components/ProgressSheet";
 import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
-import { back, go, replaceRoute, useClient, useExercises, useFocuses, useSessions, useViewState } from "../lib/hooks";
+import { back, go, replaceRoute, useClient, useExercises, useFocuses, useScreenings, useSessions, useViewState } from "../lib/hooks";
+import { isMinor, screeningState, STATE_TEXT } from "../lib/screening";
 import { ACTIVITIES, changeSchedule, currentDays, WEEKDAYS } from "../lib/balance";
 import { FOCUS_KINDS } from "../lib/movement";
 import { goalLabel } from "../lib/progress";
 import { fmtPace, parsePace } from "@treino/core/run";
 import { fmtDate, num, todayISO } from "@treino/core/text";
-import type { Client, Item, Session, Side } from "@treino/core/types";
+import type { Client, Guardian, Item, Session, Side } from "@treino/core/types";
 import { openNewSession } from "./SessionPage";
 
 interface Best {
@@ -58,7 +60,7 @@ const TABS = [
   ["info", "Ficha"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
-type Section = "person" | "payments" | "training" | "progress" | "health" | "notes" | "data";
+type Section = "person" | "payments" | "training" | "progress" | "screening" | "health" | "notes" | "data";
 
 /** Sessions shown at first; a long history opens on demand. */
 const PAGE = 20;
@@ -88,6 +90,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const sessions = useSessions(id);
   const exercises = useExercises();
   const focuses = useFocuses();
+  const screenings = useScreenings(id);
   const [c, setC] = useState<Client | null>(null);
   const [section, setSection] = useViewState<Section | null>("section", null);
   const [shown, setShown] = useState(() => shownOf.get(id) ?? PAGE);
@@ -125,15 +128,21 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const list = sessions ?? [];
   const today = todayISO();
   const owed = owedMonths(c, today);
+  const lastScreening = screenings?.[0];
+  const screening = screeningState(lastScreening, today);
+  const minor = isMinor(c, today);
+  const consentMissing = !c.consentAt || (!!lastScreening && !c.healthConsentAt) || (minor && !c.guardian?.consentAt);
+  const openScreening = async () => go("screening", lastScreening?.id ?? (await save("screenings", newScreening(id))).id);
 
   const sectionRows: [Section, string, string, string?][] = [
     ["person", "Dados pessoais", [age && `${age} anos`, c.sex && SEXES.find(([k]) => k === c.sex)?.[1], c.heightCm && `${c.heightCm} cm`, handedLabel(c.dominantHand) && `mão ${handedLabel(c.dominantHand)?.toLowerCase()}`].filter(Boolean).join(" · ") || "Por preencher"],
     ["payments", "Pagamentos", !c.monthlyFee ? "Sem mensalidade" : owed.length ? `Por pagar: ${fmtMoney(owed.length * c.monthlyFee)}` : `${fmtMoney(c.monthlyFee)}/mês · em dia`, owed.length ? "text-warn" : undefined],
     ["training", "Treino e objetivos", [c.level, c.position, c.weeklyFrequency && `${c.weeklyFrequency}×/sem`, ...(c.goals ?? []), ...focusNames].filter(Boolean).join(" · ") || "Por preencher"],
     ["progress", "Índice de progresso", `${goalLabel(c.primaryGoal) ?? "Objetivo principal por escolher"}${c.weights ? " · pesos próprios" : ""}`],
+    ["screening", "Triagem e anamnese", screening === "ok" ? `Feita em ${fmtDate(lastScreening!.date)}` : STATE_TEXT[screening], screening === "ok" ? undefined : "text-warn"],
     ["health", "Saúde e cuidados", [c.injuries, c.hrMax && `FC máx ${c.hrMax}`, c.hrRest && `repouso ${c.hrRest}`].filter(Boolean).join(" · ") || "Sem lesões registadas"],
     ["notes", "Notas e records", c.notes.split("\n")[0] || "Sem notas"],
-    ["data", "Consentimento e dados", c.consentAt ? `Consentimento em ${fmtDate(c.consentAt)}` : "Sem consentimento registado", c.consentAt ? undefined : "text-warn"],
+    ["data", "Consentimento e dados", !c.consentAt ? "Sem consentimento registado" : consentMissing ? "Falta consentimento" : `Consentimento em ${fmtDate(c.consentAt)}`, consentMissing ? "text-warn" : undefined],
   ];
 
   return (
@@ -143,6 +152,11 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
       </PageHeader>
       <div className="page">
         {c.injuries && <div className="text-sm text-danger"><TriangleAlert /> {c.injuries}</div>}
+        {screening === "pending" && (
+          <button type="button" className="text-sm text-warn text-left" onClick={() => void openScreening()}>
+            <TriangleAlert /> Autorização médica pendente <ChevronRight />
+          </button>
+        )}
 
         {tab === "sessions" && (
           <>
@@ -231,7 +245,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
           <ul className="card divide-y divide-border">
             {sectionRows.map(([k, title, summary, tone]) => (
               <li key={k}>
-                <button type="button" className="row" onClick={() => setSection(k)}>
+                <button type="button" className="row" onClick={() => (k === "screening" ? void openScreening() : setSection(k))}>
                   <span className="flex-1 min-w-0">
                     <span className="font-medium block">{title}</span>
                     <span className={`block text-xs truncate ${tone ?? "text-muted"}`}>{summary}</span>
@@ -392,17 +406,26 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
 
       {section === "data" && (
         <FichaSheet title="Consentimento e dados" onClose={closeSection} onBlur={persist}>
-          <div className="flex flex-col gap-1">
-            <span className="label">Consentimento para guardar os dados</span>
-            <div className="flex gap-2">
-              <input className="input" type="date" value={c.consentAt ?? ""} aria-label="Data do consentimento" onChange={(e) => choose({ consentAt: e.target.value || null })} />
-              {!c.consentAt && (
-                <button type="button" className="btn shrink-0" onClick={() => choose({ consentAt: todayISO() })}>
-                  Dado hoje
-                </button>
-              )}
+          <ConsentField label="Consentimento para guardar os dados" value={c.consentAt} onChange={(consentAt) => choose({ consentAt })} />
+          <ConsentField label="Consentimento para dados de saúde" value={c.healthConsentAt} onChange={(healthConsentAt) => choose({ healthConsentAt })} />
+          <ConsentField label="Consentimento de imagem (fotos, vídeo, redes sociais)" value={c.imageConsentAt} onChange={(imageConsentAt) => choose({ imageConsentAt })} />
+          {(minor || c.guardian) && (
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              <span className="label">Encarregado de educação</span>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Nome">
+                  <input className="input" value={c.guardian?.name ?? ""} onChange={(e) => edit({ guardian: { ...guardianOf(c), name: e.target.value } })} />
+                </Field>
+                <Field label="Relação">
+                  <input className="input" value={c.guardian?.relation ?? ""} placeholder="Mãe, pai, tutor" onChange={(e) => edit({ guardian: { ...guardianOf(c), relation: e.target.value } })} />
+                </Field>
+              </div>
+              <Field label="Telefone">
+                <input className="input" type="tel" autoComplete="off" value={c.guardian?.phone ?? ""} onChange={(e) => edit({ guardian: { ...guardianOf(c), phone: e.target.value } })} />
+              </Field>
+              <ConsentField label="Consentimento do encarregado" value={c.guardian?.consentAt} onChange={(consentAt) => choose({ guardian: { ...guardianOf(c), consentAt } })} />
             </div>
-          </div>
+          )}
           <button
             type="button"
             className="btn self-start"
@@ -464,6 +487,25 @@ function FichaSheet({ title, onClose, onBlur, children }: { title: string; onClo
   );
 }
 
+const guardianOf = (c: Client): Guardian => c.guardian ?? { name: "", relation: "", phone: "", consentAt: null };
+
+/** A consent date, with a shortcut for today. */
+function ConsentField({ label, value, onChange }: { label: string; value: string | null | undefined; onChange: (date: string | null) => void }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="label">{label}</span>
+      <div className="flex gap-2">
+        <input className="input" type="date" value={value ?? ""} aria-label={label} onChange={(e) => onChange(e.target.value || null)} />
+        {!value && (
+          <button type="button" className="btn shrink-0" onClick={() => onChange(todayISO())}>
+            Dado hoje
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Keeps what is typed ("4:") until it is a whole pace. */
 function PaceField({ value, onChange }: { value: number | null; onChange: (seconds: number | null) => void }) {
   const [text, setText] = useState(value == null ? "" : fmtPace(value));
@@ -483,14 +525,5 @@ function PaceField({ value, onChange }: { value: number | null; onChange: (secon
       />
       <span className={`text-xs ${bad ? "text-warn" : "text-muted"}`}>{bad ? "Escreve minutos:segundos, como 4:30." : "Base das zonas de ritmo da corrida."}</span>
     </Field>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="label">{label}</span>
-      {children}
-    </label>
   );
 }

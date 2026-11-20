@@ -1,8 +1,8 @@
 import { newResult } from "./assessment";
-import { matchExercise } from "./db";
+import { matchExercise, newScreening } from "./db";
 import { parseItemLine } from "./parser";
 import { PRIMARY_GOALS, testGoal } from "./progress";
-import type { Activity, Assessment, Block, Client, Exercise, Goal, Item, RunZone, Session, SetRow, TestDef, TestResult, Trial, Weights } from "@treino/core/types";
+import type { Activity, Assessment, Block, Client, Exercise, Goal, Item, RunZone, Screening, Session, SetRow, TestDef, TestResult, Trial, Weights } from "@treino/core/types";
 
 // A made-up client called "Teste", to see the assessments with real-looking
 // history: 14 months of a footballer who sprains the left ankle in March 2026,
@@ -235,7 +235,33 @@ export function fillMissing<T extends object>(cur: T, demo: T): T {
   return out as T;
 }
 
-export function demoData(tests: TestDef[], library: Exercise[]): { client: Client; assessments: Assessment[]; sessions: Session[]; goals: Goal[] } {
+/** One at the start, one after the ankle sprain: the second keeps the answers of the first. */
+function screenings(): Screening[] {
+  const first: Screening = {
+    ...newScreening(DEMO_CLIENT_ID),
+    id: "seed-demo-s1",
+    updatedAt: 1,
+    date: VISITS[0][0],
+    regularExercise: true,
+    wantedIntensity: "vigorous",
+    sleepHours: 7.5,
+    sleepQuality: 4,
+    stress: 2,
+    occupation: "seated",
+    activity: "Futebol: 3 treinos e 1 jogo por semana. Ginásio 2× por semana.",
+    history: "Futebol federado desde os 12 anos.",
+    motivation: "Chegar à pré-época mais rápido e sem lesões.",
+  };
+  const ankle: Screening = {
+    ...first,
+    id: "seed-demo-s2",
+    date: INJURY[1],
+    injuries: [{ id: "seed-demo-s2-i1", region: "Tornozelo e pé", side: "left", status: "recovering", since: "março 2026", pain: 2, aggravates: "Mudanças de direção, saltos para a esquerda", followedBy: "Fisioterapeuta do clube" }],
+  };
+  return [first, ankle];
+}
+
+export function demoData(tests: TestDef[], library: Exercise[]): { client: Client; assessments: Assessment[]; sessions: Session[]; goals: Goal[]; screenings: Screening[] } {
   const client: Client = {
     id: DEMO_CLIENT_ID,
     updatedAt: 1,
@@ -270,6 +296,7 @@ export function demoData(tests: TestDef[], library: Exercise[]): { client: Clien
       { at: timeOf(VISITS[3][0]), primaryGoal: "desporto", weights: OWN_WEIGHTS, custom: true },
     ],
     consentAt: VISITS[0][0],
+    healthConsentAt: VISITS[0][0],
   };
-  return { client, assessments: assessments(tests), sessions: [...sessions(library), ...otherSessions(library)], goals: goals() };
+  return { client, assessments: assessments(tests), sessions: [...sessions(library), ...otherSessions(library)], goals: goals(), screenings: screenings() };
 }

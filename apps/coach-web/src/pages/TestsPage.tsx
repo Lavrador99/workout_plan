@@ -8,6 +8,7 @@ import Tabs from "../components/Tabs";
 import { mdc95, TEST_CATEGORIES } from "../lib/assessment";
 import { newTest, remove, save } from "../lib/db";
 import { useTests, useUsedVersions, useViewState } from "../lib/hooks";
+import Field from "../components/Field";
 import { canonMuscles, canonPatterns, MUSCLE_CHIP_GROUPS, PATTERN_GROUPS } from "../lib/movement";
 import { fmtNum, norm, num, uid } from "@treino/core/text";
 import type { Aggregate, Direction, Strength, TestCategory, TestDef } from "@treino/core/types";
@@ -295,14 +296,5 @@ function TestEditor({ test, tests, locked, onClose, onOpen }: { test: TestDef; t
         </button>
       </SheetFooter>
     </Sheet>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="label">{label}</span>
-      {children}
-    </label>
   );
 }

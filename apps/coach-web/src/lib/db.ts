@@ -2,7 +2,8 @@ import Dexie, { type Table } from "dexie";
 import { goalsFromTargets, testGoal } from "./progress";
 import { sidesFromNote } from "./parser";
 import type { LiveOp } from "@treino/core/ops";
-import type { Assessment, Block, Client, Exercise, Focus, Goal, Item, ProgressSnapshot, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
+import type { Assessment, Block, Client, Exercise, Focus, Goal, Item, ProgressSnapshot, Screening, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
+import { METHOD } from "./screening";
 import { norm, todayISO, uid } from "@treino/core/text";
 
 // Local-first storage: everything lives in IndexedDB so the app works in the
@@ -18,6 +19,7 @@ class CoachDB extends Dexie {
   assessments!: Table<Assessment, string>;
   goals!: Table<Goal, string>;
   snapshots!: Table<ProgressSnapshot, string>;
+  screenings!: Table<Screening, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
   /** Live changes not yet sent to the API, in the order they were made (sessionSave.ts). */
   ops!: Table<{ seq?: number; sessionId: string; op: LiveOp }, number>;
@@ -41,6 +43,9 @@ class CoachDB extends Dexie {
       .stores({ goals: "id, clientId, updatedAt, dirty", snapshots: "id, clientId, date, updatedAt, dirty" })
       .upgrade((tx) => tx.table("meta").delete("lastSeq"));
     this.version(6).stores({ ops: "++seq, sessionId" });
+    this.version(7)
+      .stores({ screenings: "id, clientId, date, updatedAt, dirty" })
+      .upgrade((tx) => tx.table("meta").delete("lastSeq"));
   }
 }
 
@@ -57,6 +62,7 @@ export const DEFAULTS: Record<TableName, object> = {
   assessments: { title: "", conditions: "", notes: "", results: [] },
   goals: { title: "", criteria: "", status: "active" },
   snapshots: { dimensions: [], interpretation: "", status: "insufficient" },
+  screenings: { diseases: [], symptoms: [], conditions: [], medications: [], surgeries: "", injuries: [], activity: "", history: "", motivation: "", notes: "" },
 };
 
 type Listener = () => void;
@@ -210,6 +216,39 @@ export function newAssessment(clientId: string): Assessment {
   return { id: uid(), updatedAt: 0, clientId, date: todayISO(), title: "", conditions: "", notes: "", results: [] };
 }
 
+// ── Screenings ──────────────────────────────────────────────────────────────
+
+export function newScreening(clientId: string): Screening {
+  return {
+    id: uid(),
+    updatedAt: 0,
+    clientId,
+    date: todayISO(),
+    method: METHOD,
+    answeredBy: "client",
+    regularExercise: null,
+    diseases: [],
+    symptoms: [],
+    wantedIntensity: null,
+    clearance: null,
+    conditions: [],
+    medications: [],
+    surgeries: "",
+    restingBp: null,
+    injuries: [],
+    sleepHours: null,
+    sleepQuality: null,
+    stress: null,
+    occupation: null,
+    activity: "",
+    history: "",
+    motivation: "",
+    pregnancy: null,
+    postpartum: null,
+    notes: "",
+  };
+}
+
 // ── Goals ───────────────────────────────────────────────────────────────────
 
 export function newGoal(clientId: string, testId?: string): Goal {
@@ -262,12 +301,13 @@ export async function migrateSideNotes(): Promise<number> {
 
 /** Everything kept about a client, for handing it over to them. */
 export async function exportClient(id: string) {
-  const [client, sessions, assessments, goals, snapshots] = await Promise.all([
+  const [client, sessions, assessments, goals, snapshots, screenings] = await Promise.all([
     db.clients.get(id),
     db.sessions.where("clientId").equals(id).toArray(),
     db.assessments.where("clientId").equals(id).toArray(),
     db.goals.where("clientId").equals(id).toArray(),
     db.snapshots.where("clientId").equals(id).toArray(),
+    db.screenings.where("clientId").equals(id).toArray(),
   ]);
   const clean = <T extends SyncMeta>({ dirty: _d, ...rec }: T) => rec;
   return {
@@ -278,6 +318,7 @@ export async function exportClient(id: string) {
     assessments: assessments.filter((a) => !a.deleted).map(clean),
     goals: goals.filter((g) => !g.deleted).map(clean),
     snapshots: snapshots.filter((s) => !s.deleted).map(clean),
+    screenings: screenings.filter((s) => !s.deleted).map(clean),
   };
 }
 
@@ -291,7 +332,7 @@ async function erase(table: TableName, id: string) {
  * what carries the deletion to the other devices.
  */
 export async function purgeClient(id: string): Promise<void> {
-  for (const table of ["sessions", "assessments", "goals", "snapshots"] as const) {
+  for (const table of ["sessions", "assessments", "goals", "snapshots", "screenings"] as const) {
     for (const key of await db[table].where("clientId").equals(id).primaryKeys()) await erase(table, key);
   }
   await erase("clients", id);
@@ -313,10 +354,11 @@ export interface Backup {
   assessments?: Assessment[];
   goals?: Goal[];
   snapshots?: ProgressSnapshot[];
+  screenings?: Screening[];
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots] = await Promise.all([
+  const [clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots, screenings] = await Promise.all([
     db.clients.toArray(),
     db.exercises.toArray(),
     db.sessions.toArray(),
@@ -326,14 +368,15 @@ export async function exportBackup(): Promise<Backup> {
     db.assessments.toArray(),
     db.goals.toArray(),
     db.snapshots.toArray(),
+    db.screenings.toArray(),
   ]);
-  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots };
+  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots, screenings };
 }
 
 /** Merge a backup in: newer record wins, so importing twice is harmless. */
 export async function importBackup(b: Backup): Promise<number> {
   let n = 0;
-  for (const table of ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots"] as const) {
+  for (const table of ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots", "screenings"] as const) {
     const t = db[table] as unknown as Table<SyncMeta, string>;
     for (const rec of (b[table] ?? []) as SyncMeta[]) {
       const cur = await t.get(rec.id);
