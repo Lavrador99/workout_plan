@@ -1,54 +1,7 @@
-// The setup of the Individual Progress Index: its dimensions, the starting
-// weights per main goal, and the record of every change to them.
-// The weights are starting points for the coach, not scientific values.
+// Goals: measurable targets on a test or a metric of the coach's own.
 
 import { goalProgress } from "./assessment";
-import type { Client, DimensionId, Goal, Importance, PrimaryGoal, Weights } from "@treino/core/types";
-
-export const DIMENSIONS: { id: DimensionId; label: string }[] = [
-  { id: "geral", label: "Condição física geral" },
-  { id: "forca", label: "Força e capacidade muscular" },
-  { id: "mobilidade", label: "Mobilidade, estabilidade e controlo motor" },
-  { id: "composicao", label: "Composição corporal" },
-  { id: "cardio", label: "Resistência cardiovascular" },
-  { id: "adesao", label: "Consistência e adesão" },
-];
-
-const weights = (geral: number, forca: number, mobilidade: number, composicao: number, cardio: number, adesao: number): Weights => ({ geral, forca, mobilidade, composicao, cardio, adesao });
-
-export const PRIMARY_GOALS: { id: PrimaryGoal; label: string; weights: Weights }[] = [
-  { id: "saude", label: "Saúde e condição física geral", weights: weights(25, 20, 15, 15, 15, 10) },
-  { id: "hipertrofia", label: "Hipertrofia", weights: weights(10, 40, 10, 20, 5, 15) },
-  { id: "gordura", label: "Perda de gordura", weights: weights(15, 15, 10, 35, 15, 10) },
-  { id: "desporto", label: "Preparação física desportiva", weights: weights(30, 25, 10, 5, 25, 5) },
-  { id: "funcional", label: "Correção de limitações funcionais", weights: weights(15, 15, 45, 5, 5, 15) },
-  { id: "longevidade", label: "Saúde e longevidade", weights: weights(20, 20, 20, 15, 15, 10) },
-];
-
-const DEFAULT_GOAL: PrimaryGoal = "saude";
-
-export const goalLabel = (id: PrimaryGoal | null | undefined) => PRIMARY_GOALS.find((g) => g.id === id)?.label;
-
-const presetOf = (id: PrimaryGoal | null | undefined) => (PRIMARY_GOALS.find((g) => g.id === id) ?? PRIMARY_GOALS.find((g) => g.id === DEFAULT_GOAL)!).weights;
-
-/** The coach's own weights, else those of the main goal. */
-export const weightsOf = (c: Pick<Client, "primaryGoal" | "weights">): Weights => c.weights ?? presetOf(c.primaryGoal);
-
-export const totalOf = (w: Weights) => DIMENSIONS.reduce((sum, d) => sum + w[d.id], 0);
-
-export const sameWeights = (a: Weights, b: Weights) => DIMENSIONS.every((d) => a[d.id] === b[d.id]);
-
-/**
- * The fields to save for a new main goal and weights (null = the goal's own).
- * Logged, so an index can always be read with the weights it was made with.
- * Empty when nothing changes.
- */
-export function changeWeights(c: Client, primaryGoal: PrimaryGoal, next: Weights | null, at: number): Partial<Client> {
-  const custom = next != null && !sameWeights(next, presetOf(primaryGoal));
-  const value = custom ? next : presetOf(primaryGoal);
-  if (c.primaryGoal === primaryGoal && sameWeights(weightsOf(c), value)) return {};
-  return { primaryGoal, weights: custom ? value : null, weightLog: [...(c.weightLog ?? []), { at, primaryGoal, weights: value, custom }] };
-}
+import type { Goal, Importance } from "@treino/core/types";
 
 // ── Goals ───────────────────────────────────────────────────────────────────
 

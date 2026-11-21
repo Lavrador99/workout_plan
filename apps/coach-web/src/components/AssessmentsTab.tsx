@@ -1,10 +1,13 @@
 import { Copy } from "lucide-react";
-import { asymmetry, change, changeTone, finalValue, fmtAsymmetry, previousResult, repeatResults, testMdc } from "../lib/assessment";
+import { asymmetry, change, changeTone, finalValue, fmtAsymmetry, previousResult, testMdc } from "../lib/assessment";
 import { newAssessment, save } from "../lib/db";
 import { go, useAssessments, useTests, useViewState } from "../lib/hooks";
 import { fmtDate, fmtNum } from "@treino/core/text";
 import type { Assessment, TestDef, TestResult } from "@treino/core/types";
 import { fmtFinal, TONE_CLASS } from "./ResultCard";
+import { MODULE_NAMES } from "../lib/modules";
+import { repeatAssessment } from "../lib/reassess";
+import { labelOf } from "../lib/screening";
 
 async function open(a: Assessment) {
   const saved = await save("assessments", a);
@@ -19,6 +22,9 @@ function Change({ result, previous, test }: { result: TestResult; previous: Test
   const c = change(before, now, result.direction, result.scale, testMdc(test, result.version));
   return <span className={TONE_CLASS[changeTone(c)]}>{`${c.delta > 0 ? "+" : ""}${fmtNum(c.delta)}`}</span>;
 }
+
+/** What an assessment is: the intake's own, a module's, or one made by hand. */
+const kindOf = (a: Assessment) => (a.moduleData?.intake === true ? "Ficha geral" : a.moduleId ? (labelOf(MODULE_NAMES, a.moduleId) ?? "Módulo") : "Livre");
 
 /** The client's assessments: the latest one at a glance, then all of them. */
 export default function AssessmentsTab({ clientId }: { clientId: string }) {
@@ -37,7 +43,7 @@ export default function AssessmentsTab({ clientId }: { clientId: string }) {
         <button type="button" className="btn-accent flex-1" onClick={() => void open(newAssessment(clientId))}>
           + Nova avaliação
         </button>
-        <button type="button" className="btn flex-1" disabled={!last} onClick={() => last && void open({ ...newAssessment(clientId), title: last.title, results: repeatResults(last.results, tests) })}>
+        <button type="button" className="btn flex-1" disabled={!last} onClick={() => last && void open(repeatAssessment(last, tests))}>
           <Copy /> Repetir última
         </button>
       </div>
@@ -76,6 +82,7 @@ export default function AssessmentsTab({ clientId }: { clientId: string }) {
               </label>
               <button type="button" className="flex-1 min-w-0 text-left pr-3 py-2 flex items-center gap-2" onClick={() => go("assessment", a.id)}>
                 <span className="font-semibold shrink-0">{fmtDate(a.date)}</span>
+                <span className="text-[11px] font-semibold rounded-md bg-card2 px-1.5 py-0.5 shrink-0">{kindOf(a)}</span>
                 <span className="flex-1 min-w-0 truncate text-muted">{a.title}</span>
                 <span className="text-xs text-muted shrink-0">
                   {a.results.length} {a.results.length === 1 ? "teste" : "testes"}

@@ -1,3 +1,4 @@
+import { SIDE_LETTER } from "@treino/core/extras";
 import { Check, Play, X } from "lucide-react";
 import { ask } from "./Dialogs";
 import { fmtSegment, fmtZone, zoneName, zoneRange } from "@treino/core/run";
@@ -228,7 +229,11 @@ function DoneButton({ done, label, onClick }: { done: boolean; label: string; on
 
 function setLabel(item: Item, si: number): string {
   const s = item.sets[si];
-  const work = item.sets.filter((x) => x.type !== "warmup");
+  if (s.side) {
+    const mine = item.sets.filter((x) => x.side === s.side);
+    return `Série extra ${s.side === "left" ? "esquerda" : "direita"} ${mine.indexOf(s) + 1} de ${mine.length}`;
+  }
+  const work = item.sets.filter((x) => x.type !== "warmup" && !x.side);
   if (s.type === "warmup") return "Aquecimento";
   const n = work.indexOf(s) + 1;
   const kind = s.type && s.type !== "work" ? ` · ${SET_TYPE[s.type].label}` : "";
@@ -432,20 +437,21 @@ function Overview({
             </button>
             <div className="flex gap-1 shrink-0">
               {r.steps.map((st, i) => {
+                const side = st.kind === "set" ? s.blocks[st.bi].items[st.ii].sets[st.si]?.side : undefined;
                 const done = isDone(s, st);
                 const here = sameStep(st, current);
                 return (
                   <button
                     key={i}
                     type="button"
-                    aria-label={`Série ${i + 1}: ${done ? "feita" : "por fazer"}`}
+                    aria-label={`${side ? `Série extra ${side === "left" ? "esquerda" : "direita"}` : `Série ${i + 1}`}: ${done ? "feita" : "por fazer"}`}
                     aria-pressed={done}
                     className={`w-10 h-10 rounded-full border text-xs font-bold transition active:scale-90 ${
                       done ? "bg-success/20 border-success text-success" : here ? "border-accent text-accent" : "border-border text-muted"
                     } ${here ? "ring-2 ring-accent ring-offset-1 ring-offset-bg" : ""}`}
                     onClick={() => onToggle(st)}
                   >
-                    {done ? "✓" : i + 1}
+                    {done ? "✓" : side ? SIDE_LETTER[side] : i + 1}
                   </button>
                 );
               })}

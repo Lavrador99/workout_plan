@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { parseCircuitHeader, parseImport, parseItemLine, sidesFromNote } from "./parser";
 import { fmtItem, fmtSession } from "@treino/core/format";
+import { extraCount, mainSets } from "@treino/core/extras";
 import type { Session } from "@treino/core/types";
 
 const rx = (line: string) => {
   const it = parseItemLine(line);
   return {
     name: it.name,
-    sets: it.sets.map((s) => [s.reps, s.duration, s.load]),
+    sets: mainSets(it).map((s) => [s.reps, s.duration, s.load]),
     mode: it.loadMode,
-    extraLeft: it.extraLeft,
+    extraLeft: extraCount(it, "left"),
     hold: it.holdSec,
     note: it.note,
     repsMax: it.repsMax,
@@ -206,10 +207,12 @@ describe("extra sets on one side", () => {
   it("reads E +n and D +n", () => {
     const r = parseItemLine("Hip thrust 3x10 D+1");
     expect(r.name).toBe("Hip thrust");
-    expect(r.extraRight).toBe(1);
-    expect(r.extraLeft).toBeUndefined();
+    expect(extraCount(r, "right")).toBe(1);
+    expect(extraCount(r, "left")).toBe(0);
+    expect(r.sets.at(-1)).toMatchObject({ reps: 10, side: "right", done: false });
     expect(r.note).toBe("");
-    expect(parseItemLine("Nordic 3x5 (D +2) (E +1)")).toMatchObject({ extraRight: 2, extraLeft: 1 });
+    const nordic = parseItemLine("Nordic 3x5 (D +2) (E +1)");
+    expect([extraCount(nordic, "right"), extraCount(nordic, "left")]).toEqual([2, 1]);
   });
 
   it("moves D +n left in a note by older versions", () => {

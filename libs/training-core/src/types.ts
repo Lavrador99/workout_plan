@@ -31,7 +31,8 @@ export interface Client extends SyncMeta {
   hrRest?: number | null;
   /** Running pace at the threshold, seconds per km: the base of the pace zones. */
   thresholdPace?: number | null;
-  injuries: string; // "Glúteo médio esquerdo"
+  /** Older clients only: injuries are in the intake (Screening.injuries); migrateInjuries moves this text there. */
+  injuries: string;
   notes: string; // free text, e.g. records copied from the old notes
   /** Sports, pathologies and asymmetries (Focus ids) this client works on. */
   focusIds?: string[];
@@ -50,10 +51,9 @@ export interface Client extends SyncMeta {
   goals?: string[]; // saúde, força, performance, reabilitação
   /** Replaced by Goal records: only read to move what older versions left here. */
   targets?: Record<string, number>;
+  /** Of the progress index, removed in fase 8: kept on older clients, no longer read. */
   primaryGoal?: PrimaryGoal | null;
-  /** The coach's own weights; unset = those of the main goal (progress.ts). */
   weights?: Weights | null;
-  /** Every change of weights, oldest first. */
   weightLog?: WeightChange[];
   /** Replaced by consents: only read to move what older versions left here. */
   consentAt?: string | null;
@@ -76,7 +76,6 @@ export interface Guardian {
   relation: string; // mãe, pai, tutor
   phone: string;
   email?: string;
-  consentAt: string | null; // YYYY-MM-DD
 }
 
 export type Referral = "social" | "referral" | "gym" | "other";
@@ -116,7 +115,7 @@ export interface ScheduleChange {
   days: number[]; // 0 = Monday … 6 = Sunday; empty = a planned break
 }
 
-/** The six dimensions of the Individual Progress Index. */
+/** The six dimensions of the Individual Progress Index, removed in fase 8: only older clients carry them. */
 export type DimensionId = "geral" | "forca" | "mobilidade" | "composicao" | "cardio" | "adesao";
 
 /** % per dimension, adding up to 100. */
@@ -132,14 +131,19 @@ export interface WeightChange {
 }
 
 export interface Exercise extends SyncMeta {
-  name: string;
-  pt?: string; // Portuguese name, shown under the main one
-  aliases: string[]; // other names (PT/EN, typos, short forms)
+  name: string; // in Portuguese
+  /** Older exercises only: the Portuguese name, before it became the name (English is now an alias). */
+  pt?: string;
+  aliases: string[]; // other names (English, typos, short forms)
   tags: string[];
-  /** Movement patterns; unset = guessed from the name (movement.ts). */
+  /** Movement patterns; unset = guessed from the name (movement.ts), shown as suggested until confirmed. */
   patterns?: string[];
+  /** The main one of `patterns`; unset = the first. */
+  primaryPattern?: string;
   /** Muscles worked; unset = guessed from the tags, names and patterns (movement.ts). */
   muscles?: string[];
+  /** The most worked of `muscles`, up to 3; the rest are secondary. Unset = the first 3. */
+  primaryMuscles?: string[];
   /** Harder versions of this exercise, easiest first (this one is the base). */
   progressions?: string[];
   /** Exercises the coach said are not duplicates of this one. */
@@ -168,6 +172,8 @@ export type SetType = "warmup" | "work" | "failure" | "drop";
  * An empty reps/load is left open for the athlete to choose (autoregulation).
  */
 export interface SetRow {
+  /** An extra set on this side only (E +1 / D +1); unset = both sides (extras.ts). */
+  side?: Side;
   reps?: number | null;
   duration?: number | null; // seconds
   load?: number | null;
@@ -207,8 +213,9 @@ export interface Item {
   loadMode: LoadMode;
   holdSec?: number | null; // isometric hold per rep (iso 10s)
   tempo?: string; // cadence "3-1-1-0" (eccentric-pause-concentric-pause)
-  extraLeft?: number; // E +1: extra sets on the left
-  extraRight?: number; // D +1: extra sets on the right
+  /** Older items only: extra sets are now sets with a side (extras.ts). */
+  extraLeft?: number;
+  extraRight?: number;
   effort?: "rir" | "rpe"; // what SetRow.rir holds (default RIR)
   method?: ItemMethod;
   rmTest?: number | null; // "8RM: ___"
@@ -478,60 +485,6 @@ export interface Goal extends SyncMeta {
   achievedAt?: string | null; // YYYY-MM-DD
 }
 
-/** One indicator behind a score, as it was that day. */
-export interface SnapshotIndicator {
-  testId: string;
-  name: string;
-  unit: string;
-  side?: Side;
-  version: number;
-  importance: Importance;
-  origin: "measured" | "calculated" | "estimated";
-  first: number;
-  current: number;
-  target: number;
-  improved: boolean | null;
-  mdc?: number | null; // the error used: scores made with another one do not compare
-  confirmed: boolean | null; // beyond the measurement error; null = that error is unknown
-  score: number;
-}
-
-export type DimensionState = "improving" | "stable" | "regressing";
-
-export interface SnapshotDimension {
-  id: DimensionId;
-  score: number | null; // null = no data, its weight went to the others
-  weight: number; // as used, after that
-  state: DimensionState | null; // null = no results to read it from
-  provisional: boolean; // read from changes with no known measurement error
-  indicators: SnapshotIndicator[];
-}
-
-export type ProgressStatus = "positive" | "moderate" | "reduced" | "stagnant" | "regression" | "insufficient";
-
-/** An index as calculated that day, with all it was made from. Never edited: recalculating adds another. */
-export interface ProgressSnapshot extends SyncMeta {
-  clientId: string;
-  date: string; // YYYY-MM-DD, of the data
-  method: number; // version of the calculation
-  primaryGoal: PrimaryGoal;
-  weights: Weights;
-  ipi: number | null;
-  coverage: number; // % of the weight with data
-  icc: number | null;
-  iccTests: number; // how many tests it rests on
-  ia: number | null;
-  iaSource?: "plan" | "estimate" | null; // estimate = some of it comes from the weekly frequency
-  io: number | null;
-  ioGoals: number; // how many goals it rests on
-  status: ProgressStatus;
-  provisional: boolean;
-  dimensions: SnapshotDimension[];
-  interpretation: string;
-  /** Made by recalculating the history; the original stays alongside it. */
-  recalculated?: boolean;
-}
-
 export type Disease = "hypertension" | "heart" | "diabetes" | "cholesterol" | "respiratory" | "osteoporosis" | "arthrosis" | "thyroid" | "epilepsy" | "anxiety_depression" | "other";
 
 export type MedFlag = "betablocker" | "hypoglycemic" | "antihypertensive" | "anticoagulant";
@@ -609,6 +562,7 @@ export interface Screening extends SyncMeta {
   targetEvent: string;
   success: string;
   availability: string;
+  /** Older intakes only: the weekly frequency is the client's (weeklyFrequency). */
   sessionsPerWeek: number | null;
   place: string;
   homeEquipment: string;
@@ -637,4 +591,4 @@ export interface Screening extends SyncMeta {
   checklist: string[];
 }
 
-export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots" | "screenings" | "profiles";
+export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "screenings" | "profiles";

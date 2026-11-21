@@ -223,7 +223,7 @@ export default function SessionPage({ id }: { id: string }) {
         <>
           {total > 0 && done === 0 && (
             <button type="button" className="btn text-accent shrink-0" onClick={progressAll}>
-              <ArrowUp /> Progressão
+              <ArrowUp /> Subir cargas
             </button>
           )}
           <Menu
@@ -263,7 +263,7 @@ export default function SessionPage({ id }: { id: string }) {
         </select>
       </label>
 
-      {s.blocks.some((b) => b.items.length) && <LiveBar session={s} onStart={startLive} />}
+      {(s.blocks.some((b) => b.items.length) || s.endedAt != null) && <LiveBar session={s} onStart={startLive} />}
 
       {s.blocks.length === 0 && days.length > 0 && (
         <div className="card p-3 flex flex-col gap-2">
@@ -348,6 +348,17 @@ export default function SessionPage({ id }: { id: string }) {
 /** Start / back to / resume the live session. */
 function LiveBar({ session: s, onStart }: { session: Session; onStart: () => void }) {
   const now = useNow();
+  if (s.endedAt != null && !s.blocks.some((b) => b.items.some((i) => i.sets.some((x) => x.done))))
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted">
+        <span className="text-success"><Check /></span> Feito, sem séries registadas
+        {s.blocks.some((b) => b.items.length) && (
+          <button type="button" className="btn-ghost ml-auto text-accent" onClick={onStart}>
+            Registar séries
+          </button>
+        )}
+      </div>
+    );
   if (!s.startedAt)
     return (
       <button type="button" className="btn-accent h-14 text-lg" onClick={onStart}>

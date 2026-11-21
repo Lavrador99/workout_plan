@@ -7,11 +7,12 @@
 
 import type { Table } from "dexie";
 import { applyOps } from "@treino/core/ops";
-import { db, DEFAULTS, migrateClients, migrateSideNotes, migrateTargets, onLocalChange } from "./db";
+import { db, DEFAULTS, onLocalChange, runMigrations } from "./db";
+import { demoTombstones, isDemo } from "./demos";
 import type { Session, SyncMeta, TableName } from "@treino/core/types";
 
 const CFG_KEY = "coach_api_cfg";
-const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots", "screenings", "profiles"];
+const TABLES: TableName[] = ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "screenings", "profiles"];
 const KIND: Record<TableName, string> = {
   clients: "client",
   exercises: "exercise",
@@ -21,7 +22,6 @@ const KIND: Record<TableName, string> = {
   tests: "test",
   assessments: "assessment",
   goals: "goal",
-  snapshots: "snapshot",
   screenings: "screening",
   profiles: "profile",
 };
@@ -201,11 +201,13 @@ async function doSync() {
     await pushOps(cfg);
     // ── pull ──
     let since = ((await db.meta.get("lastSeq"))?.value as number | undefined) ?? 0;
+    let pulled = 0;
     for (;;) {
       const { rows, more } = await api<{ rows: RemoteRow[]; more: boolean }>(cfg, `/sync?since=${since}`);
       for (const row of rows) {
         const table = TABLE_OF[row.kind];
-        if (table) {
+        // made-up clients are never someone's data: not taken from the server
+        if (table && !isDemo({ id: row.id, clientId: (row.data as { clientId?: unknown } | null)?.clientId })) {
           const t = db[table] as unknown as Table<SyncMeta, string>;
           const local = await t.get(row.id);
           if (!local || local.updatedAt <= row.updated_at) {
@@ -216,6 +218,7 @@ async function doSync() {
               if (pending.length) rec = applyOps(rec as Session, pending.map((p) => p.op)) as typeof rec;
             }
             await t.put(rec);
+            pulled++;
           }
         }
         since = Math.max(since, row.seq);
@@ -223,13 +226,16 @@ async function doSync() {
       await db.meta.put({ key: "lastSeq", value: since });
       if (!more) break;
     }
-    await migrateTargets();
-    await migrateSideNotes();
-    await migrateClients();
+    if (pulled) await runMigrations(true);
     // ── push ──
+    if (!(await db.meta.get("demosRemoved"))?.value) {
+      const rows = demoTombstones(KIND, Date.now());
+      for (let i = 0; i < rows.length; i += PUSH_CHUNK) await api(cfg, "/sync", { rows: rows.slice(i, i + PUSH_CHUNK) });
+      await db.meta.put({ key: "demosRemoved", value: true });
+    }
     for (const table of TABLES) {
       const t = db[table] as unknown as Table<SyncMeta, string>;
-      const dirty = await t.where("dirty").equals(1).toArray();
+      const dirty = (await t.where("dirty").equals(1).toArray()).filter((r) => !isDemo(r as SyncMeta & { clientId?: unknown }));
       for (let i = 0; i < dirty.length; i += PUSH_CHUNK) {
         const chunk = dirty.slice(i, i + PUSH_CHUNK);
         const rows = chunk.map(({ dirty: _d, ...rec }) => ({

@@ -10,20 +10,20 @@ import { fmtLoad } from "@treino/core/format";
 import AssessmentsTab from "../components/AssessmentsTab";
 import BalanceTab from "../components/BalanceTab";
 import Chips, { ChipPick } from "../components/Chips";
+import { restOf } from "../components/onboarding/IntakeSteps";
 import Field from "../components/Field";
 import CountsView from "../components/CountsView";
 import PageHeader, { NotFound } from "../components/PageHeader";
-import ProgressSheet from "../components/ProgressSheet";
 import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
-import { back, go, replaceRoute, useClient, useExercises, useFocuses, useScreenings, useSessions, useViewState } from "../lib/hooks";
-import { CONSENTS, isMinor, screeningState, STATE_TEXT } from "../lib/screening";
+import { back, go, replaceRoute, useAssessments, useClient, useExercises, useFocuses, useScreenings, useSessions, useTests, useViewState } from "../lib/hooks";
+import { startReassessment } from "../lib/reassess";
+import { ageOf, CONSENTS, DECISIONS, injuryText, isMinor, labelOf, screeningState, STATE_TEXT } from "../lib/screening";
 import { ACTIVITIES, changeSchedule, currentDays, WEEKDAYS } from "../lib/balance";
 import { FOCUS_KINDS } from "../lib/movement";
-import { goalLabel } from "../lib/progress";
 import { fmtPace, parsePace } from "@treino/core/run";
-import { fmtDate, num, todayISO } from "@treino/core/text";
-import type { Client, Item, Session, Side } from "@treino/core/types";
+import { fmtDate, fmtNum, num, todayISO } from "@treino/core/text";
+import type { Client, Item, Session } from "@treino/core/types";
 import { openNewSession } from "./SessionPage";
 
 interface Best {
@@ -60,7 +60,9 @@ const TABS = [
   ["info", "Ficha"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
-type Section = "person" | "payments" | "training" | "progress" | "screening" | "health" | "notes" | "data";
+type Section = "payments" | "training" | "health" | "notes" | "data";
+/** Rows that open the initial assessment at a step instead of a sheet. */
+type Row = Section | "person" | "screening";
 
 /** Sessions shown at first; a long history opens on demand. */
 const PAGE = 20;
@@ -69,21 +71,8 @@ const shownOf = new Map<string, number>();
 
 const monthOf = (iso: string) => new Date(`${iso.slice(0, 7)}-01T12:00:00`).toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 
-type Handed = Side | "both";
-
-const GOALS = ["Saúde", "Força", "Performance", "Reabilitação"];
 const LEVELS = ["recreativo", "competitivo", "elite"] as const;
-const HANDED: [Handed, string][] = [
-  ["right", "Direita"],
-  ["left", "Esquerda"],
-  ["both", "Ambas"],
-];
-const SEXES: ["female" | "male", string][] = [
-  ["female", "Feminino"],
-  ["male", "Masculino"],
-];
-const handedLabel = (v: Handed | null | undefined) => HANDED.find(([k]) => k === v)?.[1];
-const handedValue = (label: string | undefined) => HANDED.find(([, l]) => l === label)?.[0] ?? null;
+const SEX_WORD = { female: "feminino", male: "masculino" } as const;
 
 export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: string }) {
   const stored = useClient(id);
@@ -91,6 +80,8 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const exercises = useExercises();
   const focuses = useFocuses();
   const screenings = useScreenings(id);
+  const assessments = useAssessments(id);
+  const tests = useTests();
   const [c, setC] = useState<Client | null>(null);
   const [section, setSection] = useViewState<Section | null>("section", null);
   const [shown, setShown] = useState(() => shownOf.get(id) ?? PAGE);
@@ -123,10 +114,10 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
     persist();
     setSection(null);
   };
-  const age = c.birthYear ? new Date().getFullYear() - c.birthYear : null;
+  const today = todayISO();
+  const age = ageOf(c, today);
   const focusNames = (focuses ?? []).filter((f) => c.focusIds?.includes(f.id)).map((f) => f.name);
   const list = sessions ?? [];
-  const today = todayISO();
   const owed = owedMonths(c, today);
   const lastScreening = screenings?.[0];
   const screening = screeningState(lastScreening, today);
@@ -134,15 +125,16 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
   const given = c.consents?.given ?? {};
   const consentMissing = !given.data_health || (minor && !c.consents?.guardianSignature);
   const openOnboarding = (step?: string) => go("onboarding", id, ...(step ? [step] : []));
+  const injuries = injuryText(lastScreening);
+  const restHr = restOf((assessments ?? []).find((a) => a.moduleData?.intake === true && restOf(a)?.hr != null))?.hr ?? null;
 
-  const sectionRows: [Section, string, string, string?][] = [
-    ["person", "Dados pessoais", [age && `${age} anos`, c.sex && SEXES.find(([k]) => k === c.sex)?.[1], c.heightCm && `${c.heightCm} cm`, handedLabel(c.dominantHand) && `mão ${handedLabel(c.dominantHand)?.toLowerCase()}`].filter(Boolean).join(" · ") || "Por preencher"],
+  const sectionRows: [Row, string, string, string?][] = [
+    ["person", "Dados pessoais", [age != null && `${age} anos`, c.sex && SEX_WORD[c.sex], c.phone, c.email].filter(Boolean).join(" · ") || "Por preencher"],
     ["payments", "Pagamentos", !c.monthlyFee ? "Sem mensalidade" : owed.length ? `Por pagar: ${fmtMoney(owed.length * c.monthlyFee)}` : `${fmtMoney(c.monthlyFee)}/mês · em dia`, owed.length ? "text-warn" : undefined],
-    ["training", "Treino e objetivos", [c.level, c.position, c.weeklyFrequency && `${c.weeklyFrequency}×/sem`, ...(c.goals ?? []), ...focusNames].filter(Boolean).join(" · ") || "Por preencher"],
-    ["progress", "Índice de progresso", `${goalLabel(c.primaryGoal) ?? "Objetivo principal por escolher"}${c.weights ? " · pesos próprios" : ""}`],
-    ["screening", "Ficha geral", lastScreening ? `${STATE_TEXT[screening]} · ${fmtDate(lastScreening.date)}` : STATE_TEXT[screening], screening === "ok" ? undefined : "text-warn"],
-    ["health", "Saúde e cuidados", [c.injuries, c.hrMax && `FC máx ${c.hrMax}`, c.hrRest && `repouso ${c.hrRest}`].filter(Boolean).join(" · ") || "Sem lesões registadas"],
-    ["notes", "Notas e records", c.notes.split("\n")[0] || "Sem notas"],
+    ["training", "Treino e perfis", [c.level, c.weeklyFrequency && `${c.weeklyFrequency}×/sem`, ...focusNames].filter(Boolean).join(" · ") || "Por preencher"],
+    ["screening", "Ficha geral", lastScreening ? `${labelOf(DECISIONS, lastScreening.decision) ?? STATE_TEXT[screening]} · ${fmtDate(lastScreening.date)}` : STATE_TEXT[screening], screening === "ok" ? undefined : "text-warn"],
+    ["health", "Saúde e cuidados", [injuries, c.hrMax && `FC máx ${c.hrMax}`, restHr && `repouso ${restHr}`].filter(Boolean).join(" · ") || "Sem lesões registadas"],
+    ["notes", "Notas", c.notes.split("\n")[0] || "Sem notas"],
     ["data", "Consentimento e dados", !given.data_health ? "Sem consentimento registado" : consentMissing ? "Falta a assinatura do encarregado" : `${Object.keys(given).length} de ${CONSENTS.length} autorizações`, consentMissing ? "text-warn" : undefined],
   ];
 
@@ -152,7 +144,7 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
         <Tabs options={TABS} value={tab} onChange={(t) => replaceRoute("client", id, t)} />
       </PageHeader>
       <div className="page">
-        {c.injuries && <div className="text-sm text-danger"><TriangleAlert /> {c.injuries}</div>}
+        {injuries && <div className="text-sm text-danger"><TriangleAlert /> {injuries}</div>}
         {(screening === "awaiting" || screening === "referred") && (
           <button type="button" className="text-sm text-warn text-left" onClick={() => openOnboarding("triage")}>
             <TriangleAlert /> Autorização médica pendente <ChevronRight />
@@ -236,21 +228,28 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
           </div>
         )}
 
-        {tab === "balance" && <BalanceTab client={c} sessions={sessions ?? []} exercises={exercises ?? []} focuses={mine} />}
+        {tab === "balance" && <BalanceTab client={c} sessions={sessions ?? []} exercises={exercises ?? []} />}
 
-        {tab === "counts" && <CountsView sessions={list} exercises={exercises ?? []} focuses={mine} />}
+        {tab === "counts" && <CountsView sessions={list} exercises={exercises ?? []} focuses={mine} assessments={assessments ?? []} tests={tests ?? []} />}
 
         {tab === "assessments" && <AssessmentsTab clientId={id} />}
 
         {tab === "info" && (
           <>
-          <button type="button" className="btn-accent" onClick={() => openOnboarding()}>
-            {lastScreening ? "Continuar avaliação inicial" : "Começar avaliação inicial"} <ChevronRight />
+          <button
+            type="button"
+            className="btn-accent"
+            onClick={async () => {
+              if (lastScreening?.decision && lastScreening.date !== today) await startReassessment(id, today, tests ?? []);
+              openOnboarding();
+            }}
+          >
+            {!lastScreening ? "Avaliação inicial" : lastScreening.decision && lastScreening.date !== today ? "Reavaliação" : "Continuar avaliação"} <ChevronRight />
           </button>
           <ul className="card divide-y divide-border">
             {sectionRows.map(([k, title, summary, tone]) => (
               <li key={k}>
-                <button type="button" className="row" onClick={() => (k === "screening" ? openOnboarding() : setSection(k))}>
+                <button type="button" className="row" onClick={() => (k === "person" ? openOnboarding("id") : k === "screening" ? openOnboarding("triage") : setSection(k))}>
                   <span className="flex-1 min-w-0">
                     <span className="font-medium block">{title}</span>
                     <span className={`block text-xs truncate ${tone ?? "text-muted"}`}>{summary}</span>
@@ -264,43 +263,6 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
         )}
       </div>
 
-      {section === "progress" && <ProgressSheet client={c} onChange={choose} onClose={closeSection} />}
-
-      {section === "person" && (
-        <FichaSheet title="Dados pessoais" onClose={closeSection} onBlur={persist}>
-          <Field label="Nome">
-            <input className="input" value={c.name} onChange={(e) => edit({ name: e.target.value })} />
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Telefone">
-              <input className="input" type="tel" autoComplete="off" value={c.phone ?? ""} onChange={(e) => edit({ phone: e.target.value })} />
-            </Field>
-            <Field label="Email">
-              <input className="input" type="email" autoComplete="off" autoCapitalize="off" value={c.email ?? ""} onChange={(e) => edit({ email: e.target.value })} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={`Ano nasc.${age ? ` (${age})` : ""}`}>
-              <input className="input" inputMode="numeric" value={c.birthYear ?? ""} onChange={(e) => edit({ birthYear: num(e.target.value) })} />
-            </Field>
-            <Field label="Altura (cm)">
-              <input className="input" inputMode="numeric" value={c.heightCm ?? ""} onChange={(e) => edit({ heightCm: num(e.target.value) })} />
-            </Field>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="label">Sexo (para as referências científicas)</span>
-            <ChipPick options={SEXES.map(([, l]) => l)} value={SEXES.find(([k]) => k === c.sex)?.[1]} onChange={(v) => choose({ sex: SEXES.find(([, l]) => l === v)?.[0] ?? null })} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="label">Mão dominante</span>
-            <ChipPick options={HANDED.map(([, l]) => l)} value={handedLabel(c.dominantHand)} onChange={(v) => choose({ dominantHand: handedValue(v) })} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="label">Pé dominante</span>
-            <ChipPick options={HANDED.map(([, l]) => l)} value={handedLabel(c.dominantFoot)} onChange={(v) => choose({ dominantFoot: handedValue(v) })} />
-          </div>
-        </FichaSheet>
-      )}
 
       {section === "payments" && (
         <FichaSheet title="Pagamentos" onClose={closeSection} onBlur={persist}>
@@ -329,15 +291,10 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
       )}
 
       {section === "training" && (
-        <FichaSheet title="Treino e objetivos" onClose={closeSection} onBlur={persist}>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Anos de prática">
-              <input className="input" inputMode="numeric" value={c.sportYears ?? ""} onChange={(e) => edit({ sportYears: num(e.target.value) })} />
-            </Field>
-            <Field label="Treinos / sem.">
-              <input className="input" inputMode="numeric" value={c.weeklyFrequency ?? ""} onChange={(e) => edit({ weeklyFrequency: num(e.target.value) })} />
-            </Field>
-          </div>
+        <FichaSheet title="Treino e perfis" onClose={closeSection} onBlur={persist}>
+          <Field label="Treinos por semana">
+            <input className="input" inputMode="numeric" value={c.weeklyFrequency ?? ""} onChange={(e) => edit({ weeklyFrequency: num(e.target.value) })} />
+          </Field>
           <div className="flex flex-col gap-1">
             <span className="label">Dias planeados</span>
             <Chips options={WEEKDAYS} value={currentDays(c, todayISO()).map((d) => WEEKDAYS[d])} onChange={(v) => choose(changeSchedule(c, v.map((d) => WEEKDAYS.indexOf(d)), todayISO()))} />
@@ -347,16 +304,9 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
             <span className="label">Contam para a adesão</span>
             <Chips options={ACTIVITIES.map(([, l]) => l)} value={ACTIVITIES.filter(([k]) => !c.adherenceSkips?.includes(k)).map(([, l]) => l)} onChange={(v) => choose({ adherenceSkips: ACTIVITIES.filter(([, l]) => !v.includes(l)).map(([k]) => k) })} />
           </div>
-          <Field label="Posição">
-            <input className="input" value={c.position ?? ""} placeholder="ex: Lateral direito" onChange={(e) => edit({ position: e.target.value })} />
-          </Field>
           <div className="flex flex-col gap-1">
             <span className="label">Nível</span>
             <ChipPick options={[...LEVELS]} value={c.level ?? undefined} onChange={(v) => choose({ level: (v as Client["level"]) ?? null })} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="label">Objetivos</span>
-            <Chips options={GOALS} value={c.goals ?? []} onChange={(goals) => choose({ goals })} />
           </div>
           {FOCUS_KINDS.map(([kind, label]) => {
             const options = (focuses ?? []).filter((f) => f.kind === kind);
@@ -389,24 +339,29 @@ export default function ClientPage({ id, tab: routeTab }: { id: string; tab?: st
 
       {section === "health" && (
         <FichaSheet title="Saúde e cuidados" onClose={closeSection} onBlur={persist}>
-          <Field label="Lesões / cuidados">
-            <input className="input" value={c.injuries} placeholder="ex: Glúteo médio esquerdo" onChange={(e) => edit({ injuries: e.target.value })} />
-          </Field>
+          <div className="flex flex-col gap-1">
+            <span className="label">Lesões e cuidados</span>
+            <span className="text-sm">{injuries || "Sem lesões ativas."}</span>
+            <button type="button" className="btn-ghost text-accent self-start -ml-3" onClick={() => openOnboarding("clinical")}>
+              Editar no histórico clínico <ChevronRight />
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label="FC máx">
               <input className="input" inputMode="decimal" value={c.hrMax ?? ""} placeholder={age ? String(Math.round(208 - 0.7 * age)) : ""} onChange={(e) => edit({ hrMax: num(e.target.value) })} />
             </Field>
-            <Field label="FC repouso">
-              <input className="input" inputMode="numeric" value={c.hrRest ?? ""} onChange={(e) => edit({ hrRest: num(e.target.value) })} />
-            </Field>
+            <div className="flex flex-col gap-1">
+              <span className="label">FC repouso</span>
+              <span className="text-sm py-2">{restHr != null ? `${fmtNum(restHr)} bpm (da antropometria)` : "Mede-se na antropometria."}</span>
+            </div>
           </div>
           <PaceField value={c.thresholdPace ?? null} onChange={(thresholdPace) => edit({ thresholdPace })} />
         </FichaSheet>
       )}
 
       {section === "notes" && (
-        <FichaSheet title="Notas e records" onClose={closeSection} onBlur={persist}>
-          <textarea className="input py-2 min-h-[240px]" aria-label="Notas e records" value={c.notes} placeholder={"Front Squat - 8x50kg\nDeadlift - 20x50kg"} onChange={(e) => edit({ notes: e.target.value })} />
+        <FichaSheet title="Notas" onClose={closeSection} onBlur={persist}>
+          <textarea className="input py-2 min-h-[240px]" aria-label="Notas" value={c.notes} onChange={(e) => edit({ notes: e.target.value })} />
         </FichaSheet>
       )}
 

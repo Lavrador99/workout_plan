@@ -2,10 +2,9 @@ import { BookOpen, CalendarDays, Settings, TriangleAlert, Users, Wallet } from "
 import { DialogHost } from "./components/Dialogs";
 import { ErrorBoundary } from "./components/States";
 import { UpdateBar } from "./components/PwaBanners";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Toaster } from "./components/Toast";
-import { go, useExercises, useRoute, useSyncStatus } from "./lib/hooks";
-import { missingInfo } from "./lib/movement";
+import { go, useRoute, useSyncStatus } from "./lib/hooks";
 import AssessmentPage from "./pages/AssessmentPage";
 import ClientPage from "./pages/ClientPage";
 import ClientsPage from "./pages/ClientsPage";
@@ -13,7 +12,6 @@ import ComparePage from "./pages/ComparePage";
 import EvolutionPage from "./pages/EvolutionPage";
 import FinancePage from "./pages/FinancePage";
 import HomePage from "./pages/HomePage";
-import ProgressPage from "./pages/ProgressPage";
 import FocusPage from "./pages/FocusPage";
 import GroupPage from "./pages/GroupPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -25,7 +23,7 @@ import SessionPage from "./pages/SessionPage";
 import SettingsPage from "./pages/SettingsPage";
 
 const TAB_OF: Record<string, string> = { focus: "library", group: "" };
-for (const page of ["client", "session", "import", "history", "assessment", "evolution", "compare", "progress", "onboarding", "report"]) TAB_OF[page] = "clients";
+for (const page of ["client", "session", "import", "history", "assessment", "evolution", "compare", "onboarding", "report"]) TAB_OF[page] = "clients";
 
 const TABS = [
   ["", "Hoje", CalendarDays],
@@ -38,8 +36,6 @@ const TABS = [
 export default function App() {
   const [page = "", id = "", sub = "", sub2 = ""] = useRoute();
   const sync = useSyncStatus();
-  const exercises = useExercises();
-  const toReview = useMemo(() => exercises?.filter((e) => missingInfo(e).length).length ?? 0, [exercises]);
   const tab = TAB_OF[page] ?? page;
 
   // "/" jumps to the search of the page, for those on a keyboard.
@@ -88,8 +84,6 @@ export default function App() {
           <ReportPage key={id} id={id} />
         ) : page === "evolution" ? (
           <EvolutionPage key={id + sub} clientId={id} testId={sub} />
-        ) : page === "progress" ? (
-          <ProgressPage key={id} clientId={id} />
         ) : page === "compare" ? (
           <ComparePage key={id + sub + sub2} clientId={id} a={sub} b={sub2} />
         ) : page === "import" ? (
@@ -119,9 +113,6 @@ export default function App() {
                 <Icon />
                 {k === "settings" && (sync.state === "off" || sync.state === "error") && (
                   <span className="absolute -top-0.5 -right-1.5 w-2.5 h-2.5 rounded-full bg-warn" />
-                )}
-                {k === "library" && toReview > 0 && (
-                  <span className="absolute -top-1 -right-2 lg:left-3 lg:right-auto min-w-4 h-4 px-1 rounded-full bg-warn text-on-accent text-[10px] font-bold leading-4">{toReview}</span>
                 )}
               </span>
               {label}

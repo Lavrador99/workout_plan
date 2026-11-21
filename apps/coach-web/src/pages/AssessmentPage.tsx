@@ -1,6 +1,7 @@
 import { PageLoading } from "../components/States";
 import { ChevronRight, TriangleAlert } from "lucide-react";
 import { ask } from "../components/Dialogs";
+import ConditionsFields from "../components/ConditionsFields";
 import { useEffect, useRef, useState } from "react";
 import PageHeader, { NotFound } from "../components/PageHeader";
 import ResultCard, { fmtFinal } from "../components/ResultCard";
@@ -132,10 +133,10 @@ export default function AssessmentPage({ id }: { id: string }) {
               <input className="input" value={a.title} placeholder="Pré-época" onChange={(e) => update({ ...a, title: e.target.value })} />
             </label>
           </div>
-          <label className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1">
             <span className="label">Condições</span>
-            <input className="input" value={a.conditions} placeholder="Hora, piso, fadiga, quem avaliou" onChange={(e) => update({ ...a, conditions: e.target.value })} />
-          </label>
+            <ConditionsFields value={a.conditionsData} sex={client?.sex} older={a.conditions || undefined} onChange={(conditionsData) => update({ ...a, conditionsData })} />
+          </div>
           <label className="flex flex-col gap-1">
             <span className="label">Notas</span>
             <textarea className="input py-2 min-h-[100px]" value={a.notes} onChange={(e) => update({ ...a, notes: e.target.value })} />

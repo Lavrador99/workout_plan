@@ -1,5 +1,6 @@
 // Structured session → the coach's own text format (for WhatsApp, print, notes).
 
+import { extraCount, mainSets } from "./extras";
 import { fmtDistanceOrTime, fmtZone } from "./run";
 import type { Block, Item, ItemMethod, SetRow, SetType, Session } from "./types";
 import { fmtDate, fmtNum, fmtSec } from "./text";
@@ -58,7 +59,7 @@ const same = (a: SetRow, b: SetRow) =>
 /** Prescription only, e.g. "3x8 2x8kg (E +1)". */
 export function fmtRx(item: Item): string {
   const parts: string[] = [];
-  const sets = item.sets;
+  const sets = mainSets(item);
   if (sets.length) {
     const uniform = sets.every((s) => same(s, sets[0]));
     if (uniform) {
@@ -91,8 +92,8 @@ export function fmtRx(item: Item): string {
   if (item.tempo) parts.push(`tempo ${item.tempo}`);
   if (item.holdSec) parts.push(`iso ${item.holdSec}s`);
   if (item.rmTest) parts.push(`${item.rmTest}RM: ___`);
-  if (item.extraLeft) parts.push(`(E +${item.extraLeft})`);
-  if (item.extraRight) parts.push(`(D +${item.extraRight})`);
+  if (extraCount(item, "left")) parts.push(`(E +${extraCount(item, "left")})`);
+  if (extraCount(item, "right")) parts.push(`(D +${extraCount(item, "right")})`);
   if (item.note) parts.push(item.note);
   return parts.join(" ");
 }

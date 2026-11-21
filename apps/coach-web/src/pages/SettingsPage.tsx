@@ -5,6 +5,7 @@ import Seg from "../components/Seg";
 import { InstallCard } from "../components/PwaBanners";
 import ProfileCard from "../components/ProfileCard";
 import { exportBackup, importBackup, type Backup } from "../lib/db";
+import { demosShown, setDemosShown } from "../lib/demos";
 import { useSyncStatus } from "../lib/hooks";
 import { usePwa } from "../lib/pwa";
 import { getConfig, setConfig, syncNow, testConnection } from "../lib/sync";
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [theme, pickTheme] = useState(getTheme);
+  const [demos, setDemos] = useState(demosShown);
 
   const download = async () => {
     const b = await exportBackup();
@@ -126,6 +128,24 @@ export default function SettingsPage() {
             pickTheme(v as Theme);
           }}
         />
+      </section>
+
+      <section className="card p-3 flex flex-col gap-2">
+        <label className="flex items-center gap-3">
+          <span className="flex-1">
+            <span className="font-bold block">Mostrar clientes de exemplo</span>
+            <span className="text-xs text-muted block">O "Teste" e os quatro de Força e Equilíbrio, com dados inventados. Só neste aparelho; nunca sincronizam.</span>
+          </span>
+          <input
+            type="checkbox"
+            className="w-5 h-5 accent-accent"
+            checked={demos}
+            onChange={(e) => {
+              setDemos(e.target.checked);
+              void setDemosShown(e.target.checked);
+            }}
+          />
+        </label>
       </section>
 
       <InstallCard />

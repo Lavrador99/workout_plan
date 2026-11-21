@@ -22,6 +22,22 @@ Uma avaliação posterior com os mesmos testes e condições, para comparar com 
 **Condições da avaliação**:
 O que pode alterar os resultados nesse dia (hora, local, piso, calçado, sono, refeição, cafeína, último treino, dores) e decide se duas avaliações são comparáveis.
 
+**Balanço**:
+O resumo do progresso de um cliente num período: ganhos e perdas nos testes, marcas de treino, adesão e objetivos.
+_Avoid_: Índice de progresso, IPI, relatório de progresso
+
+**Marca**:
+A melhor série registada de um exercício, tirada sempre das sessões, nunca escrita à mão.
+_Avoid_: Record, PR
+
+**Objetivo**:
+Uma meta medível, ligada a um teste ou a uma métrica, que o Balanço acompanha.
+_Avoid_: Meta, target, objetivo principal
+
+**Motivo**:
+O que o cliente quer conseguir, nas palavras dele. Não se mede: orienta a conversa, as prioridades e a mensagem do relatório.
+_Avoid_: Objetivo (para isto), objetivo principal
+
 ## Saúde
 
 **Triagem**:
@@ -43,6 +59,20 @@ _Avoid_: Modalidade, perfil, bateria (para o conjunto)
 **Modalidade**:
 O desporto que o cliente pratica (futebol, por exemplo). É contexto do módulo Performance Desportiva, não decide os testes.
 _Avoid_: Módulo
+
+**Perfil**:
+O que um cliente precisa de treinar por causa de uma modalidade, de uma patologia ou de uma assimetria: padrões, músculos e exercícios-chave. Orienta a prescrição e a verificação da ênfase nas Contagens.
+_Avoid_: Módulo (o módulo diz como avaliar, o perfil diz o que treinar)
+
+**Assimetria**:
+Um ou mais músculos com um lado mais fraco, definidos pelo músculo e pelo lado, nunca pelo nome. Liga os exercícios, os testes medidos por lado e as Contagens através dos mesmos músculos.
+_Avoid_: Desequilíbrio, lado fraco (sem dizer o músculo)
+
+**Antagonista**:
+O músculo que faz o movimento oposto ao de outro (adutores para o glúteo médio, isquiotibiais para o quadríceps). A relação entre os dois lê-se em volume de séries e, quando há testes dos dois, em força.
+
+**Músculo principal / secundário**:
+Num exercício, os músculos mais trabalhados (até 3) e os que ajudam. Nas Contagens, uma série conta 1 para os principais e 0,5 para os secundários.
 
 **Força e Equilíbrio**:
 O módulo para quem precisa de recuperar ou manter a autonomia, ativado pela função (65 ou mais anos, quedas ou medo de cair, dificuldade em levantar-se, inatividade longa, doença crónica limitante) e nunca só pela idade.

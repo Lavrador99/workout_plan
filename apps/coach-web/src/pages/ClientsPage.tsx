@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { useMemo } from "react";
 import { InstallCard } from "../components/PwaBanners";
 import { newClient, nextClientNumber, save } from "../lib/db";
-import { go, useClients, useSessions, useViewState } from "../lib/hooks";
+import { go, useClients, useInjuries, useSessions, useViewState } from "../lib/hooks";
 import PageHeader from "../components/PageHeader";
 import { isInactive, lastDoneByClient, matchesClient, nextTraining } from "../lib/agenda";
 import { owedMonths } from "../lib/payments";
@@ -21,6 +21,7 @@ type Filter = (typeof FILTERS)[number][0];
 export default function ClientsPage() {
   const clients = useClients();
   const sessions = useSessions();
+  const injuries = useInjuries();
   const [q, setQ] = useViewState("q", "");
   const [filter, setFilter] = useViewState<Filter>("filter", "all");
   const today = todayISO();
@@ -40,9 +41,9 @@ export default function ClientsPage() {
     all: rows.length,
     inactive: rows.filter((r) => r.inactive).length,
     owing: rows.filter((r) => r.owing).length,
-    injured: rows.filter((r) => r.c.injuries).length,
+    injured: rows.filter((r) => injuries.has(r.c.id)).length,
   };
-  const passes = (r: (typeof rows)[number]) => (filter === "all" ? true : filter === "injured" ? !!r.c.injuries : r[filter]);
+  const passes = (r: (typeof rows)[number]) => (filter === "all" ? true : filter === "injured" ? injuries.has(r.c.id) : r[filter]);
   const list = rows.filter((r) => passes(r) && matchesClient(r.c, q));
 
   /** Only the name, or the name and straight into the initial assessment. */
@@ -91,7 +92,7 @@ export default function ClientsPage() {
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold truncate">{c.name}</span>
                 <span className="block text-xs text-muted truncate">{next ? `Próximo: ${next === today ? "hoje" : fmtDate(next)}` : "Sem próximo treino"}{last ? ` · último ${fmtDate(last)}` : ""}</span>
-                {c.injuries && <span className="block text-xs text-danger truncate"><TriangleAlert /> {c.injuries}</span>}
+                {injuries.has(c.id) && <span className="block text-xs text-danger truncate"><TriangleAlert /> {injuries.get(c.id)}</span>}
               </span>
               <span className="flex flex-col items-end gap-1 text-xs shrink-0">
                 {owing && <span className="text-warn">Por pagar</span>}

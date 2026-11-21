@@ -1,9 +1,8 @@
-import { changed, db, matchExercise, remove, save } from "./db";
+import { changed, db, matchExercise, save } from "./db";
 import { parseItemLine } from "./parser";
 import { SEED_GROUPS } from "./seedData";
+import { SEED_CLASSIFICATION } from "./seedClassification";
 import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
-import { DEMO_CLIENT_ID, demoData, fillMissing } from "./seedDemo";
-import { moduleDemos } from "./seedModuleDemo";
 import { SEED_DAYS } from "./seedTemplates";
 import { SEED_TESTS } from "./seedTests";
 import { norm } from "@treino/core/text";
@@ -13,35 +12,51 @@ import type { Block, Exercise, Focus, Template, TestDef } from "@treino/core/typ
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 10; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors, 8: the whole of "Teste", 9: the run, 10: Força e Equilíbrio
+const SEED_VERSION = 12; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors, 8: the whole of "Teste", 9: the run, 10: Força e Equilíbrio, 11: names in Portuguese and classified by hand, 12: muscles of the sided tests
 
 export interface SeedExercise {
   id: string;
-  name: string;
-  pt: string;
-  aliases: string[];
+  name: string; // in Portuguese
+  aliases: string[]; // the English name first
   tags: string[];
+  patterns?: string[];
+  primaryPattern?: string;
+  muscles?: string[];
+  primaryMuscles?: string[];
 }
 
 const slug = (s: string) => norm(s).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const list = (s: string | undefined) => (s ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 const uniq = (a: string[]) => [...new Set(a)];
 
-/** All seed exercises, one per English name, with the tags of every group it is in. */
+/** All seed exercises, one per English name (the id comes from it), named in Portuguese, with the tags of every group it is in. */
 export function seedExercises(): SeedExercise[] {
-  const byKey = new Map<string, SeedExercise>();
+  const byKey = new Map<string, SeedExercise & { en: string }>();
   for (const g of SEED_GROUPS) {
     for (const line of g.items) {
-      const [name, pt = "", aliases, extra] = line.split("|").map((x) => x.trim());
-      const key = norm(name);
-      const cur = byKey.get(key) ?? { id: `seed-${slug(name)}`, name, pt, aliases: [], tags: [] };
-      cur.pt ||= pt;
-      cur.aliases = uniq([...cur.aliases, ...list(aliases)]).filter((a) => norm(a) !== key && norm(a) !== norm(cur.pt));
+      const [en, pt = "", aliases, extra] = line.split("|").map((x) => x.trim());
+      const key = norm(en);
+      const cur = byKey.get(key) ?? { id: `seed-${slug(en)}`, en, name: pt || en, aliases: [], tags: [] };
+      if (pt && cur.name === en) cur.name = pt;
+      cur.aliases = uniq([en, ...cur.aliases, ...list(aliases)]).filter((a) => norm(a) !== norm(cur.name));
       cur.tags = uniq([...cur.tags, ...g.tags, ...list(extra)]);
       byKey.set(key, cur);
     }
   }
-  return [...byKey.values()];
+  return [...byKey.values()].map(({ en: _en, ...s }) => {
+    const c = SEED_CLASSIFICATION.get(s.name.toLowerCase());
+    return c ? { ...s, patterns: c.patterns, primaryPattern: c.primaryPattern, muscles: c.muscles, primaryMuscles: c.primaryMuscles } : s;
+  });
+}
+
+/** The hand classification where the exercise still had only a guess; what the coach set stays. */
+function withClassification(mine: Exercise, s: SeedExercise): Exercise {
+  if (!s.patterns || !s.muscles) return mine;
+  return {
+    ...mine,
+    ...(mine.patterns ? {} : { patterns: s.patterns, primaryPattern: s.primaryPattern }),
+    ...(mine.muscles ? {} : { muscles: s.muscles, primaryMuscles: s.primaryMuscles }),
+  };
 }
 
 /** Add the base library (once per SEED_VERSION). Returns how many were added or completed. */
@@ -50,14 +65,13 @@ export async function seedLibrary(force = false): Promise<number> {
   const all = await db.exercises.toArray();
   let n = 0;
   for (const s of seedExercises()) {
-    if (all.some((e) => e.id === s.id)) continue; // already here (or deleted on purpose)
-    const mine = matchExercise(all, s.name) ?? matchExercise(all, s.pt) ?? s.aliases.map((a) => matchExercise(all, a)).find(Boolean);
+    const same = all.find((e) => e.id === s.id);
+    const mine = same ?? matchExercise(all, s.name) ?? s.aliases.map((a) => matchExercise(all, a)).find(Boolean);
+    if (same?.deleted) continue; // deleted on purpose
     if (mine) {
-      // the coach already has it: just complete translation, aliases and tags
-      const aliases = uniq([...mine.aliases, ...(norm(mine.name) === norm(s.name) ? [] : [s.name]), ...s.aliases]).filter(
-        (a) => norm(a) !== norm(mine.name) && norm(a) !== norm(mine.pt || s.pt),
-      );
-      const next = { ...mine, pt: mine.pt || s.pt, aliases, tags: uniq([...mine.tags, ...s.tags]) };
+      // the coach already has it: complete names, tags and the classification, keep the rest
+      const aliases = uniq([...mine.aliases, ...(norm(mine.name) === norm(s.name) ? [] : [s.name]), ...s.aliases]).filter((a) => norm(a) !== norm(mine.name) && norm(a) !== norm(mine.pt ?? ""));
+      const next = withClassification({ ...mine, aliases, tags: uniq([...mine.tags, ...s.tags]) }, s);
       if (JSON.stringify(next) !== JSON.stringify(mine)) {
         await save("exercises", next);
         n++;
@@ -72,8 +86,6 @@ export async function seedLibrary(force = false): Promise<number> {
   n += await seedTemplates(all);
   n += await seedFocuses(all);
   n += await seedTestLibrary();
-  n += await seedDemoClient(all);
-  n += await seedModuleDemos();
   await db.meta.put({ key: "seedVersion", value: SEED_VERSION });
   if (n) changed();
   return n;
@@ -142,8 +154,10 @@ async function seedTestLibrary(): Promise<number> {
   for (const t of seedTests()) {
     const cur = await db.tests.get(t.id);
     if (cur) {
-      // already here (or deleted on purpose): only give the sprints their distance and fill in a missing error
+      // already here (or deleted on purpose): only give the sprints their distance, the muscles, and fill in a missing error
       if (t.distanceM && cur.distanceM == null && !cur.deleted) await save("tests", { ...cur, distanceM: t.distanceM });
+      const now = (await db.tests.get(t.id)) as TestDef;
+      if (t.muscles?.length && !now.muscles?.length && !now.deleted) await save("tests", { ...now, muscles: t.muscles });
       const measured = withMeasurementError((await db.tests.get(t.id)) as TestDef, t);
       if (measured) await save("tests", measured);
       continue;
@@ -154,51 +168,3 @@ async function seedTestLibrary(): Promise<number> {
   return n;
 }
 
-/** The four made-up clients of Força e Equilíbrio. Erased ones stay erased; edited ones keep the edits. */
-async function seedModuleDemos(): Promise<number> {
-  let n = 0;
-  for (const { client, screening, assessment } of moduleDemos(seedTests())) {
-    const cur = await db.clients.get(client.id);
-    if (cur?.deleted) continue;
-    if (!cur || cur.updatedAt === 1) await db.clients.put({ ...client, dirty: 1 });
-    const s = await db.screenings.get(screening.id);
-    if (!s || s.updatedAt === 1) await db.screenings.put({ ...screening, dirty: 1 });
-    const a = await db.assessments.get(assessment.id);
-    if (!a || a.updatedAt === 1) await db.assessments.put({ ...assessment, dirty: 1 });
-    if (!cur) n++;
-  }
-  return n;
-}
-
-/**
- * The made-up client with a long history. Once erased it stays erased: its
- * tombstone is still here. Records nobody edited (updatedAt 1) get newer data,
- * and the rest only what they lack, so what the coach changed stays.
- */
-async function seedDemoClient(library: Exercise[]): Promise<number> {
-  const cur = await db.clients.get(DEMO_CLIENT_ID);
-  if (cur?.deleted) return 0;
-  const { client, assessments, sessions, goals, screenings } = demoData(seedTests(), library);
-  for (const s of sessions) {
-    const old = await db.sessions.get(s.id);
-    if (!old || old.updatedAt === 1) await db.sessions.put({ ...s, dirty: 1 });
-  }
-  for (const a of assessments) {
-    const old = await db.assessments.get(a.id);
-    if (!old || old.updatedAt === 1) await db.assessments.put({ ...a, dirty: 1 });
-  }
-  for (const g of goals) {
-    const old = await db.goals.get(g.id);
-    if (!old) await db.goals.put({ ...g, dirty: 1 });
-    else if (!old.deleted && JSON.stringify(fillMissing(old, g)) !== JSON.stringify(old)) await save("goals", fillMissing(old, g));
-  }
-  for (const sc of screenings) {
-    const old = await db.screenings.get(sc.id);
-    if (!old || old.updatedAt === 1) await db.screenings.put({ ...sc, dirty: 1 });
-  }
-  if (!cur || cur.updatedAt === 1) await db.clients.put({ ...client, dirty: 1 });
-  else if (JSON.stringify(fillMissing(cur, client)) !== JSON.stringify(cur)) await save("clients", fillMissing(cur, client));
-  // made from less data: the Balanço works them out again
-  if (cur) for (const id of await db.snapshots.where("clientId").equals(DEMO_CLIENT_ID).primaryKeys()) await remove("snapshots", id);
-  return cur ? 0 : 1;
-}

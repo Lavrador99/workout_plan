@@ -1,6 +1,6 @@
 # Fase 7 — Onboarding da avaliação inicial e módulo Força e Equilíbrio
 
-Desenho técnico para a app `coach-web`. Estado: implementada e por publicar (ver §10, o que mudou na implementação). Substitui a triagem ACSM da Fase 5. As baterias de Hyrox, ATHX e jovens passam para a [Fase 8](fase-8-baterias.md).
+Desenho técnico para a app `coach-web`. Estado: implementada e por publicar (ver §10, o que mudou na implementação). Substitui a triagem ACSM da Fase 5. As baterias de Hyrox, ATHX e jovens passam para a [Fase 9](fase-9-baterias.md).
 
 Fontes do conteúdo, todas do treinador:
 - Ficha 1 — Dados Pessoais e Gerais (Claude Docs);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { focusSide, groupByPeriod, inferMuscles, inferPatterns, musclesOf, patternsOf, tally, weekStart } from "./movement";
+import { antagonistOf, groupByPeriod, inferMuscles, inferPatterns, musclesOf, patternsOf, sideFromName, tally, weekStart } from "./movement";
 import { seedExercises, seedProfiles } from "./seed";
 import type { Block, Exercise, Item, Session } from "@treino/core/types";
 
@@ -77,15 +77,14 @@ describe("tally", () => {
     expect(t.patterns.has("puxar vertical")).toBe(false);
   });
 
-  it("counts grips, stances, extra left and circuit rounds", () => {
+  it("counts extra left and circuit rounds", () => {
     const s = session("a", "2026-10-26", [
       block([item("Pull-up", [{}, {}], { grip: "supinada" }), item("Back Squat", [{}], { stance: "largura dos ombros", extraLeft: 1 })]),
       block([item("Copenhagen Plank", [])], { kind: "circuit", rounds: 3 }),
     ]);
     const t = tally([s], lib, []);
-    expect(t.grips.get("supinada")).toBe(2);
     // the extra set on the left is a set too
-    expect(t.stances.get("largura dos ombros")).toBe(2);
+    expect(t.patterns.get("agachamento")).toBe(2);
     expect(t.extra.left.sets).toBe(1);
     expect(t.extra.right.sets).toBe(0);
     expect(t.patterns.get("adução da anca")).toBe(3);
@@ -96,7 +95,8 @@ describe("tally", () => {
     expect(futebol.exerciseIds).toEqual(["Copenhagen Plank"]);
     const s = session("a", "2026-10-26", [block([item("Copenhagen Plank", [{}]), item("Back Squat", [{}]), item("Pull-up", [{}])])]);
     const hit = tally([s], lib, [{ ...futebol, muscles: ["squat"] }]).focus.get(futebol.id);
-    expect(hit?.sets).toBe(2);
+    // the key exercise counts whole; a muscle found only in the name, as secondary
+    expect(hit?.sets).toBe(1.5);
     expect([...(hit?.exercises ?? [])]).toEqual(["Copenhagen Plank", "Back Squat"]);
   });
 
@@ -105,22 +105,39 @@ describe("tally", () => {
       block([item("Back Squat", [{ done: true }, { done: true }, { done: true }], { extraRight: 1 }), item("Back Squat", [{ done: true }], { extraLeft: 2 }), item("Pull-up", [{}], { extraRight: 1 })]),
     ]);
     const base = { id: "f", updatedAt: 0, kind: "asymmetry" as const, patterns: [], muscles: ["squat"], exerciseIds: [], notes: "" };
-    const t = tally([s], lib, [{ ...base, name: "Glúteo direito" }]);
+    const t = tally([s], lib, [{ ...base, name: "Glúteo direito", side: "right" }]);
     // the pull-up was not done, so its extra set does not count either
     expect(t.extra.right.sets).toBe(1);
     expect(t.extra.left.sets).toBe(2);
     expect([...t.extra.right.exercises]).toEqual([["Back Squat", 1]]);
     expect(t.sets).toBe(7);
-    expect(t.focus.get("f")).toMatchObject({ sets: 7, extra: 1 });
+    expect(t.focus.get("f")).toMatchObject({ sets: 3.5, extra: 1 }); // found only in the name: half
   });
 
-  it("reads a focus's side from the name unless it is set", () => {
-    const f = { id: "f", updatedAt: 0, kind: "asymmetry" as const, patterns: [], muscles: [], exerciseIds: [], notes: "" };
-    expect(focusSide({ ...f, name: "Isquiotibial direito" })).toBe("right");
-    expect(focusSide({ ...f, name: "Ombro esquerdo" })).toBe("left");
-    expect(focusSide({ ...f, name: "Glúteo médio" })).toBeNull();
-    expect(focusSide({ ...f, name: "Glúteo direito", side: null })).toBeNull();
-    expect(focusSide({ ...f, name: "Joelho", side: "left" })).toBe("left");
+  it("reads an older focus's side from the name", () => {
+    expect(sideFromName("Isquiotibial direito")).toBe("right");
+    expect(sideFromName("Ombro esquerdo")).toBe("left");
+    expect(sideFromName("Glúteo médio")).toBeNull();
+  });
+
+  it("finds the antagonists both ways, and the other side for the obliques", () => {
+    expect(antagonistOf(["glúteo médio"])).toEqual({ muscles: ["adutores"], crossed: false });
+    expect(antagonistOf(["adutores"])).toEqual({ muscles: ["glúteo médio", "glúteo mínimo"], crossed: false });
+    expect(antagonistOf(["grande dorsal"])?.muscles).toEqual(["peitoral maior", "deltoides"]);
+    expect(antagonistOf(["oblíquo externo"])).toEqual({ muscles: ["oblíquo externo"], crossed: true });
+    expect(antagonistOf(["trapézio"])).toBeNull();
+  });
+
+  it("counts an asymmetry's sets per side against the antagonist", () => {
+    const abd: Exercise = { id: "abd", updatedAt: 0, name: "Abdução", aliases: [], tags: [], patterns: ["abdução da anca"], primaryPattern: "abdução da anca", muscles: ["glúteo médio"], primaryMuscles: ["glúteo médio"] };
+    const add: Exercise = { id: "add", updatedAt: 0, name: "Adução", aliases: [], tags: [], patterns: ["adução da anca"], primaryPattern: "adução da anca", muscles: ["adutores", "glúteo médio"], primaryMuscles: ["adutores"] };
+    const mine = new Map([abd, add].map((e) => [e.id, e]));
+    const s = session("a", "2026-10-26", [block([item("abd", [{ done: true }, { done: true }, { done: true, side: "left" } as { done: boolean }]), item("add", [{ done: true }, { done: true }])])]);
+    const f = { id: "f", updatedAt: 0, kind: "asymmetry" as const, name: "Glúteo médio", side: "left" as const, patterns: [], muscles: ["glúteo médio"], exerciseIds: [], notes: "" };
+    const hit = tally([s], mine, [f]).focus.get("f");
+    // the abduction counts whole (main muscle) and its extra set only on the left; the adduction counts half (secondary)
+    expect(hit?.own).toEqual({ left: 4, right: 3 });
+    expect(hit?.antagonist).toEqual({ left: 2, right: 2 });
   });
 });
 

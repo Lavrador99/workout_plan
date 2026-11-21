@@ -351,21 +351,18 @@ export function Result(ctx: ModuleCtx) {
           <Info key={n}>{n}</Info>
         ))}
       </Section>
-      <Section title="Para o relatório">
-        {suggested.length > 0 && (
-          <Info>
-            Sugestão: {suggested.map((x) => x.client).join(", ")}.{" "}
-            <button type="button" className="text-accent" onClick={() => setReport({ priorities: suggested.map((x) => x.plan) })}>
-              Usar como prioridades
-            </button>
-          </Info>
-        )}
-        {[0, 1, 2].map((i) => (
-          <Text key={i} label={`Prioridade ${i + 1}`} value={report.priorities[i] ?? ""} onChange={(v) => setReport({ priorities: [0, 1, 2].map((j) => (j === i ? v : (report.priorities[j] ?? ""))) })} />
-        ))}
-        <Text label="Mensagem para o cliente (ligada ao que quer voltar a fazer)" area placeholder={str(data(a, "wants")) ? `Ex.: Vamos trabalhar para ${str(data(a, "wants")).toLowerCase()}.` : ""} value={report.message} onChange={(message) => setReport({ message })} />
-        <button type="button" className="btn-accent self-start" onClick={() => go("report", a.id)}>
-          Ver relatório <ChevronRight />
+      <Section title="Relatório">
+        {suggested.length > 0 && <Info>Prioridades sugeridas: {suggested.map((x) => x.client).join(", ")}.</Info>}
+        <button
+          type="button"
+          className="btn-accent self-start"
+          onClick={() => {
+            // the suggestions go in only when the report has no priorities yet
+            if (!report.priorities.some((p) => p.trim()) && suggested.length) setReport({ priorities: suggested.map((x) => x.plan) });
+            go("report", a.id);
+          }}
+        >
+          Escrever relatório <ChevronRight />
         </button>
       </Section>
     </>

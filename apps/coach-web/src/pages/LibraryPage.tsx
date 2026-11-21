@@ -1,16 +1,17 @@
 import { Check, ChevronRight, Play, Star, TriangleAlert, X } from "lucide-react";
 import { ask, askText } from "../components/Dialogs";
 import { toast } from "../components/Toast";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { matchExercise, mergeExercises, remove, save, templateBlocks } from "../lib/db";
 import { findDuplicates, type DuplicatePair } from "../lib/duplicates";
-import { downloadText, exercisesCsv } from "../lib/exportExercises";
+import { downloadText, exercisesCsv, looksEnglish } from "../lib/exportExercises";
+import { planImport } from "../lib/importExercises";
 import { fmtBlock } from "@treino/core/format";
 import { go, replaceRoute, useExerciseIndex, useExercises, useTemplates, useUsage, useViewState } from "../lib/hooks";
-import { inferMuscles, inferPatterns, missingInfo, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf } from "../lib/movement";
+import { MAX_PRIMARY_MUSCLES, missingInfo, type ReviewReason, MUSCLE_CHIP_GROUPS, MUSCLES, musclesOf, PATTERN_GROUPS, PATTERNS, patternsOf, primaryMusclesOf, primaryPatternOf } from "../lib/movement";
 import { seedLibrary } from "../lib/seed";
 import { todayISO, uid } from "@treino/core/text";
-import { ChipGroups } from "../components/Chips";
+import Chips, { ChipGroups, ChipPick } from "../components/Chips";
 import PageHeader from "../components/PageHeader";
 import { FamilySection, ProgressionsView } from "../components/Progressions";
 import Seg from "../components/Seg";
@@ -27,9 +28,15 @@ const VIEWS = [
   ["templates", "Templates"],
 ] as const;
 type View = (typeof VIEWS)[number][0];
-type Filter = "all" | "review" | "dups";
+type Filter = "all" | "review" | "english" | "dups";
 
-const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+const REVIEW_TEXT: Record<ReviewReason, string> = {
+  "padrão": "sem padrão",
+  "músculos": "sem músculos",
+  "confirmação": "sugeridos, por confirmar",
+  "principais": "mais de 3 músculos: escolhe os principais",
+};
+
 
 /** Exercises shown at first: the search is the fast way in, the list a fallback. */
 const PAGE = 50;
@@ -52,6 +59,10 @@ export default function LibraryPage({ view: routeView }: { view?: string }) {
   );
 }
 
+/** The guessed patterns and muscles, kept as they are: the exercise leaves "Por rever". */
+const confirmGuess = (ex: Exercise) =>
+  save("exercises", { ...ex, patterns: patternsOf(ex), primaryPattern: primaryPatternOf(ex), muscles: musclesOf(ex), primaryMuscles: primaryMusclesOf(ex) });
+
 function ExercisesView({ exercises }: { exercises: Exercise[] }) {
   const usage = useUsage();
   const index = useExerciseIndex();
@@ -67,8 +78,9 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
 
   const list = useMemo(() => {
     const found = q.trim() ? index.search(q, tag || filter === "review" ? 300 : 50) : exercises;
-    return found.filter((e) => (!tag || e.tags.includes(tag)) && (filter !== "review" || missing.has(e.id)));
+    return found.filter((e) => (!tag || e.tags.includes(tag)) && (filter !== "review" || missing.has(e.id)) && (filter !== "english" || looksEnglish(e.name)));
   }, [q, tag, filter, index, exercises, missing]);
+  const english = useMemo(() => exercises.filter((e) => looksEnglish(e.name)).length, [exercises]);
   const exact = q.trim() ? matchExercise(exercises, q) : undefined;
   const open = exercises.find((e) => e.id === editing);
 
@@ -77,6 +89,17 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
     setQ("");
     setFilter("all");
     setEditing(ex.id);
+  };
+  const csvInput = useRef<HTMLInputElement>(null);
+  /** Shows what would change before saving anything. */
+  const importCsv = async (file: File | undefined) => {
+    if (!file) return;
+    const plan = planImport(exercises, await file.text());
+    if (!plan.changes.length) return toast(plan.notFound ? `Nenhum exercício encontrado pelo id (${plan.notFound} linhas).` : "Nada a mudar: o ficheiro diz o mesmo que a biblioteca.");
+    const extra = [plan.notFound ? `${plan.notFound} linhas sem exercício` : "", plan.unknown.length ? `fora do catálogo, ignorados: ${plan.unknown.join(", ")}` : ""].filter(Boolean).join(" · ");
+    if (!(await ask(`Atualizar ${plan.changes.length} exercícios (nomes, sinónimos, padrões e músculos)? Nada é apagado.${extra ? ` ${extra}.` : ""}`))) return;
+    for (const ex of plan.changes) await save("exercises", ex);
+    toast(`${plan.changes.length} exercícios atualizados.`);
   };
   const restore = async () => {
     const n = await seedLibrary(true);
@@ -96,12 +119,17 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
         )}
       </div>
 
+      <input ref={csvInput} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => {
+        void importCsv(e.target.files?.[0]);
+        e.target.value = "";
+      }} />
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
           <Seg
             options={[
               ["all", "Todos"],
               ["review", `Por rever · ${missing.size}`],
+              ["english", `Sem português · ${english}`],
               ["dups", `Duplicados · ${dups.length}`],
             ]}
             value={filter}
@@ -113,6 +141,7 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
           items={[
             { label: "☑ Selecionar para juntar", onClick: () => setSelected([]) },
             { label: "⤓ Exportar para folha de cálculo (CSV)", onClick: () => downloadText(exercisesCsv(exercises, usage), `exercicios-${todayISO()}.csv`, "text/csv") },
+            { label: "⤒ Importar CSV (nomes e classificação)", onClick: () => csvInput.current?.click() },
             { label: "↻ Repor exercícios e templates base", onClick: () => void restore() },
           ]}
         />
@@ -132,7 +161,8 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
               </button>
             ))}
           </div>
-          {filter === "review" && <p className="text-xs text-muted">Sem padrão de movimento ou sem músculos não contam bem nas contagens. Toca para completar.</p>}
+          {filter === "review" && <p className="text-xs text-muted">Padrões e músculos sugeridos contam como estão, mas só ficam certos depois de confirmados. Toca para rever, ou confirma como estão.</p>}
+          {filter === "english" && <p className="text-xs text-muted">Nomes que parecem estar em inglês. Exporta o CSV para os traduzir de uma vez, ou toca para mudar o nome.</p>}
           {selected && (
             <div className="flex items-center gap-2">
               <span className="text-sm flex-1">{selected.length ? `${selected.length} selecionados` : "Toca nos exercícios a juntar num só"}</span>
@@ -148,17 +178,22 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
               {list.slice(0, shown).map((ex) => {
                 const miss = missing.get(ex.id);
                 return (
-                  <li key={ex.id}>
-                    <button type="button" className="row py-3" onClick={() => (selected ? toggle(ex.id) : setEditing(ex.id))}>
+                  <li key={ex.id} className="flex items-center">
+                    <button type="button" className="row py-3 flex-1 min-w-0" onClick={() => (selected ? toggle(ex.id) : setEditing(ex.id))}>
                       {selected && <span className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center text-xs ${selected.includes(ex.id) ? "bg-accent border-accent text-on-accent" : "border-border"}`}>{selected.includes(ex.id) && "✓"}</span>}
                       <span className="flex-1 min-w-0">
                         <span className="font-medium">{ex.name}</span>
-                        <span className="block text-xs text-muted truncate">{[ex.pt, ...ex.aliases].filter(Boolean).join(" · ")}</span>
-                        {miss && <span className="block text-xs text-warn"><TriangleAlert /> sem {miss.join(" nem ")}</span>}
+                        <span className="block text-xs text-muted truncate">{ex.aliases.join(" · ")}</span>
+                        {miss && <span className="block text-xs text-warn"><TriangleAlert /> {miss.map((r) => REVIEW_TEXT[r]).join(" · ")}</span>}
                       </span>
                       <span className="text-xs text-muted">{levelDots(ex)}</span>
                       <span className="text-xs text-muted tabular-nums">{usage.get(ex.id) ?? 0}×</span>
                     </button>
+                    {miss?.length === 1 && miss[0] === "confirmação" && !selected && (
+                      <button type="button" className="btn-ghost text-accent text-sm px-3" onClick={() => void confirmGuess(ex)}>
+                        Confirmar
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -180,7 +215,7 @@ function ExercisesView({ exercises }: { exercises: Exercise[] }) {
       )}
 
       {open && (
-        <Sheet title={open.name} subtitle={open.pt} tall persistent onClose={() => setEditing(null)}>
+        <Sheet title={open.name} subtitle={open.aliases.join(" · ")} tall persistent onClose={() => setEditing(null)}>
           <Editor key={open.id} ex={open} all={exercises} onClose={() => setEditing(null)} onOpen={setEditing} />
         </Sheet>
       )}
@@ -202,7 +237,7 @@ function TemplatesView() {
   );
 }
 
-const subtitle = (e: Exercise) => [e.pt, ...e.aliases].filter(Boolean).join(" · ");
+const subtitle = (e: Exercise) => e.aliases.join(" · ");
 
 /** Pick which of the selected exercises stays; the others become its synonyms. */
 function MergeBar({ list, usage, onDone }: { list: Exercise[]; usage: Map<string, number>; onDone: () => void }) {
@@ -297,28 +332,39 @@ function TemplateList({ list }: { list: Template[] }) {
 
 function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; onClose: () => void; onOpen: (id: string) => void }) {
   const [name, setName] = useState(ex.name);
-  const [pt, setPt] = useState(ex.pt ?? "");
   const [aliases, setAliases] = useState(ex.aliases.join(", "));
   const [tags, setTags] = useState(ex.tags.join(", "));
   const [demo, setDemo] = useState(ex.demoUrl ?? "");
   const [patterns, setPatterns] = useState(() => patternsOf(ex));
   const [muscles, setMuscles] = useState(() => musclesOf(ex));
+  const [mainPattern, setMainPattern] = useState(() => primaryPatternOf(ex) ?? null);
+  const [mainMuscles, setMainMuscles] = useState(() => primaryMusclesOf(ex));
   const [mergeQ, setMergeQ] = useState("");
   const [tab, setTab] = useState<"info" | "patterns" | "muscles" | "levels" | "more">("info");
   const split = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
   const others = useMemo(() => {
     const n = mergeQ.trim().toLowerCase();
-    return n ? all.filter((e) => e.id !== ex.id && (e.name.toLowerCase().includes(n) || e.pt?.toLowerCase().includes(n) || e.aliases.some((a) => a.toLowerCase().includes(n)))).slice(0, 6) : [];
+    return n ? all.filter((e) => e.id !== ex.id && (e.name.toLowerCase().includes(n) || e.aliases.some((a) => a.toLowerCase().includes(n)))).slice(0, 6) : [];
   }, [mergeQ, all, ex.id]);
 
+  /** Saving here confirms the patterns and muscles, guessed or not: the exercise leaves "Por rever". */
   const submit = async () => {
-    const next = { ...ex, name: name.trim() || ex.name, pt: pt.trim() || undefined, aliases: split(aliases), tags: split(tags), demoUrl: demo.trim() || undefined };
-    // keep guessing while the coach agrees with the guess, so better rules still reach it
-    const p = sameSet(inferPatterns(next), patterns) ? undefined : PATTERNS.filter((x) => patterns.includes(x));
-    const withP = { ...next, patterns: p };
-    const m = sameSet(inferMuscles(withP), muscles) ? undefined : MUSCLES.filter((x) => muscles.includes(x));
-    await save("exercises", { ...withP, muscles: m });
+    const p = PATTERNS.filter((x) => patterns.includes(x));
+    const m = MUSCLES.filter((x) => muscles.includes(x));
+    const main = mainMuscles.filter((x) => m.includes(x)).slice(0, MAX_PRIMARY_MUSCLES);
+    await save("exercises", {
+      ...ex,
+      name: name.trim() || ex.name,
+      pt: undefined,
+      aliases: split(aliases),
+      tags: split(tags),
+      demoUrl: demo.trim() || undefined,
+      patterns: p,
+      primaryPattern: mainPattern && p.includes(mainPattern) ? mainPattern : p[0],
+      muscles: m,
+      primaryMuscles: main.length ? main : m.slice(0, MAX_PRIMARY_MUSCLES),
+    });
     onClose();
   };
 
@@ -343,13 +389,10 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
 
       {tab === "info" && (
         <>
-          <Labelled label="Nome">
+          <Labelled label="Nome (português)">
             <input className="input font-semibold" value={name} onChange={(e) => setName(e.target.value)} />
           </Labelled>
-          <Labelled label="Nome em português">
-            <input className="input" value={pt} onChange={(e) => setPt(e.target.value)} />
-          </Labelled>
-          <Labelled label="Sinónimos">
+          <Labelled label="Sinónimos (inglês e outros)">
             <input className="input" value={aliases} placeholder="Separados por vírgula" onChange={(e) => setAliases(e.target.value)} />
           </Labelled>
           <Labelled label="Etiquetas">
@@ -368,6 +411,12 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
         <>
           <span className={`label ${patterns.length ? "" : "text-warn"}`}>{!patterns.length ? "Escolhe pelo menos um" : ex.patterns ? "Padrões de movimento" : "Sugeridos pelo nome"}</span>
           <ChipGroups groups={PATTERN_GROUPS} value={patterns} onChange={setPatterns} />
+          {patterns.length > 1 && (
+            <div className="flex flex-col gap-1 border-t border-border pt-3">
+              <span className="label">Principal (conta 1; os outros 0,5)</span>
+              <ChipPick options={PATTERNS.filter((x) => patterns.includes(x))} value={mainPattern ?? undefined} onChange={(v) => setMainPattern(v ?? null)} />
+            </div>
+          )}
         </>
       )}
 
@@ -375,6 +424,12 @@ function Editor({ ex, all, onClose, onOpen }: { ex: Exercise; all: Exercise[]; o
         <>
           <span className={`label ${muscles.length ? "" : "text-warn"}`}>{!muscles.length ? "Escolhe pelo menos um" : ex.muscles ? "Músculos" : "Sugeridos"}</span>
           <ChipGroups groups={MUSCLE_CHIP_GROUPS} value={muscles} onChange={setMuscles} />
+          {muscles.length > 1 && (
+            <div className="flex flex-col gap-1 border-t border-border pt-3">
+              <span className="label">Principais, até {MAX_PRIMARY_MUSCLES} (contam 1; os outros 0,5)</span>
+              <Chips options={MUSCLES.filter((x) => muscles.includes(x))} value={mainMuscles.filter((x) => muscles.includes(x))} onChange={(v) => setMainMuscles(v.slice(-MAX_PRIMARY_MUSCLES))} />
+            </div>
+          )}
         </>
       )}
 

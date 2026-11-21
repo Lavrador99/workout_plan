@@ -191,3 +191,18 @@ export function nextScreening(last: Screening, id: string, today: string): Scree
   const { deleted: _deleted, dirty: _dirty, ...answers } = last;
   return { ...answers, id, updatedAt: 0, date: today, decision: null, restrictions: "", clearanceRequested: "", referredTo: "", checklist: [] };
 }
+
+/** The injuries still there in the latest intake (active or recovering). */
+export function activeInjuries(latest: Pick<Screening, "injuries"> | undefined): Screening["injuries"] {
+  return (latest?.injuries ?? []).filter((i) => i.status !== "recovered" && (i.region || i.aggravates));
+}
+
+const SIDE_WORD = { left: "esq.", right: "dir.", both: "ambos" } as const;
+
+/** "Joelho esq., Lombar" — short, for warnings and lists. */
+export function injuryText(latest: Pick<Screening, "injuries"> | undefined): string {
+  return activeInjuries(latest)
+    .map((i) => (i.region === "Outra" || !i.region ? i.aggravates : `${i.region}${i.side ? ` ${SIDE_WORD[i.side]}` : ""}`))
+    .filter(Boolean)
+    .join(", ");
+}

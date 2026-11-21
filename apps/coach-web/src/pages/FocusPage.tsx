@@ -9,7 +9,7 @@ import Sheet, { SheetFooter } from "../components/Sheet";
 import Tabs from "../components/Tabs";
 import { matchExercise, newFocus, remove, save } from "../lib/db";
 import { go, useClients, useExercises, useFocuses, useViewState } from "../lib/hooks";
-import { canonMuscles, canonPatterns, FOCUS_KINDS, focusSide, PATTERN_GROUPS } from "../lib/movement";
+import { antagonistOf, canonMuscles, canonPatterns, FOCUS_KINDS, focusSide, MUSCLE_CHIP_GROUPS, PATTERN_GROUPS } from "../lib/movement";
 import { parseItemLine } from "../lib/parser";
 import type { Client, Exercise, Focus, FocusKind } from "@treino/core/types";
 
@@ -22,7 +22,7 @@ const PLACEHOLDER: Record<FocusKind, string> = {
 const HINT: Record<FocusKind, string> = {
   sport: "Os padrões, músculos e exercícios mais recrutados e importantes na modalidade.",
   pathology: "Os padrões, músculos e exercícios mais importantes para a resolver.",
-  asymmetry: "Os padrões, músculos e exercícios para a corrigir (usa Extra esq. nos exercícios unilaterais).",
+  asymmetry: "Os músculos e o lado mais fraco; as Contagens comparam-nos com os antagonistas e mostram as séries extra desse lado (E+1 / D+1).",
 };
 
 /** The coach's sports, pathologies and asymmetries, which clients are linked to in their file. */
@@ -83,7 +83,9 @@ export default function FocusPage() {
 }
 
 function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercises: Exercise[]; clients: Client[]; onClose: () => void }) {
-  const [f, setF] = useState(() => ({ ...focus, patterns: canonPatterns(focus.patterns) }));
+  const [f, setF] = useState(() => ({ ...focus, patterns: canonPatterns(focus.patterns), muscles: focus.kind === "asymmetry" ? canonMuscles(focus.muscles) : focus.muscles }));
+  const asym = f.kind === "asymmetry";
+  const anta = asym ? antagonistOf(f.muscles) : null;
   const [muscles, setMuscles] = useState(canonMuscles(focus.muscles).join(", "));
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const label = FOCUS_KINDS.find(([k]) => k === f.kind)?.[2] ?? "";
@@ -95,7 +97,7 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
   };
 
   const submit = async () => {
-    const m = muscles.split(",").map((x) => x.trim()).filter(Boolean);
+    const m = asym ? f.muscles : muscles.split(",").map((x) => x.trim()).filter(Boolean);
     await save("focuses", { ...f, name: f.name.trim() || focus.name, muscles: m });
     onClose();
   };
@@ -107,20 +109,25 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
         <span className="label">Padrões de movimento</span>
         <ChipGroups groups={PATTERN_GROUPS} value={f.patterns} onChange={(patterns) => setF({ ...f, patterns })} />
       </div>
-      <label className="flex flex-col gap-1">
-        <span className="label">Músculos (separados por vírgula)</span>
-        <input className="input" value={muscles} placeholder="isquiotibiais, adutores, glúteo médio" onChange={(e) => setMuscles(e.target.value)} />
-        <span className="text-xs text-muted">Contam os exercícios com estes músculos nas etiquetas ou no nome.</span>
-      </label>
-      <div className="flex flex-col gap-1">
-        <span className="label">Lado</span>
-        <Seg
-          options={[["both", "Ambos"], ["left", "Esquerdo"], ["right", "Direito"]]}
-          value={focusSide(f) ?? "both"}
-          onChange={(v) => setF({ ...f, side: v === "both" ? null : (v as "left" | "right") })}
-        />
-        <span className="text-xs text-muted">Num desequilíbrio, as Contagens mostram as séries extra feitas deste lado (E+1 / D+1).</span>
-      </div>
+      {asym ? (
+        <>
+          <div className="flex flex-col gap-1">
+            <span className="label">Músculos</span>
+            <ChipGroups groups={MUSCLE_CHIP_GROUPS} value={f.muscles} onChange={(m) => setF({ ...f, muscles: m })} />
+            <span className="text-xs text-muted">{anta ? `Antagonista: ${anta.crossed ? "o mesmo músculo do outro lado" : anta.muscles.join(", ")}.` : "Estes músculos não têm antagonista na lista; as Contagens mostram só as séries por lado."}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="label">Lado mais fraco</span>
+            <Seg options={[["left", "Esquerdo"], ["right", "Direito"]]} value={focusSide(f) ?? ""} onChange={(v) => setF({ ...f, side: v as "left" | "right" })} />
+          </div>
+        </>
+      ) : (
+        <label className="flex flex-col gap-1">
+          <span className="label">Músculos (separados por vírgula)</span>
+          <input className="input" value={muscles} placeholder="isquiotibiais, adutores, glúteo médio" onChange={(e) => setMuscles(e.target.value)} />
+          <span className="text-xs text-muted">Contam os exercícios com estes músculos nas etiquetas ou no nome.</span>
+        </label>
+      )}
       <div className="flex flex-col gap-1">
         <span className="label">Exercícios-chave</span>
         {f.exerciseIds.length > 0 && (
@@ -149,7 +156,7 @@ function Editor({ focus, exercises, clients, onClose }: { focus: Focus; exercise
         </div>
       )}
       <SheetFooter>
-        <button type="button" className="btn-accent flex-1" onClick={submit}>
+        <button type="button" className="btn-accent flex-1" onClick={submit} disabled={asym && (!f.muscles.length || !focusSide(f))}>
           Guardar
         </button>
         <button

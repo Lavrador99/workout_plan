@@ -1,8 +1,8 @@
 import { newResult } from "./assessment";
 import { matchExercise, newScreening } from "./db";
 import { parseItemLine } from "./parser";
-import { PRIMARY_GOALS, testGoal } from "./progress";
-import type { Activity, Assessment, AssessmentReport, Block, Client, Exercise, Goal, Item, RunZone, Screening, Session, SetRow, TestDef, TestResult, Trial, Weights } from "@treino/core/types";
+import { testGoal } from "./progress";
+import type { Activity, Assessment, AssessmentReport, Block, Client, Exercise, Goal, Item, RunZone, Screening, Session, SetRow, TestDef, TestResult, Trial } from "@treino/core/types";
 
 // A made-up client called "Teste", to see the assessments with real-looking
 // history: 14 months of a footballer who sprains the left ankle in March 2026,
@@ -213,9 +213,6 @@ function otherSessions(library: Exercise[]): Session[] {
   return out;
 }
 
-const PRESET = PRIMARY_GOALS.find((g) => g.id === "desporto")!.weights;
-const OWN_WEIGHTS: Weights = { geral: 25, forca: 25, mobilidade: 20, composicao: 5, cardio: 20, adesao: 5 };
-const timeOf = (iso: string) => Date.parse(`${iso}T09:00:00Z`);
 
 function goals(): Goal[] {
   const test = (testId: string, target: number, over: Partial<Goal> = {}): Goal => ({ ...testGoal(DEMO_CLIENT_ID, testId, target), updatedAt: 1, importance: 1, ...over });
@@ -288,7 +285,7 @@ export function demoData(tests: TestDef[], library: Exercise[]): { client: Clien
     birthYear: 2001,
     hrMax: 192,
     hrRest: 54,
-    injuries: "Entorse do tornozelo esquerdo (março de 2026)",
+    injuries: "",
     notes: "Atleta fictício, com dados inventados para demonstração.",
     focusIds: ["seed-focus-futebol"],
     heightCm: 178,
@@ -307,12 +304,6 @@ export function demoData(tests: TestDef[], library: Exercise[]): { client: Clien
     ],
     adherenceSkips: ["cardio", "avaliacao"],
     goals: ["Performance", "Força"],
-    primaryGoal: "desporto",
-    weights: OWN_WEIGHTS,
-    weightLog: [
-      { at: timeOf(VISITS[0][0]), primaryGoal: "desporto", weights: PRESET, custom: false },
-      { at: timeOf(VISITS[3][0]), primaryGoal: "desporto", weights: OWN_WEIGHTS, custom: true },
-    ],
     clientNumber: 1,
     consents: { given: { data_health: VISITS[0][0] }, professionals: "", signature: null, guardianSignature: null, signedAt: VISITS[0][0] },
     moduleIds: ["sports_performance"],

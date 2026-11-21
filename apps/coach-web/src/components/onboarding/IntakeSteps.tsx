@@ -1,10 +1,12 @@
 import { TriangleAlert, X } from "lucide-react";
+import ConditionsFields from "../ConditionsFields";
 import SignaturePad from "../SignaturePad";
 import { Checks, Info, Multi, Num, Pick, Section, Text, YesNo } from "./fields";
 import { finalValue, newResult } from "../../lib/assessment";
 import { emptyConsents } from "../../lib/db";
-import { MODULE_NAMES, activeModules, reassessWeeks, strengthBalanceReasons, suggestedModules } from "../../lib/modules";
+import { MODULES, MODULE_NAMES, activeModules, reassessWeeks, strengthBalanceReasons, suggestedModules } from "../../lib/modules";
 import { addWeeks } from "../../lib/report";
+import { changeSchedule, currentDays, WEEKDAYS } from "../../lib/balance";
 import {
   BARRIERS,
   CONSENTS,
@@ -28,7 +30,10 @@ import {
   suggestedDecision,
 } from "../../lib/screening";
 import { fmtDate, fmtNum, uid } from "@treino/core/text";
-import type { Assessment, AssessmentConditions, Client, ConsentKey, Injury, Screening, Side, TestDef, Vitals } from "@treino/core/types";
+import type { Assessment, Client, ConsentKey, Injury, Screening, Side, TestDef, Vitals } from "@treino/core/types";
+
+// Only the modules that already have their steps.
+const READY_MODULES = MODULE_NAMES.filter(([id]) => MODULES[id]);
 
 export interface IntakeCtx {
   client: Client;
@@ -59,11 +64,7 @@ const PARQ = [
   ["all_no", "Todas as respostas Não"],
   ["followup_done", "Alguma Sim → páginas de seguimento preenchidas"],
 ] as const;
-const BIA = ["Jejum de 3–4 h", "Bexiga vazia", "Sem exercício nas últimas 12 h", "Sem álcool nas últimas 24 h", "Sem objetos metálicos; pés limpos e secos", "Mesma balança e mesma hora da avaliação anterior"];
-const BIA_DEVICE = "Sem pacemaker nem dispositivo eletrónico implantado";
-const BIA_PREGNANCY = "Sem pacemaker nem dispositivo implantado; não está grávida";
 
-const EMPTY_CONDITIONS: AssessmentConditions = { startTime: "", place: "", surface: "", shoes: "", sleep: "", lastMeal: "", caffeine: "", lastHardSession: "", soreness: null, wellbeing: null, bia: [], notes: "" };
 
 /** The resting values taken in the anthropometry step. */
 export const restOf = (a: Assessment | null | undefined): Vitals | null => a?.vitals?.find((v) => v.moment === "rest") ?? null;
@@ -90,7 +91,7 @@ function useSimple(ctx: IntakeCtx) {
 export function Identification({ client: c, setClient, today }: IntakeCtx) {
   const age = ageOf(c, today);
   const minor = isMinor(c, today);
-  const guardian = c.guardian ?? { name: "", relation: "", phone: "", email: "", consentAt: null };
+  const guardian = c.guardian ?? { name: "", relation: "", phone: "", email: "" };
   const emergency = c.emergency ?? { name: "", relation: "", phone: "" };
   return (
     <>
@@ -199,27 +200,10 @@ export function Triage({ client: c, s, setS, intake }: IntakeCtx) {
 }
 
 export function Conditions({ client: c, intake, setIntake }: IntakeCtx) {
-  const cd = { ...EMPTY_CONDITIONS, ...intake?.conditionsData };
-  const set = (patch: Partial<AssessmentConditions>) => setIntake((a) => ({ conditionsData: { ...EMPTY_CONDITIONS, ...a.conditionsData, ...patch } }));
   return (
     <Section>
       <Info>Registar sempre: só assim a reavaliação é comparável com esta.</Info>
-      <div className="grid grid-cols-2 gap-2">
-        <Text label="Hora de início" type="time" value={cd.startTime} onChange={(startTime) => set({ startTime })} />
-        <Text label="Local" value={cd.place} onChange={(place) => set({ place })} />
-        <Text label="Superfície" value={cd.surface} onChange={(surface) => set({ surface })} />
-        <Text label="Calçado" value={cd.shoes} onChange={(shoes) => set({ shoes })} />
-      </div>
-      <Text label="Sono na noite anterior (horas, qualidade, acordou descansado?)" value={cd.sleep} onChange={(sleep) => set({ sleep })} />
-      <Text label="Última refeição (hora e o que comeu)" value={cd.lastMeal} onChange={(lastMeal) => set({ lastMeal })} />
-      <Text label="Cafeína nas últimas 3 h" value={cd.caffeine} onChange={(caffeine) => set({ caffeine })} />
-      <Text label="Último treino intenso (data e o que fez)" value={cd.lastHardSession} onChange={(lastHardSession) => set({ lastHardSession })} />
-      <div className="grid grid-cols-2 gap-2">
-        <Num label="Dores musculares hoje (0–10)" value={cd.soreness} onChange={(soreness) => set({ soreness })} />
-        <Num label="Estado geral hoje (1–10)" value={cd.wellbeing} onChange={(wellbeing) => set({ wellbeing })} />
-      </div>
-      <Checks label="Checklist antes da bioimpedância" options={[...BIA, c.sex === "male" ? BIA_DEVICE : BIA_PREGNANCY]} value={cd.bia} onChange={(bia) => set({ bia })} />
-      <Text label="Observações (condições que não se cumpriram e porquê)" area value={cd.notes} onChange={(notes) => set({ notes })} />
+      <ConditionsFields value={intake?.conditionsData} sex={c.sex} onChange={(conditionsData) => setIntake({ conditionsData })} />
     </Section>
   );
 }
@@ -228,7 +212,11 @@ export function Anthropometry(ctx: IntakeCtx) {
   const { client: c, intake, setIntake, setClient, today } = ctx;
   const simple = useSimple(ctx);
   const rest = restOf(intake) ?? { moment: "rest" as const, sys: null, dia: null, hr: null, feeling: null };
-  const setRest = (patch: Partial<Vitals>) => setIntake((a) => ({ vitals: [...(a.vitals ?? []).filter((v) => v.moment !== "rest"), { ...rest, ...patch }] }));
+  const setRest = (patch: Partial<Vitals>) => {
+    setIntake((a) => ({ vitals: [...(a.vitals ?? []).filter((v) => v.moment !== "rest"), { ...rest, ...patch }] }));
+    // the client's resting heart rate (running zones) is the one measured here
+    if ("hr" in patch) setClient({ hrRest: patch.hr ?? null });
+  };
   const height = simple.value("seed-test-altura");
   const weight = simple.value("seed-test-peso");
   const waist = simple.value("seed-test-cintura");
@@ -374,11 +362,11 @@ export function Lifestyle({ s, setS }: IntakeCtx) {
   );
 }
 
-export function Goals({ s, setS }: IntakeCtx) {
+export function Goals({ client: c, setClient, s, setS, today }: IntakeCtx) {
   return (
     <>
       <Section title="Objetivos">
-        <Text label="Objetivo principal (nas palavras do cliente)" area value={s.mainGoal} onChange={(mainGoal) => setS({ mainGoal })} />
+        <Text label="O que quer conseguir (nas palavras do cliente)" area value={s.mainGoal} onChange={(mainGoal) => setS({ mainGoal })} />
         <Text label="Porquê? (perguntar até 3 vezes e anotar cada resposta)" area value={s.why} onChange={(why) => setS({ why })} />
         <Text label="Objetivos secundários" value={s.secondaryGoals} onChange={(secondaryGoals) => setS({ secondaryGoals })} />
         <div className="grid grid-cols-2 gap-2">
@@ -389,7 +377,13 @@ export function Goals({ s, setS }: IntakeCtx) {
       </Section>
       <Section title="Logística">
         <Text label="Dias e horas disponíveis" value={s.availability} onChange={(availability) => setS({ availability })} />
-        <Num label="Sessões por semana pretendidas" value={s.sessionsPerWeek} onChange={(sessionsPerWeek) => setS({ sessionsPerWeek })} />
+        <Num label="Treinos por semana" value={c.weeklyFrequency} onChange={(weeklyFrequency) => setClient({ weeklyFrequency })} />
+        <Multi
+          label="Dias planeados"
+          options={WEEKDAYS.map((d, i) => [String(i), d] as const)}
+          value={currentDays(c, today).map(String)}
+          onChange={(v) => setClient(changeSchedule(c, v.map(Number).sort(), today))}
+        />
         <Text label="Local de treino (ginásio, casa, ar livre)" value={s.place} onChange={(place) => setS({ place })} />
         <Text label="Material disponível em casa" value={s.homeEquipment} onChange={(homeEquipment) => setS({ homeEquipment })} />
         <Text label="Orçamento mensal" value={s.budget} onChange={(budget) => setS({ budget })} />
@@ -402,14 +396,14 @@ export function Goals({ s, setS }: IntakeCtx) {
 
 const CONFIDENCE = Array.from({ length: 11 }, (_, i) => [i, String(i)] as const);
 
-export function Behaviour({ s, setS }: IntakeCtx) {
+export function Behaviour({ client: c, s, setS }: IntakeCtx) {
   return (
     <>
       <Section title="Fase de mudança">
         <Pick options={STAGES} value={s.stage} onChange={(stage) => setS({ stage })} />
       </Section>
       <Section title="Confiança e motivação">
-        <Pick label={`Quão confiante está em treinar ${s.sessionsPerWeek ?? "___"} vezes por semana durante 3 meses? (0–10)`} options={CONFIDENCE} value={s.confidence} onChange={(confidence) => setS({ confidence })} />
+        <Pick label={`Quão confiante está em treinar ${c.weeklyFrequency ?? "___"} vezes por semana durante 3 meses? (0–10)`} options={CONFIDENCE} value={s.confidence} onChange={(confidence) => setS({ confidence })} />
         {s.confidence != null && s.confidence < 7 && <Info tone="warn">Abaixo de 7: baixar a meta até a confiança chegar a 7.</Info>}
         <Text label="O que o trouxe aqui agora?" value={s.reason} onChange={(reason) => setS({ reason })} />
         <Text label="Motivação principal: interna ou externa (nas palavras do cliente)" area value={s.motivation} onChange={(motivation) => setS({ motivation })} />
@@ -427,18 +421,18 @@ export function Behaviour({ s, setS }: IntakeCtx) {
 
 export function Modules({ client: c, setClient, s, setS, today }: IntakeCtx) {
   const reasons = strengthBalanceReasons(c, s, today);
-  const active = activeModules(c, s, today);
-  const suggested = suggestedModules(c, s, today);
+  const active = activeModules(c, s, today).filter((m) => MODULES[m]);
+  const suggested = suggestedModules(c, s, today).filter((m) => MODULES[m]);
   return (
     <Section>
       <YesNo label="Caiu no último ano ou tem medo de cair?" value={s.fallOrFear} onChange={(fallOrFear) => setS({ fallOrFear })} />
       <YesNo label="Levanta-se de uma cadeira sem usar as mãos?" value={s.risesWithoutHands} onChange={(risesWithoutHands) => setS({ risesWithoutHands })} />
       <YesNo label="Longo período de inatividade ou internamento recente?" value={s.longInactivity} onChange={(longInactivity) => setS({ longInactivity })} />
       <Info>{reasons.length ? <>Força e Equilíbrio sugerido por: <b>{reasons.join(", ")}</b>.</> : "Nenhum critério de Força e Equilíbrio até agora."}</Info>
-      <Multi label="Módulos a ativar" options={MODULE_NAMES} value={active} onChange={(moduleIds) => setClient({ moduleIds })} />
+      <Multi label="Módulos a ativar" options={READY_MODULES} value={active} onChange={(moduleIds) => setClient({ moduleIds })} />
       <div className="flex items-center gap-2 text-xs text-muted">
         <span className="flex-1">{c.moduleIds ? "Seleção tua." : "Pré-seleção automática pelo que já sabes do cliente."}</span>
-        {c.moduleIds && JSON.stringify(c.moduleIds) !== JSON.stringify(suggested) && (
+        {c.moduleIds && JSON.stringify(c.moduleIds.filter((m) => MODULES[m])) !== JSON.stringify(suggested) && (
           <button type="button" className="text-accent" onClick={() => setClient({ moduleIds: undefined })}>
             Voltar à sugestão
           </button>

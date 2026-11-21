@@ -1,3 +1,4 @@
+import { extraCount, setExtras } from "@treino/core/extras";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { GRIPS, STANCES } from "../lib/movement";
@@ -26,7 +27,7 @@ const CLEAR: Record<Key, Partial<Item>> = {
   method: { method: undefined },
   hold: { holdSec: null },
   rm: { rmTest: null },
-  extra: { extraLeft: undefined, extraRight: undefined },
+  extra: {},
   grip: { grip: undefined },
   stance: { stance: undefined },
 };
@@ -42,7 +43,7 @@ function hasValue(item: Item, k: Key): boolean {
     case "rm":
       return !!item.rmTest;
     case "extra":
-      return !!item.extraLeft || !!item.extraRight;
+      return extraCount(item, "left") > 0 || extraCount(item, "right") > 0;
     case "grip":
       return !!item.grip;
     case "stance":
@@ -79,8 +80,8 @@ export default function OptionalFields({ item, onChange, keys }: { item: Item; o
       case "extra":
         return (
           <div className="grid grid-cols-2 gap-2">
-            <Stepper label="Séries extra esq." value={item.extraLeft ?? 0} step={1} onChange={(v) => onChange({ ...item, extraLeft: v || undefined })} />
-            <Stepper label="Séries extra dir." value={item.extraRight ?? 0} step={1} onChange={(v) => onChange({ ...item, extraRight: v || undefined })} />
+            <Stepper label="Séries extra esq." value={extraCount(item, "left")} step={1} onChange={(v) => onChange(setExtras(item, "left", v ?? 0))} />
+            <Stepper label="Séries extra dir." value={extraCount(item, "right")} step={1} onChange={(v) => onChange(setExtras(item, "right", v ?? 0))} />
           </div>
         );
       case "grip":

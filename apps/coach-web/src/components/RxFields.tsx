@@ -1,3 +1,4 @@
+import { mainSets } from "@treino/core/extras";
 import { useEffect, useState } from "react";
 import { firstWork, setAll, setCount } from "../lib/rx";
 import type { Item, LoadMode } from "@treino/core/types";
@@ -20,7 +21,7 @@ export default function RxFields({ item, onChange }: { item: Item; onChange: (i:
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-2">
-        <Stepper label="Séries" value={item.sets.length} step={1} onChange={(v) => onChange(setCount(item, v))} />
+        <Stepper label="Séries" value={mainSets(item).length} step={1} onChange={(v) => onChange(setCount(item, v))} />
         {timed ? (
           <Stepper label="Tempo" suffix="s" value={ref?.duration} step={5} onChange={(v) => onChange(setAll(item, "duration", v))} />
         ) : (

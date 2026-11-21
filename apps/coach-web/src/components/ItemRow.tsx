@@ -1,3 +1,4 @@
+import { extraCount, SIDE_LETTER } from "@treino/core/extras";
 import { ArrowDown, ArrowUp, Check, ChevronRight, Copy } from "lucide-react";
 import { useContext, useMemo } from "react";
 import { fmtLoad, fmtRx, SET_TYPE } from "@treino/core/format";
@@ -47,6 +48,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
   const [rows, setRows] = useViewState(`rows:${item.id}`, () => varied(item.sets));
   const timed = item.sets.some((s) => s.duration != null);
   const filler = item.role === "filler";
+  const legacyExtras = !item.sets.some((s) => s.side);
   const rx = fmtRx(item);
 
   const toggleDone = (i: number) => onChange({ ...item, sets: item.sets.map((s, j) => (j === i ? { ...s, done: !s.done } : s)) });
@@ -55,7 +57,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
   const retype = (text: string) => {
     const p = parseItemLine(text);
     // typed only a name → keep the current prescription
-    const hasRx = p.sets.length > 0 || p.extraLeft || p.extraRight || p.rmTest || p.note;
+    const hasRx = p.sets.length > 0 || p.rmTest || p.note;
     onChange(hasRx ? { ...p, id: item.id, role: item.role, exerciseId: undefined } : { ...item, name: p.name, exerciseId: undefined });
   };
 
@@ -82,11 +84,12 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
               }`}
             >
               {s.done && chipText(item, s) !== "✓" ? "✓ " : ""}
+              {s.side && `${SIDE_LETTER[s.side]} `}
               {chipText(item, s)}
             </button>
           ))}
-          {!!item.extraLeft && <span className="rounded-full px-2 h-10 inline-flex items-center text-xs text-accent border border-accent/40">E +{item.extraLeft}</span>}
-          {!!item.extraRight && <span className="rounded-full px-2 h-10 inline-flex items-center text-xs text-accent border border-accent/40">D +{item.extraRight}</span>}
+          {legacyExtras && extraCount(item, "left") > 0 && <span className="rounded-full px-2 h-10 inline-flex items-center text-xs text-accent border border-accent/40">E +{extraCount(item, "left")}</span>}
+          {legacyExtras && extraCount(item, "right") > 0 && <span className="rounded-full px-2 h-10 inline-flex items-center text-xs text-accent border border-accent/40">D +{extraCount(item, "right")}</span>}
         </div>
       )}
 
@@ -125,7 +128,7 @@ export default function ItemRow({ item, onChange, onDelete, onMove, onDuplicate,
                     <tr key={i} className={s.type === "warmup" ? "text-muted" : ""}>
                       <td className="w-12 pr-1">
                         <button type="button" className="w-11 h-10 rounded-lg border border-border text-xs font-semibold" onClick={() => setRow(i, cycleType(s))}>
-                          {s.type && s.type !== "work" ? SET_TYPE[s.type].short : i + 1 - item.sets.slice(0, i).filter((x) => x.type === "warmup").length}
+                          {s.side ? SIDE_LETTER[s.side] : s.type && s.type !== "work" ? SET_TYPE[s.type].short : i + 1 - item.sets.slice(0, i).filter((x) => x.type === "warmup" || x.side).length}
                         </button>
                       </td>
                       <td className="pr-1 py-1">

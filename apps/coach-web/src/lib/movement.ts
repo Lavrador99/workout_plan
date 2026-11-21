@@ -1,6 +1,7 @@
 // Movement patterns, grips and stances, and how sets are counted against them
 // and against a client's sports, pathologies and asymmetries (Focus).
 
+import { extraCount, mainSets } from "@treino/core/extras";
 import type { Block, Exercise, Focus, FocusKind, Item, Session, Side } from "@treino/core/types";
 import { norm } from "@treino/core/text";
 
@@ -253,25 +254,57 @@ export function musclesOf(ex: Pick<Exercise, "name" | "pt" | "aliases" | "tags" 
   return ex.muscles ? canonMuscles(ex.muscles) : inferMuscles(ex);
 }
 
-/** What the exercise is missing for the counts to work: no patterns, no muscles. */
-export function missingInfo(ex: Exercise): ("padrão" | "músculos")[] {
-  const out: ("padrão" | "músculos")[] = [];
+/** The main pattern: the one set, else the first. */
+export function primaryPatternOf(ex: Pick<Exercise, "name" | "pt" | "aliases" | "tags" | "patterns" | "primaryPattern">): string | undefined {
+  const all = patternsOf(ex);
+  return ex.primaryPattern && all.includes(ex.primaryPattern) ? ex.primaryPattern : all[0];
+}
+
+export const MAX_PRIMARY_MUSCLES = 3;
+
+/** The most worked muscles: those set, else the first 3. */
+export function primaryMusclesOf(ex: Pick<Exercise, "name" | "pt" | "aliases" | "tags" | "patterns" | "muscles" | "primaryMuscles">): string[] {
+  const all = musclesOf(ex);
+  const set = (ex.primaryMuscles ?? []).filter((m) => all.includes(m));
+  return set.length ? set : all.slice(0, MAX_PRIMARY_MUSCLES);
+}
+
+/** A set counts 1 for the main pattern and muscles, half for the others. */
+export const SECONDARY_WEIGHT = 0.5;
+
+export type ReviewReason = "padrão" | "músculos" | "confirmação" | "principais";
+
+/** Why an exercise is in "Por rever": nothing to count with, guessed and not confirmed, or more than 3 muscles and no main ones. */
+export function missingInfo(ex: Exercise): ReviewReason[] {
+  const out: ReviewReason[] = [];
   if (!patternsOf(ex).length) out.push("padrão");
   if (!musclesOf(ex).length) out.push("músculos");
+  if (!out.length && (!ex.patterns || !ex.muscles)) out.push("confirmação");
+  if (ex.muscles && ex.muscles.length > MAX_PRIMARY_MUSCLES && !ex.primaryMuscles?.length) out.push("principais");
   return out;
 }
 
 /** Does this exercise count for the focus: key exercise, shared pattern or worked muscle. */
 export function hitsFocus(f: Focus, ex: Exercise | undefined, patterns: string[]): boolean {
-  if (ex && f.exerciseIds.includes(ex.id)) return true;
-  if (canonPatterns(f.patterns).some((p) => patterns.includes(p))) return true;
-  if (!ex || !f.muscles.length) return false;
-  const text = [ex.name, ex.pt ?? "", ...ex.tags.map((t) => t.replace(/#\d+$/, "")), ...musclesOf(ex)].map(norm).join(" | ");
+  return focusWeight(f, ex, patterns) > 0;
+}
+
+/** How much a set of this exercise counts for the focus: 1 for a key exercise or its main pattern or muscles, half for a secondary one. */
+export function focusWeight(f: Focus, ex: Exercise | undefined, patterns: string[]): number {
+  if (ex && f.exerciseIds.includes(ex.id)) return 1;
+  const main = ex ? primaryPatternOf(ex) : patterns[0];
+  let w = 0;
+  for (const p of canonPatterns(f.patterns)) if (patterns.includes(p)) w = Math.max(w, p === main ? 1 : SECONDARY_WEIGHT);
+  if (!ex || !f.muscles.length) return w;
   // a muscle typed under an older name ("posteriores") still finds the new one
-  return [...f.muscles, ...canonMuscles(f.muscles)].some((m) => {
-    const n = norm(m);
-    return n && text.includes(n);
-  });
+  const wanted = new Set([...f.muscles, ...canonMuscles(f.muscles)].map(norm));
+  const primary = new Set(primaryMusclesOf(ex).map(norm));
+  for (const m of musclesOf(ex).map(norm)) if (wanted.has(m)) w = Math.max(w, primary.has(m) ? 1 : SECONDARY_WEIGHT);
+  if (!w) {
+    const text = [ex.name, ex.pt ?? "", ...ex.tags.map((t) => t.replace(/#\d+$/, ""))].map(norm).join(" | ");
+    if ([...wanted].some((n) => n && text.includes(n))) w = SECONDARY_WEIGHT;
+  }
+  return w;
 }
 
 // ── Counting ────────────────────────────────────────────────────────────────
@@ -291,29 +324,93 @@ export function countedSets(block: Block, item: Item, ticked: boolean): number {
   return ticked ? sets.filter((s) => s.done).length : sets.length;
 }
 
+export type PerSide = Record<Side, number>;
+
+export interface FocusHit {
+  sets: number;
+  exercises: Set<string>;
+  /** Extra sets on the focus's side. */
+  extra: number;
+  /** An asymmetry: sets per side of its muscles and of their antagonists (bilateral sets count on both sides). */
+  own?: PerSide;
+  antagonist?: PerSide;
+}
+
 export interface Tally {
   sessions: number;
   sets: number;
   patterns: Map<string, number>;
-  grips: Map<string, number>;
-  stances: Map<string, number>;
   /** Sets per focus id, how many distinct exercises gave them, and the extra sets on the focus's side. */
-  focus: Map<string, { sets: number; exercises: Set<string>; extra: number }>;
+  focus: Map<string, FocusHit>;
   /** Extra sets on one side ("E +1" / "D +1"), per exercise. */
   extra: Record<Side, { sets: number; exercises: Map<string, number> }>;
 }
 
-/** The side a focus works on: set on the focus, or read from its name ("Glúteo direito"). */
+/** The side a focus works on (an asymmetry's weaker side). */
 export function focusSide(f: Focus): Side | null {
-  if (f.side !== undefined) return f.side;
-  const n = norm(f.name);
+  return f.side ?? null;
+}
+
+/** The side older focuses left in their name ("Glúteo direito"); only for the migration. */
+export function sideFromName(name: string): Side | null {
+  const n = norm(name);
   return /\bdireit/.test(n) ? "right" : /\besquerd/.test(n) ? "left" : null;
+}
+
+// Muscles and the muscles that do the opposite movement. An empty antagonist
+// means the same muscles on the other side.
+const ANTAGONIST_PAIRS: [string[], string[]][] = [
+  [["glúteo médio", "glúteo mínimo"], ["adutores"]],
+  [["quadríceps"], ["isquiotibiais"]],
+  [["ílio-psoas"], ["glúteo máximo"]],
+  [["tibial anterior"], ["gémeos", "sóleo"]],
+  [["fibulares"], ["tibial posterior"]],
+  [["reto do abdómen"], ["eretores da espinha"]],
+  [["peitoral maior"], ["grande dorsal", "romboides"]],
+  [["bíceps braquial"], ["tríceps braquial"]],
+  [["flexores do antebraço"], ["extensores do antebraço"]],
+  [["deltoides"], ["grande dorsal"]],
+  [["serrátil anterior"], ["romboides"]],
+  [["oblíquo externo", "oblíquo interno"], []],
+  [["quadrado lombar"], []],
+];
+
+export interface Antagonist {
+  muscles: string[];
+  /** The same muscles on the other side (obliques, quadratus lumborum). */
+  crossed: boolean;
+}
+
+/** The antagonists of a set of muscles, or null when the list has none. */
+export function antagonistOf(muscles: string[]): Antagonist | null {
+  const own = new Set(canonMuscles(muscles));
+  const found = new Set<string>();
+  let crossed = false;
+  for (const [a, b] of ANTAGONIST_PAIRS) {
+    if (!b.length) {
+      if (a.some((m) => own.has(m))) crossed = true;
+      continue;
+    }
+    if (a.some((m) => own.has(m))) b.forEach((m) => found.add(m));
+    if (b.some((m) => own.has(m))) a.forEach((m) => found.add(m));
+  }
+  for (const m of own) found.delete(m);
+  if (found.size) return { muscles: MUSCLES.filter((m) => found.has(m)), crossed: false };
+  return crossed ? { muscles: [...own], crossed: true } : null;
+}
+
+/** How much a set of the exercise counts for these muscles: 1 when one is a main muscle, half when only secondary. */
+export function muscleWeight(ex: Pick<Exercise, "name" | "pt" | "aliases" | "tags" | "patterns" | "muscles" | "primaryMuscles">, muscles: string[]): number {
+  if (!muscles.length) return 0;
+  const wanted = new Set(muscles);
+  if (primaryMusclesOf(ex).some((m) => wanted.has(m))) return 1;
+  return musclesOf(ex).some((m) => wanted.has(m)) ? SECONDARY_WEIGHT : 0;
 }
 
 const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n);
 
 export function tally(sessions: Session[], exercises: Map<string, Exercise>, focuses: Focus[]): Tally {
-  const t: Tally = { sessions: 0, sets: 0, patterns: new Map(), grips: new Map(), stances: new Map(), focus: new Map(), extra: { left: { sets: 0, exercises: new Map() }, right: { sets: 0, exercises: new Map() } } };
+  const t: Tally = { sessions: 0, sets: 0, patterns: new Map(), focus: new Map(), extra: { left: { sets: 0, exercises: new Map() }, right: { sets: 0, exercises: new Map() } } };
   const patternCache = new Map<string, string[]>();
   for (const s of sessions) {
     if (s.deleted) continue;
@@ -322,32 +419,52 @@ export function tally(sessions: Session[], exercises: Map<string, Exercise>, foc
     for (const b of s.blocks)
       for (const it of b.items) {
         if (!it.name.trim()) continue;
-        const n = countedSets(b, it, ticked);
-        if (!n) continue;
+        const n = countedSets(b, { ...it, sets: mainSets(it) }, ticked);
+        // older items keep a number: in a ticked session it counts when the item was done
+        const legacy = !it.sets.some((x) => x.side) && (!ticked || it.sets.some((x) => x.done));
+        const extraOf = (side: Side) => (legacy ? extraCount(it, side) : it.sets.filter((x) => x.side === side && (!ticked || x.done)).length);
+        const extra: Record<Side, number> = { left: extraOf("left"), right: extraOf("right") };
+        if (!n && !extra.left && !extra.right) continue;
         const ex = it.exerciseId ? exercises.get(it.exerciseId) : undefined;
         const key = ex?.id ?? `n:${norm(it.name)}`;
         let patterns = patternCache.get(key);
         if (!patterns) patternCache.set(key, (patterns = patternsOf(ex ?? { name: it.name, aliases: [], tags: [] })));
         // the extra sets on one side are sets too, so they count everywhere
-        const extra: Record<Side, number> = { left: it.extraLeft ?? 0, right: it.extraRight ?? 0 };
         const all = n + extra.left + extra.right;
         const exName = ex?.name ?? it.name;
         t.sets += all;
-        for (const p of patterns) add(t.patterns, p, all);
-        if (it.grip) add(t.grips, it.grip, all);
-        if (it.stance) add(t.stances, it.stance, all);
+        const main = ex ? primaryPatternOf(ex) : patterns[0];
+        for (const p of patterns) add(t.patterns, p, all * (p === main ? 1 : SECONDARY_WEIGHT));
         for (const side of ["left", "right"] as const) {
           if (!extra[side]) continue;
           t.extra[side].sets += extra[side];
           add(t.extra[side].exercises, exName, extra[side]);
         }
         for (const f of focuses) {
-          if (!hitsFocus(f, ex, patterns)) continue;
+          const w = focusWeight(f, ex, patterns);
+          if (!w) continue;
           const cur = t.focus.get(f.id) ?? { sets: 0, exercises: new Set<string>(), extra: 0 };
-          cur.sets += all;
+          cur.sets += all * w;
           const side = focusSide(f);
           if (side) cur.extra += extra[side];
           cur.exercises.add(exName);
+          t.focus.set(f.id, cur);
+        }
+        for (const f of focuses) {
+          if (f.kind !== "asymmetry") continue;
+          const own = canonMuscles(f.muscles);
+          const anta = antagonistOf(own);
+          const named = ex ?? { name: it.name, aliases: [], tags: [] };
+          const wOwn = muscleWeight(named, own);
+          const wAnta = anta && !anta.crossed ? muscleWeight(named, anta.muscles) : 0;
+          if (!wOwn && !wAnta) continue;
+          const cur = t.focus.get(f.id) ?? { sets: 0, exercises: new Set<string>(), extra: 0 };
+          cur.own ??= { left: 0, right: 0 };
+          cur.antagonist ??= { left: 0, right: 0 };
+          for (const side of ["left", "right"] as const) {
+            cur.own[side] += (n + extra[side]) * wOwn;
+            cur.antagonist[side] += (n + extra[side]) * wAnta;
+          }
           t.focus.set(f.id, cur);
         }
       }

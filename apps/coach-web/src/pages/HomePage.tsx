@@ -7,7 +7,7 @@ import { addDays, agendaFor, daysBetween, isInactive, lastDoneByClient, matchesC
 import { clearAbsence, completeEntry, markAbsence, prepareSession, registerPayment } from "../lib/agendaActions";
 import { WEEKDAYS } from "../lib/balance";
 import { groupKey } from "../lib/group";
-import { go, useClients, useSessions, useViewState } from "../lib/hooks";
+import { go, useClients, useInjuries, useSessions, useViewState } from "../lib/hooks";
 import { saveSessionChange } from "../lib/sessionSave";
 import { fmtMoney, fmtMonth, owedMonths } from "../lib/payments";
 import { fmtDate, todayISO } from "@treino/core/text";
@@ -41,12 +41,12 @@ async function startGroup(entries: AgendaEntry[], date: string) {
 
 const openEntry = async (e: AgendaEntry, date: string) => go("session", e.session?.id ?? (await prepareSession(e.client.id, date)).id);
 
-function EntryRow({ entry, date, today, debt }: { entry: AgendaEntry; date: string; today: string; debt: boolean }) {
+function EntryRow({ entry, date, today, debt, injuries }: { entry: AgendaEntry; date: string; today: string; debt: boolean; injuries?: string }) {
   const { client, session, status } = entry;
   const [label, color] = STATUS[status];
   const absent = status === "missed" || status === "cancelled";
   const open = status !== "done" && !absent;
-  const details = [session?.title, client.injuries && client.injuries].filter(Boolean).join(" · ");
+  const details = [session?.title, injuries].filter(Boolean).join(" · ");
   return (
     <li className="card flex items-stretch">
       <button type="button" className="flex-1 min-w-0 text-left p-3 active:bg-card2 rounded-l-xl" onClick={() => void openEntry(entry, date)}>
@@ -83,6 +83,7 @@ function EntryRow({ entry, date, today, debt }: { entry: AgendaEntry; date: stri
 
 export default function HomePage() {
   const clients = useClients();
+  const injuries = useInjuries();
   const sessions = useSessions();
   const today = todayISO();
   const [day, setDay] = useState(shownDay ?? today);
@@ -174,7 +175,7 @@ export default function HomePage() {
               ) : (
                 <ul className="flex flex-col gap-2">
                   {agenda.map((e) => (
-                    <EntryRow key={e.key} entry={e} date={day} today={today} debt={owing.some((o) => o.client.id === e.client.id)} />
+                    <EntryRow key={e.key} entry={e} date={day} today={today} debt={owing.some((o) => o.client.id === e.client.id)} injuries={injuries.get(e.client.id)} />
                   ))}
                 </ul>
               )}

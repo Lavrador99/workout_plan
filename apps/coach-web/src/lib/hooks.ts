@@ -2,8 +2,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useState } from "react";
 import { db, PROFILE_ID } from "./db";
 import { ExerciseIndex } from "./search";
+import { injuryText } from "./screening";
 import { getStatus, onStatus, type SyncStatus } from "./sync";
-import type { Assessment, Client, CoachProfile, Exercise, Focus, Goal, ProgressSnapshot, Screening, Session, Template, TestDef } from "@treino/core/types";
+import type { Assessment, Client, CoachProfile, Exercise, Focus, Goal, Screening, Session, Template, TestDef } from "@treino/core/types";
 
 export { back, clearViewState, go, replaceRoute, useBackClose, useRoute, useViewState } from "./nav";
 
@@ -57,10 +58,6 @@ export function useGoals(clientId: string): Goal[] | undefined {
   return useLiveQuery(async () => (await db.goals.where("clientId").equals(clientId).toArray()).filter((g) => !g.deleted), [clientId]);
 }
 
-export function useSnapshots(clientId: string): ProgressSnapshot[] | undefined {
-  return useLiveQuery(async () => (await db.snapshots.where("clientId").equals(clientId).toArray()).filter((s) => !s.deleted), [clientId]);
-}
-
 /** null when the coach has not filled it in yet. */
 export function useProfile(): CoachProfile | null | undefined {
   return useLiveQuery(async () => {
@@ -77,8 +74,20 @@ export function useScreenings(clientId: string): Screening[] | undefined {
   }, [clientId]);
 }
 
-export function useScreening(id: string): Screening | null | undefined {
-  return useLiveQuery(async () => (await db.screenings.get(id)) ?? null, [id]);
+const NO_INJURIES = new Map<string, string>();
+
+/** Each client's injuries still there, from their latest intake: "Joelho esq., Lombar". */
+export function useInjuries(): Map<string, string> {
+  const map = useLiveQuery(async () => {
+    const latest = new Map<string, Screening>();
+    for (const s of await db.screenings.toArray()) {
+      if (s.deleted) continue;
+      const cur = latest.get(s.clientId);
+      if (!cur || s.date > cur.date || (s.date === cur.date && s.updatedAt > cur.updatedAt)) latest.set(s.clientId, s);
+    }
+    return new Map([...latest].map(([id, s]) => [id, injuryText(s)] as const).filter(([, t]) => t));
+  }, []);
+  return map ?? NO_INJURIES;
 }
 
 /** The protocol versions of each test that already have results, in any client's assessment. */

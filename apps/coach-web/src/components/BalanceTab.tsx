@@ -1,15 +1,13 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { changeTone, fmtChange, SIDE_SHORT } from "../lib/assessment";
-import { adherence, customRange, doneIn, goalBalance, markBalance, metricRow, pendingMarks, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
+import { adherence, customRange, goalBalance, markBalance, metricRow, pendingMarks, PERIODS, presetRange, testBalance, type GoalRow, type MarkPoint, type MarkRow, type Preset, type Range, type SingleRow, type TestRow } from "../lib/balance";
 import { fmtLoad } from "@treino/core/format";
 import { go, useAssessments, useGoals, useTests } from "../lib/hooks";
-import { tally } from "../lib/movement";
 import { targetsOf } from "../lib/progress";
 import { fmtDate, fmtNum, todayISO } from "@treino/core/text";
-import type { Client, Exercise, Focus, Goal, GoalStatus, Session, Side } from "@treino/core/types";
-import { Bars, Section } from "./CountsView";
+import type { Client, Exercise, Goal, GoalStatus, Session, Side } from "@treino/core/types";
+import { Section } from "./CountsView";
 import GoalSheet from "./GoalSheet";
-import ProgressCard from "./ProgressCard";
 import { TONE_CLASS } from "./ResultCard";
 import Seg from "./Seg";
 
@@ -170,7 +168,7 @@ function GoalItem({ goal, rows, name, today, onOpen }: { goal: Goal; rows: GoalR
 }
 
 /** Everything a client gained and lost in a chosen period. */
-export default function BalanceTab({ client, sessions, exercises, focuses }: { client: Client; sessions: Session[]; exercises: Exercise[]; focuses: Focus[] }) {
+export default function BalanceTab({ client, sessions, exercises }: { client: Client; sessions: Session[]; exercises: Exercise[] }) {
   const assessments = useAssessments(client.id);
   const tests = useTests();
   const goals = useGoals(client.id);
@@ -189,17 +187,15 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
     if (!assessments || !tests || !goals) return null;
     const targets = targetsOf(goals);
     const names = new Map(exercises.map((e) => [e.id, e.name]));
-    const done = doneIn(sessions, range);
     return {
       tests: testBalance(assessments, tests, targets, range),
       marks: markBalance(sessions, names, range),
       pending: pendingMarks(sessions, names, range),
       adherence: adherence(sessions, assessments, client, range),
       goals: goalBalance(assessments, tests, targets, range),
-      volume: tally(done, new Map(exercises.map((e) => [e.id, e])), focuses),
     };
     // range is rebuilt on every render; its two dates are what matter
-  }, [assessments, tests, goals, sessions, exercises, focuses, client.weeklyFrequency, client.schedule, client.adherenceSkips, range.from, range.to]);
+  }, [assessments, tests, goals, sessions, exercises, client.weeklyFrequency, client.schedule, client.adherenceSkips, range.from, range.to]);
 
   if (!data) return null;
 
@@ -217,7 +213,6 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
 
   return (
     <div className="flex flex-col gap-3">
-      <ProgressCard client={client} />
 
       <Seg options={PRESETS} value={choice.preset} onChange={(p) => pick({ ...choice, preset: p as Preset })} />
 
@@ -287,24 +282,20 @@ export default function BalanceTab({ client, sessions, exercises, focuses }: { c
             {a.unticked > 0 && <p className="text-xs text-warn">{a.unticked === 1 ? "1 sessão sem nada marcado" : `${a.unticked} sessões sem nada marcado`}: não conta como feita.</p>}
             <p className="text-xs text-muted">{a.source === "plan" ? `Pelo plano semanal da ficha${a.from && a.from !== range.from ? `, desde ${fmtDate(a.from)}` : ""}.` : a.source === "estimate" ? `Estimativa com ${client.weeklyFrequency}×/semana da ficha para os dias sem plano${a.from && a.from !== range.from ? `, desde ${fmtDate(a.from)}` : ""}. Define os dias planeados para a tornar real.` : "Define os dias planeados na ficha para calcular a adesão."}</p>
           </Section>
-
-          <Section title="Objetivos">
-            {!goals?.length && <p className="text-xs text-muted">Sem objetivos definidos.</p>}
-            <ul className="flex flex-col gap-3">
-              {ordered.map((g) => (
-                <GoalItem key={g.id} goal={g} rows={g.testId ? data.goals.filter((r) => r.testId === g.testId) : [metricRow(g)].filter((r): r is GoalRow => r != null)} name={tests?.find((t) => t.id === g.testId)?.name} today={today} onOpen={() => setEditing(g)} />
-              ))}
-            </ul>
-            <button type="button" className="btn self-start" onClick={() => setEditing("new")}>
-              + Objetivo
-            </button>
-          </Section>
-
-          <Section title={`Volume · ${data.volume.sets} séries em ${data.volume.sessions} sessões`}>
-            <Bars entries={[...data.volume.patterns.entries()]} total={data.volume.sets} />
-          </Section>
         </>
       )}
+
+      <Section title="Objetivos">
+        {!goals?.length && <p className="text-xs text-muted">Sem objetivos definidos.</p>}
+        <ul className="flex flex-col gap-3">
+          {ordered.map((g) => (
+            <GoalItem key={g.id} goal={g} rows={g.testId ? data.goals.filter((r) => r.testId === g.testId) : [metricRow(g)].filter((r): r is GoalRow => r != null)} name={tests?.find((t) => t.id === g.testId)?.name} today={today} onOpen={() => setEditing(g)} />
+          ))}
+        </ul>
+        <button type="button" className="btn self-start" onClick={() => setEditing("new")}>
+          + Objetivo
+        </button>
+      </Section>
 
       {editing && <GoalSheet clientId={client.id} goal={editing === "new" ? null : editing} goals={goals ?? []} tests={tests ?? []} onClose={() => setEditing(null)} />}
     </div>

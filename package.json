@@ -4,18 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "nx run treino-web:serve",
-    "build": "cd apps/treino-web && npx vite build && cd ../coach-web && npx vite build",
+    "build": "cd apps/coach-web && npx vite build && cd ../.. && cp site/index.html site/sw.js dist/",
     "dev:coach": "cd apps/coach-web && npx vite",
     "test:coach": "cd libs/training-core && npx vitest run && cd ../../apps/coach-web && npx vitest run",
     "dev:api:coach": "cd apps/coach-api && npx wrangler d1 migrations apply coach-db --local && npx wrangler dev",
-    "deploy:api": "node apps/coach-api/scripts/deploy.mjs",
-    "build:api": "nx run treino-api:build",
-    "build:all": "nx run-many -t build",
-    "serve:api": "nx run treino-api:serve",
-    "preview": "nx run treino-web:preview",
-    "docker:up": "docker compose up --build",
-    "docker:dev": "docker compose watch"
+    "deploy:api": "node apps/coach-api/scripts/deploy.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.1",

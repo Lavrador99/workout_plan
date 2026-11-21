@@ -4,6 +4,7 @@
 // Anything it cannot read is kept in the item's note, never dropped.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { withSidedExtras } from "@treino/core/extras";
 import type { Block, Item, LoadMode, RepsUnit, SetRow } from "@treino/core/types";
 import { num, uid } from "@treino/core/text";
 
@@ -133,7 +134,7 @@ export function parseItemLine(raw: string): Item {
   if (e) item.effort = e.kind;
   if (e || restSec != null) item.sets = item.sets.map((x) => ({ ...x, ...(e ? { rir: e.v } : {}), ...(restSec != null ? { rest: restSec } : {}) }));
   item.note = notes.filter(Boolean).join(" ");
-  return item;
+  return withSidedExtras(item);
 }
 
 function parseRx(rx: string, item: Item, notes: string[]) {

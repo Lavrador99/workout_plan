@@ -1,5 +1,4 @@
 import { adherence } from "./balance";
-import { calculate } from "./ipi";
 import { describe, expect, it } from "vitest";
 import { asymmetry, finalValue, series } from "./assessment";
 import { MUSCLES, PATTERNS } from "./movement";
@@ -12,10 +11,23 @@ import { norm } from "@treino/core/text";
 describe("seed library", () => {
   const list = seedExercises();
 
-  it("one record per exercise, each with a Portuguese name", () => {
+  it("one record per exercise, named in Portuguese with the English name among the aliases", () => {
     expect(list.length).toBeGreaterThan(150);
     expect(new Set(list.map((e) => e.id)).size).toBe(list.length);
-    expect(list.filter((e) => !e.pt)).toEqual([]);
+    // names the same in both languages ("Pallof press") have no English alias
+    expect(list.filter((e) => e.aliases.length && norm(e.aliases[0]) === norm(e.name)).map((e) => e.name)).toEqual([]);
+    expect(list.find((e) => e.id === "seed-bulgarian-split-squat")?.name).toBe("Agachamento búlgaro");
+  });
+
+  it("every exercise is classified by hand: catalog names, a main pattern, up to 3 main muscles", () => {
+    expect(list.filter((e) => !e.patterns || !e.muscles).map((e) => e.name)).toEqual([]);
+    for (const e of list) {
+      for (const p of e.patterns ?? []) expect(PATTERNS, `${e.name}: ${p}`).toContain(p);
+      for (const m of e.muscles ?? []) expect(MUSCLES, `${e.name}: ${m}`).toContain(m);
+      expect(e.patterns, e.name).toContain(e.primaryPattern);
+      expect(e.primaryMuscles!.length, e.name).toBeGreaterThan(0);
+      expect(e.primaryMuscles!.length, e.name).toBeLessThanOrEqual(3);
+    }
   });
 
   it("no name or alias points at two exercises", () => {
@@ -29,9 +41,9 @@ describe("seed library", () => {
   });
 
   it("merges tags of exercises listed in several groups", () => {
-    const sp = list.find((e) => e.name === "Side Plank w/ Elevated Leg")!;
+    const sp = list.find((e) => e.aliases.includes("Side Plank w/ Elevated Leg"))!;
     expect(sp.tags).toEqual(expect.arrayContaining(["glúteos", "glúteo mínimo #1", "glúteo médio #1", "glúteo máximo #3"]));
-    const sorensen = list.find((e) => e.name === "Sorensen Hold")!;
+    const sorensen = list.find((e) => e.aliases.includes("Sorensen Hold"))!;
     expect(sorensen.tags).toEqual(expect.arrayContaining(["core: extensão", "core: anti-flexão"]));
   });
 
@@ -190,18 +202,6 @@ describe("Teste shows everything the app reads", () => {
     expect(a.pct).toBeGreaterThan(85);
     expect(adherence(sessions, assessments, client, { from: "2026-03-20", to: "2026-04-10" }).expected).toBeNull(); // the injury is a planned break
     expect(new Set(sessions.map((s) => s.id)).size).toBe(sessions.length);
-  });
-
-  it("gives an index with all dimensions, the injury included", () => {
-    const last = calculate(input, "2026-11-02");
-    expect(last.coverage).toBe(100);
-    expect(last.dimensions.every((d) => d.score != null)).toBe(true);
-    expect(last.iaSource).toBe("plan");
-    expect(last.iccTests).toBeGreaterThan(0);
-    expect(last.provisional).toBe(true); // some tests have no known error
-    const [before, injured] = [calculate(input, "2026-02-16"), calculate(input, "2026-04-20")];
-    expect(injured.ipi as number).toBeLessThan(before.ipi as number);
-    expect(last.ipi as number).toBeGreaterThan(before.ipi as number);
   });
 
   it("has runs by distance and time, on heart rate and pace goals", () => {

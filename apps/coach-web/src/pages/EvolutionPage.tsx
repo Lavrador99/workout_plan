@@ -1,10 +1,11 @@
+import { ChevronRight } from "lucide-react";
 import { PageLoading } from "../components/States";
 import BenchmarkCard from "../components/BenchmarkCard";
+import { fmtConditions } from "../components/ConditionsFields";
 import LineChart, { type Point } from "../components/LineChart";
 import PageHeader from "../components/PageHeader";
-import { fmtRelative, NumberField, TONE_CLASS } from "../components/ResultCard";
+import { fmtRelative, TONE_CLASS } from "../components/ResultCard";
 import { averageSpeed, bodyMassAt, change, changeTone, fmtAsymmetry, fmtChange, goalProgress, series, testMdc, type SeriesPoint, type VersionSeries } from "../lib/assessment";
-import { newGoal, remove, save } from "../lib/db";
 import { go, useAssessments, useClient, useGoals, useTests } from "../lib/hooks";
 import { fmtDate, fmtNum } from "@treino/core/text";
 import type { Assessment, Client, TestDef } from "@treino/core/types";
@@ -85,7 +86,7 @@ function VersionSection({ v, showVersion, assessments, target, test, testId, cli
                 {asym && <span className="text-xs text-muted">{fmtAsymmetry(asym, v.unit)}</span>}
                 {relative && <span className="text-xs text-muted">{relative}</span>}
                 {speed != null && <span className="text-xs text-muted">{fmtNum(speed)} m/s</span>}
-                {a.conditions && <span className="text-xs text-muted truncate">{a.conditions}</span>}
+                {fmtConditions(a) && <span className="text-xs text-muted truncate">{fmtConditions(a)}</span>}
               </button>
             </li>
           );
@@ -109,12 +110,6 @@ export default function EvolutionPage({ clientId, testId }: { clientId: string; 
   const goal = goals.find((g) => g.testId === testId && g.status !== "dropped");
   const target = goal?.target ?? null;
 
-  const setTarget = (value: number | null) => {
-    // a date or criteria survive clearing the value, which may just be retyping it
-    if (value == null && goal && !goal.dueDate && !goal.criteria) return void remove("goals", goal.id);
-    void save("goals", { ...(goal ?? newGoal(clientId, testId)), target: value });
-  };
-
   return (
     <>
     <PageHeader title={name} subtitle={client.name} back={["client", clientId, "assessments"]} />
@@ -124,14 +119,9 @@ export default function EvolutionPage({ clientId, testId }: { clientId: string; 
         <p className="text-sm text-muted">Ainda sem resultados neste teste.</p>
       ) : (
         <>
-          {versions[0].direction !== "neutral" || target != null ? (
-            <label className="flex items-center gap-2">
-              <span className="label flex-1">Objetivo ({versions[0].unit})</span>
-              <span className="w-28">
-                <NumberField value={target} label={`Objetivo de ${name}`} onChange={setTarget} />
-              </span>
-            </label>
-          ) : null}
+          <button type="button" className="text-sm text-left text-accent" onClick={() => go("client", clientId, "balance")}>
+            {target != null ? `Objetivo: ${fmtNum(target)} ${versions[0].unit} · editar no Balanço` : "Definir objetivo no Balanço"} <ChevronRight />
+          </button>
           {versions.length > 1 && <p className="text-xs text-warn">Este teste mudou de protocolo. As versões ficam separadas e o objetivo aplica-se à mais recente.</p>}
           {versions.map((v, i) => (
             <VersionSection key={v.version} v={v} showVersion={versions.length > 1} assessments={assessments} target={i === 0 ? target : null} test={test} testId={testId} client={client} latest={i === 0} />

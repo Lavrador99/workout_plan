@@ -1,5 +1,6 @@
 // Editing helpers for an item's sets, shared by the row editor and the prescribe sheet.
 
+import { mainSets } from "@treino/core/extras";
 import { loadStep } from "./history";
 import type { Item, SetRow } from "@treino/core/types";
 
@@ -26,12 +27,14 @@ export function setAll(item: Item, field: Field, v: number | null): Item {
   return { ...item, sets };
 }
 
+/** How many sets for both sides; the extra sets of one side stay as they are, after them. */
 export function setCount(item: Item, n: number | null): Item {
   const count = Math.max(0, Math.round(n ?? 0));
-  const last: SetRow = item.sets[item.sets.length - 1] ?? { reps: null, duration: null, load: null };
-  const sets = item.sets.slice(0, count);
+  const main = mainSets(item);
+  const last: SetRow = main[main.length - 1] ?? { reps: null, duration: null, load: null };
+  const sets = main.slice(0, count);
   while (sets.length < count) sets.push({ ...last, done: false });
-  return { ...item, sets };
+  return { ...item, sets: [...sets, ...item.sets.filter((s) => s.side)] };
 }
 
 
@@ -66,7 +69,7 @@ export function pyramid(item: Item, reverse = false): Item {
       done: false,
     };
   });
-  return { ...item, sets: [...item.sets.filter((s) => s.type === "warmup"), ...sets] };
+  return { ...item, sets: [...item.sets.filter((s) => s.type === "warmup" && !s.side), ...sets, ...item.sets.filter((s) => s.side)] };
 }
 
 /** Two ramp-up sets before the first working set (~50% and ~75% of its load). */

@@ -43,6 +43,8 @@ describe("muscles", () => {
   it("flags exercises without patterns or muscles", () => {
     expect(missingInfo(ex("x", "Turkish get-up"))).toEqual(["padrão", "músculos"]);
     expect(missingInfo(ex("x", "Turkish get-up", { muscles: ["corpo inteiro"] }))).toEqual(["padrão"]);
-    expect(missingInfo(ex("x", "Back Squat"))).toEqual([]);
+    expect(missingInfo(ex("x", "Back Squat"))).toEqual(["confirmação"]);
+    expect(missingInfo(ex("x", "Back Squat", { patterns: ["agachamento"], muscles: ["quadríceps", "glúteo máximo"] }))).toEqual([]);
+    expect(missingInfo(ex("x", "Back Squat", { patterns: ["agachamento"], muscles: ["quadríceps", "glúteo máximo", "adutores", "eretores da espinha"] }))).toEqual(["principais"]);
   });
 });

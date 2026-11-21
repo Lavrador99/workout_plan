@@ -1,8 +1,10 @@
 import Dexie, { type Table } from "dexie";
+import { withSidedExtras } from "@treino/core/extras";
 import { goalsFromTargets, testGoal } from "./progress";
+import { sideFromName } from "./movement";
 import { sidesFromNote } from "./parser";
 import type { LiveOp } from "@treino/core/ops";
-import type { Assessment, Block, Client, CoachProfile, Consents, Exercise, Focus, Goal, Item, ProgressSnapshot, Screening, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
+import type { Assessment, Block, Client, CoachProfile, Consents, Exercise, Focus, Goal, Item, Screening, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
 import { norm, todayISO, uid } from "@treino/core/text";
 
 // Local-first storage: everything lives in IndexedDB so the app works in the
@@ -17,7 +19,6 @@ class CoachDB extends Dexie {
   tests!: Table<TestDef, string>;
   assessments!: Table<Assessment, string>;
   goals!: Table<Goal, string>;
-  snapshots!: Table<ProgressSnapshot, string>;
   screenings!: Table<Screening, string>;
   profiles!: Table<CoachProfile, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
@@ -49,6 +50,8 @@ class CoachDB extends Dexie {
     this.version(8)
       .stores({ profiles: "id, updatedAt, dirty" })
       .upgrade((tx) => tx.table("meta").delete("lastSeq"));
+    // the progress index is gone (fase 8): its records are no longer kept here
+    this.version(9).stores({ snapshots: null });
   }
 }
 
@@ -64,7 +67,6 @@ export const DEFAULTS: Record<TableName, object> = {
   tests: { name: "", category: "mobilidade", unit: "", direction: "higher", sided: false, trials: 1, aggregate: "best", version: 1, groups: [], purpose: "", equipment: "", instructions: "", validity: "" },
   assessments: { title: "", conditions: "", notes: "", results: [] },
   goals: { title: "", criteria: "", status: "active" },
-  snapshots: { dimensions: [], interpretation: "", status: "insufficient" },
   profiles: { name: "", title: "", licence: "", phone: "", email: "", instagram: "", logo: null },
   screenings: {
     quick: [null, null, null, null, null, null, null, null],
@@ -246,7 +248,8 @@ export async function linkItems(items: Item[]): Promise<Item[]> {
       ex = await save<Exercise>("exercises", { id: uid(), updatedAt: 0, name: it.name.trim(), aliases: [], tags: [] });
       all.push(ex);
     }
-    out.push({ ...it, exerciseId: ex.id });
+    // one of its names (an English one, say): shown with the library's name
+    out.push({ ...it, exerciseId: ex.id, name: ex.name });
   }
   return out;
 }
@@ -377,6 +380,89 @@ export async function migrateTargets(): Promise<number> {
   return n;
 }
 
+/** Bump when a migration is added or changed: 2 = extra sets as sets with a side, 3 = free-text injuries into the intake, 4 = exercises named in Portuguese, 5 = the side of a profile read from its name. */
+const MIGRATIONS = 5;
+
+/**
+ * Bring older records up to date. At start-up only once per version; after a
+ * pull that brought records (they may come from a device not yet updated),
+ * again, as every migration is safe to repeat.
+ */
+export async function runMigrations(force = false): Promise<void> {
+  if (!force && (await db.meta.get("migrations"))?.value === MIGRATIONS) return;
+  await migrateTargets();
+  await migrateSideNotes();
+  await migrateClients();
+  await migrateInjuries();
+  await migrateExerciseNames();
+  await migrateFocusSides();
+  await db.meta.put({ key: "migrations", value: MIGRATIONS });
+}
+
+/**
+ * The Portuguese name becomes the name, the English one an alias. Items of
+ * sessions and templates linked to it and written with one of its names take
+ * the new one; a variant written differently stays as it was.
+ */
+export async function migrateExerciseNames(): Promise<number> {
+  const renamed = new Map<string, { name: string; old: Set<string> }>();
+  for (const ex of await db.exercises.toArray()) {
+    const pt = ex.pt?.trim();
+    if (ex.deleted || !pt || norm(pt) === norm(ex.name)) {
+      if (ex.pt !== undefined && !ex.deleted) await save("exercises", { ...ex, pt: undefined });
+      continue;
+    }
+    const aliases = [...new Set([ex.name, ...ex.aliases])].filter((a) => norm(a) !== norm(pt));
+    await save("exercises", { ...ex, name: pt, pt: undefined, aliases });
+    renamed.set(ex.id, { name: pt, old: new Set([ex.name, ...ex.aliases].map(norm)) });
+  }
+  if (!renamed.size) return 0;
+  const rename = (it: Item): Item => {
+    const r = it.exerciseId ? renamed.get(it.exerciseId) : undefined;
+    return r && r.old.has(norm(it.name)) ? { ...it, name: r.name } : it;
+  };
+  for (const s of await db.sessions.toArray()) {
+    if (s.deleted) continue;
+    const blocks = s.blocks.map((b) => ({ ...b, items: b.items.map(rename) }));
+    if (JSON.stringify(blocks) !== JSON.stringify(s.blocks)) await save("sessions", { ...s, blocks });
+  }
+  for (const t of await db.templates.toArray()) {
+    if (t.deleted) continue;
+    const next = { ...t, block: { ...t.block, items: t.block.items.map(rename) }, ...(t.blocks ? { blocks: t.blocks.map((b) => ({ ...b, items: b.items.map(rename) })) } : {}) };
+    if (JSON.stringify(next) !== JSON.stringify(t)) await save("templates", next);
+  }
+  return renamed.size;
+}
+
+/**
+ * The client's free-text injuries become an injury of their latest intake
+ * (region "Outra", the text kept as it was), so the intake is the only place.
+ */
+export async function migrateInjuries(): Promise<number> {
+  let n = 0;
+  for (const c of await db.clients.toArray()) {
+    const text = c.injuries?.trim();
+    if (c.deleted || !text) continue;
+    const mine = (await db.screenings.where("clientId").equals(c.id).toArray()).filter((s) => !s.deleted).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
+    const s = mine[0] ?? newScreening(c.id);
+    if (!s.injuries.some((i) => i.aggravates === text)) await save("screenings", { ...s, injuries: [...s.injuries, { id: uid(), region: "Outra", side: null, status: "active", since: "", pain: null, aggravates: text, followedBy: "" }] });
+    await save("clients", { ...c, injuries: "" });
+    n++;
+  }
+  return n;
+}
+
+/** Profiles that left their side in the name ("Glúteo direito") keep it as their side. */
+export async function migrateFocusSides(): Promise<number> {
+  let n = 0;
+  for (const f of await db.focuses.toArray()) {
+    if (f.deleted || f.side !== undefined) continue;
+    await save("focuses", { ...f, side: sideFromName(f.name) });
+    n++;
+  }
+  return n;
+}
+
 /** Move "D +1" left in item notes by older versions to the items' extra sets. Safe to run any time. */
 export async function migrateSideNotes(): Promise<number> {
   let n = 0;
@@ -386,8 +472,8 @@ export async function migrateSideNotes(): Promise<number> {
     const blocks = session.blocks.map((b) => ({
       ...b,
       items: b.items.map((it) => {
-        const moved = sidesFromNote(it);
-        if (!moved) return it;
+        const moved = withSidedExtras(sidesFromNote(it) ?? it);
+        if (moved === it) return it;
         touched = true;
         return moved;
       }),
@@ -403,12 +489,11 @@ export async function migrateSideNotes(): Promise<number> {
 
 /** Everything kept about a client, for handing it over to them. */
 export async function exportClient(id: string) {
-  const [client, sessions, assessments, goals, snapshots, screenings] = await Promise.all([
+  const [client, sessions, assessments, goals, screenings] = await Promise.all([
     db.clients.get(id),
     db.sessions.where("clientId").equals(id).toArray(),
     db.assessments.where("clientId").equals(id).toArray(),
     db.goals.where("clientId").equals(id).toArray(),
-    db.snapshots.where("clientId").equals(id).toArray(),
     db.screenings.where("clientId").equals(id).toArray(),
   ]);
   const clean = <T extends SyncMeta>({ dirty: _d, ...rec }: T) => rec;
@@ -419,7 +504,6 @@ export async function exportClient(id: string) {
     sessions: sessions.filter((s) => !s.deleted).map(clean),
     assessments: assessments.filter((a) => !a.deleted).map(clean),
     goals: goals.filter((g) => !g.deleted).map(clean),
-    snapshots: snapshots.filter((s) => !s.deleted).map(clean),
     screenings: screenings.filter((s) => !s.deleted).map(clean),
   };
 }
@@ -434,7 +518,7 @@ async function erase(table: TableName, id: string) {
  * what carries the deletion to the other devices.
  */
 export async function purgeClient(id: string): Promise<void> {
-  for (const table of ["sessions", "assessments", "goals", "snapshots", "screenings"] as const) {
+  for (const table of ["sessions", "assessments", "goals", "screenings"] as const) {
     for (const key of await db[table].where("clientId").equals(id).primaryKeys()) await erase(table, key);
   }
   await erase("clients", id);
@@ -455,13 +539,14 @@ export interface Backup {
   tests?: TestDef[];
   assessments?: Assessment[];
   goals?: Goal[];
-  snapshots?: ProgressSnapshot[];
+  /** Older backups only: the progress index, no longer read. */
+  snapshots?: unknown[];
   screenings?: Screening[];
   profiles?: CoachProfile[];
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots, screenings, profiles] = await Promise.all([
+  const [clients, exercises, sessions, templates, focuses, tests, assessments, goals, screenings, profiles] = await Promise.all([
     db.clients.toArray(),
     db.exercises.toArray(),
     db.sessions.toArray(),
@@ -470,17 +555,16 @@ export async function exportBackup(): Promise<Backup> {
     db.tests.toArray(),
     db.assessments.toArray(),
     db.goals.toArray(),
-    db.snapshots.toArray(),
     db.screenings.toArray(),
     db.profiles.toArray(),
   ]);
-  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses, tests, assessments, goals, snapshots, screenings, profiles };
+  return { app: "coach", version: 1, exportedAt: new Date().toISOString(), clients, exercises, sessions, templates, focuses, tests, assessments, goals, screenings, profiles };
 }
 
 /** Merge a backup in: newer record wins, so importing twice is harmless. */
 export async function importBackup(b: Backup): Promise<number> {
   let n = 0;
-  for (const table of ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "snapshots", "screenings", "profiles"] as const) {
+  for (const table of ["clients", "exercises", "sessions", "templates", "focuses", "tests", "assessments", "goals", "screenings", "profiles"] as const) {
     const t = db[table] as unknown as Table<SyncMeta, string>;
     for (const rec of (b[table] ?? []) as SyncMeta[]) {
       const cur = await t.get(rec.id);
