@@ -83,7 +83,7 @@ export default function AssessmentPage({ id }: { id: string }) {
       }
     />
     <div className="page">
-      {client && !client.consentAt && (
+      {client && !client.consents?.given.data_health && (
         <button type="button" className="text-xs text-warn text-left" onClick={() => go("client", a.clientId, "info")}>
           <TriangleAlert /> Sem consentimento registado na ficha. Registar <ChevronRight />
         </button>

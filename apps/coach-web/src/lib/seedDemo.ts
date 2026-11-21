@@ -252,20 +252,28 @@ function screenings(): Screening[] {
     id: "seed-demo-s1",
     updatedAt: 1,
     date: VISITS[0][0],
-    regularExercise: true,
-    wantedIntensity: "vigorous",
+    quick: [false, false, false, false, false, false, false, null],
+    parq: "all_no",
+    decision: "fit",
     sleepHours: 7.5,
-    sleepQuality: 4,
-    stress: 2,
-    occupation: "seated",
-    activity: "Futebol: 3 treinos e 1 jogo por semana. Ginásio 2× por semana.",
-    history: "Futebol federado desde os 12 anos.",
-    motivation: "Chegar à pré-época mais rápido e sem lesões.",
+    sleepQuality: 8,
+    stress: 3,
+    exerciseNow: "Futebol: 3 treinos e 1 jogo por semana. Ginásio 2× por semana.",
+    pastSports: "Futebol federado desde os 12 anos.",
+    strengthExperience: "intermediate",
+    mainGoal: "Chegar à pré-época mais rápido e sem lesões.",
+    sessionsPerWeek: 2,
+    stage: "maintenance",
+    confidence: 9,
+    risesWithoutHands: true,
+    fallOrFear: false,
   };
   const ankle: Screening = {
     ...first,
     id: "seed-demo-s2",
     date: INJURY[1],
+    decision: "fit_restricted",
+    restrictions: "Sem saltos laterais para a esquerda até ao fim de maio",
     injuries: [{ id: "seed-demo-s2-i1", region: "Tornozelo e pé", side: "left", status: "recovering", since: "março 2026", pain: 2, aggravates: "Mudanças de direção, saltos para a esquerda", followedBy: "Fisioterapeuta do clube" }],
   };
   return [first, ankle];
@@ -305,8 +313,9 @@ export function demoData(tests: TestDef[], library: Exercise[]): { client: Clien
       { at: timeOf(VISITS[0][0]), primaryGoal: "desporto", weights: PRESET, custom: false },
       { at: timeOf(VISITS[3][0]), primaryGoal: "desporto", weights: OWN_WEIGHTS, custom: true },
     ],
-    consentAt: VISITS[0][0],
-    healthConsentAt: VISITS[0][0],
+    clientNumber: 1,
+    consents: { given: { data_health: VISITS[0][0] }, professionals: "", signature: null, guardianSignature: null, signedAt: VISITS[0][0] },
+    moduleIds: ["sports_performance"],
   };
   return { client, assessments: assessments(tests), sessions: [...sessions(library), ...otherSessions(library)], goals: goals(), screenings: screenings() };
 }

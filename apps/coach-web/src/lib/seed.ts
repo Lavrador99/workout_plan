@@ -3,6 +3,7 @@ import { parseItemLine } from "./parser";
 import { SEED_GROUPS } from "./seedData";
 import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
 import { DEMO_CLIENT_ID, demoData, fillMissing } from "./seedDemo";
+import { moduleDemos } from "./seedModuleDemo";
 import { SEED_DAYS } from "./seedTemplates";
 import { SEED_TESTS } from "./seedTests";
 import { norm } from "@treino/core/text";
@@ -12,7 +13,7 @@ import type { Block, Exercise, Focus, Template, TestDef } from "@treino/core/typ
 // ("seed-back-squat") and updatedAt 1, so every device creates the same
 // record and any real edit (or deletion) synced from elsewhere wins.
 
-const SEED_VERSION = 9; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors, 8: the whole of "Teste", 9: the run
+const SEED_VERSION = 10; // 2: the 4-day templates, 3: the football profile, 4: the assessment tests, 5: the made-up client "Teste", 6: strength tests, 7: measurement errors, 8: the whole of "Teste", 9: the run, 10: Força e Equilíbrio
 
 export interface SeedExercise {
   id: string;
@@ -72,6 +73,7 @@ export async function seedLibrary(force = false): Promise<number> {
   n += await seedFocuses(all);
   n += await seedTestLibrary();
   n += await seedDemoClient(all);
+  n += await seedModuleDemos();
   await db.meta.put({ key: "seedVersion", value: SEED_VERSION });
   if (n) changed();
   return n;
@@ -148,6 +150,22 @@ async function seedTestLibrary(): Promise<number> {
     }
     await db.tests.put({ ...t, dirty: 1 });
     n++;
+  }
+  return n;
+}
+
+/** The four made-up clients of Força e Equilíbrio. Erased ones stay erased; edited ones keep the edits. */
+async function seedModuleDemos(): Promise<number> {
+  let n = 0;
+  for (const { client, screening, assessment } of moduleDemos(seedTests())) {
+    const cur = await db.clients.get(client.id);
+    if (cur?.deleted) continue;
+    if (!cur || cur.updatedAt === 1) await db.clients.put({ ...client, dirty: 1 });
+    const s = await db.screenings.get(screening.id);
+    if (!s || s.updatedAt === 1) await db.screenings.put({ ...screening, dirty: 1 });
+    const a = await db.assessments.get(assessment.id);
+    if (!a || a.updatedAt === 1) await db.assessments.put({ ...assessment, dirty: 1 });
+    if (!cur) n++;
   }
   return n;
 }

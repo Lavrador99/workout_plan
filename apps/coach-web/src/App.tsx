@@ -19,13 +19,13 @@ import GroupPage from "./pages/GroupPage";
 import HistoryPage from "./pages/HistoryPage";
 import ImportPage from "./pages/ImportPage";
 import LibraryPage from "./pages/LibraryPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import ReportPage from "./pages/ReportPage";
-import ScreeningPage from "./pages/ScreeningPage";
 import SessionPage from "./pages/SessionPage";
 import SettingsPage from "./pages/SettingsPage";
 
 const TAB_OF: Record<string, string> = { focus: "library", group: "" };
-for (const page of ["client", "session", "import", "history", "assessment", "evolution", "compare", "progress", "screening", "report"]) TAB_OF[page] = "clients";
+for (const page of ["client", "session", "import", "history", "assessment", "evolution", "compare", "progress", "onboarding", "report"]) TAB_OF[page] = "clients";
 
 const TABS = [
   ["", "Hoje", CalendarDays],
@@ -82,10 +82,10 @@ export default function App() {
           <HistoryPage key={id + sub} clientId={id} exKey={sub} />
         ) : page === "assessment" ? (
           <AssessmentPage key={id} id={id} />
+        ) : page === "onboarding" ? (
+          <OnboardingPage key={id} clientId={id} step={sub} />
         ) : page === "report" ? (
           <ReportPage key={id} id={id} />
-        ) : page === "screening" ? (
-          <ScreeningPage key={id} id={id} />
         ) : page === "evolution" ? (
           <EvolutionPage key={id + sub} clientId={id} testId={sub} />
         ) : page === "progress" ? (

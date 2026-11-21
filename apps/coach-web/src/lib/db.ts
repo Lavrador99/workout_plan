@@ -2,8 +2,7 @@ import Dexie, { type Table } from "dexie";
 import { goalsFromTargets, testGoal } from "./progress";
 import { sidesFromNote } from "./parser";
 import type { LiveOp } from "@treino/core/ops";
-import type { Assessment, Block, Client, CoachProfile, Exercise, Focus, Goal, Item, ProgressSnapshot, Screening, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
-import { METHOD } from "./screening";
+import type { Assessment, Block, Client, CoachProfile, Consents, Exercise, Focus, Goal, Item, ProgressSnapshot, Screening, Session, SyncMeta, TableName, Template, TestDef } from "@treino/core/types";
 import { norm, todayISO, uid } from "@treino/core/text";
 
 // Local-first storage: everything lives in IndexedDB so the app works in the
@@ -67,7 +66,77 @@ export const DEFAULTS: Record<TableName, object> = {
   goals: { title: "", criteria: "", status: "active" },
   snapshots: { dimensions: [], interpretation: "", status: "insufficient" },
   profiles: { name: "", title: "", licence: "", phone: "", email: "", instagram: "", logo: null },
-  screenings: { diseases: [], symptoms: [], conditions: [], medications: [], surgeries: "", injuries: [], activity: "", history: "", motivation: "", notes: "" },
+  screenings: {
+    quick: [null, null, null, null, null, null, null, null],
+    quickDetails: "",
+    parq: null,
+    referralCriteria: [],
+    decision: null,
+    restrictions: "",
+    clearanceRequested: "",
+    referredTo: "",
+    diseases: [],
+    diseaseDetails: "",
+    diseaseLimits: null,
+    medication: "",
+    medicationCount: null,
+    medicationFlags: [],
+    surgeries: "",
+    injuries: [],
+    painZone: "",
+    painIntensity: null,
+    painSince: "",
+    painTriggers: "",
+    familyHistory: null,
+    healthProfessionals: "",
+    exerciseNow: "",
+    pastSports: "",
+    bestPhase: "",
+    strengthExperience: null,
+    competitions: "",
+    ptBefore: "",
+    trainingInjuries: "",
+    sleepHours: null,
+    sleepQuality: null,
+    stress: null,
+    steps: null,
+    stressSource: "",
+    food: "",
+    water: "",
+    alcohol: "",
+    tobacco: "",
+    supplements: "",
+    mainGoal: "",
+    why: "",
+    secondaryGoals: "",
+    deadline: "",
+    targetEvent: "",
+    success: "",
+    availability: "",
+    sessionsPerWeek: null,
+    place: "",
+    homeEquipment: "",
+    budget: "",
+    likes: "",
+    dislikes: "",
+    stage: null,
+    confidence: null,
+    reason: "",
+    motivation: "",
+    barriers: [],
+    barrierDetails: "",
+    pastDropout: "",
+    support: "",
+    followUp: "",
+    fallOrFear: null,
+    risesWithoutHands: null,
+    longInactivity: null,
+    impressions: "",
+    referralsMade: "",
+    package: "",
+    nextSession: null,
+    checklist: [],
+  },
 };
 
 type Listener = () => void;
@@ -97,8 +166,49 @@ export async function remove(table: TableName, id: string): Promise<void> {
 
 // ── Clients ─────────────────────────────────────────────────────────────────
 
-export function newClient(name: string): Client {
-  return { id: uid(), updatedAt: 0, name, injuries: "", notes: "", birthYear: null, hrMax: null, hrRest: null };
+export function newClient(name: string, clientNumber: number | null = null): Client {
+  return { id: uid(), updatedAt: 0, name, injuries: "", notes: "", birthYear: null, hrMax: null, hrRest: null, clientNumber };
+}
+
+/** One more than the highest number given so far. */
+export async function nextClientNumber(): Promise<number> {
+  let max = 0;
+  await db.clients.each((c) => {
+    if (!c.deleted && (c.clientNumber ?? 0) > max) max = c.clientNumber ?? 0;
+  });
+  return max + 1;
+}
+
+export const emptyConsents = (): Consents => ({ given: {}, professionals: "", signature: null, guardianSignature: null, signedAt: null });
+
+/**
+ * Bring older clients up to date: the three consent dates become consents,
+ * the birth year follows the birth date, and clients with no number get one.
+ * Safe to run any time; runs after every pull too.
+ */
+export async function migrateClients(): Promise<number> {
+  const clients = await db.clients.toArray();
+  let next = clients.reduce((m, c) => Math.max(m, c.clientNumber ?? 0), 0) + 1;
+  let n = 0;
+  for (const c of [...clients].sort((a, b) => a.name.localeCompare(b.name, "pt"))) {
+    if (c.deleted) continue;
+    const patch: Partial<Client> = {};
+    if (c.consentAt !== undefined || c.healthConsentAt !== undefined || c.imageConsentAt !== undefined) {
+      const consents = c.consents ?? emptyConsents();
+      const given = { ...consents.given };
+      if (c.consentAt || c.healthConsentAt) given.data_health ??= c.healthConsentAt ?? c.consentAt ?? undefined;
+      if (c.imageConsentAt) given.social_face ??= c.imageConsentAt;
+      Object.assign(patch, { consents: { ...consents, given }, consentAt: undefined, healthConsentAt: undefined, imageConsentAt: undefined });
+    }
+    const year = c.birthDate ? Number(c.birthDate.slice(0, 4)) : null;
+    if (year && c.birthYear !== year) patch.birthYear = year;
+    if (c.clientNumber == null) patch.clientNumber = next++;
+    if (!Object.keys(patch).length) continue;
+    const { consentAt: _a, healthConsentAt: _b, imageConsentAt: _c, ...rest } = { ...c, ...patch };
+    await save("clients", rest);
+    n++;
+  }
+  return n;
 }
 
 /** Change a client from outside its page: always on top of the stored record. */
@@ -229,28 +339,7 @@ export function newScreening(clientId: string): Screening {
     updatedAt: 0,
     clientId,
     date: todayISO(),
-    method: METHOD,
-    answeredBy: "client",
-    regularExercise: null,
-    diseases: [],
-    symptoms: [],
-    wantedIntensity: null,
-    clearance: null,
-    conditions: [],
-    medications: [],
-    surgeries: "",
-    restingBp: null,
-    injuries: [],
-    sleepHours: null,
-    sleepQuality: null,
-    stress: null,
-    occupation: null,
-    activity: "",
-    history: "",
-    motivation: "",
-    pregnancy: null,
-    postpartum: null,
-    notes: "",
+    ...(DEFAULTS.screenings as Omit<Screening, "id" | "updatedAt" | "clientId" | "date">),
   };
 }
 

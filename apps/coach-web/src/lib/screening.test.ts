@@ -1,59 +1,58 @@
 import { describe, expect, it } from "vitest";
-import { cautions, clearanceNeeded, clearancePending, isMinor, monthsBetween, nextScreening, outcome, screeningState } from "./screening";
+import { ageOf, bpStops, canTest, healthAlerts, isMinor, monthsBetween, nextScreening, screeningState, suggestedDecision } from "./screening";
 import { newScreening } from "./db";
 import type { Screening } from "@treino/core/types";
 
 const s = (over: Partial<Screening> = {}): Screening => ({ ...newScreening("c1"), id: "s1", date: "2026-01-10", ...over });
 
-describe("ACSM outcome", () => {
-  it("waits for the regular exercise answer", () => {
-    expect(outcome(s())).toBeNull();
+describe("age", () => {
+  it("is exact with a birth date, from the year otherwise", () => {
+    expect(ageOf({ birthDate: "1950-11-22" }, "2026-11-21")).toBe(75);
+    expect(ageOf({ birthDate: "1950-11-21" }, "2026-11-21")).toBe(76);
+    expect(ageOf({ birthYear: 1950 }, "2026-11-21")).toBe(76);
+    expect(ageOf({}, "2026-11-21")).toBeNull();
   });
 
-  it.each([
-    [false, [], [], "start"],
-    [false, ["metabolic"], [], "clearance"],
-    [false, [], ["chest"], "clearance"],
-    [false, ["renal"], ["edema"], "clearance"],
-    [true, [], [], "continue"],
-    [true, ["cardiovascular"], [], "vigorous"],
-    [true, [], ["dizziness"], "stop"],
-    [true, ["metabolic"], ["breath"], "stop"],
-  ] as const)("exercising %s, diseases %j, symptoms %j → %s", (regularExercise, diseases, symptoms, expected) => {
-    expect(outcome(s({ regularExercise, diseases: [...diseases], symptoms: [...symptoms] }))).toBe(expected);
+  it("a minor is under 18", () => {
+    expect(isMinor({ birthDate: "2008-12-01" }, "2026-11-21")).toBe(true);
+    expect(isMinor({ birthDate: "2008-11-01" }, "2026-11-21")).toBe(false);
+    expect(isMinor({}, "2026-11-21")).toBe(false);
   });
 });
 
-describe("medical clearance", () => {
-  it("is needed before starting with disease or symptoms, and to stop with symptoms", () => {
-    expect(clearanceNeeded(s({ regularExercise: false, diseases: ["metabolic"] }))).toBe(true);
-    expect(clearanceNeeded(s({ regularExercise: true, symptoms: ["chest"] }))).toBe(true);
-    expect(clearanceNeeded(s({ regularExercise: false }))).toBe(false);
-    expect(clearanceNeeded(s({ regularExercise: true }))).toBe(false);
+describe("decision", () => {
+  it("suggests referral for resting pressure of 160/100 or more, or chest signs", () => {
+    expect(bpStops(160, 80)).toBe(true);
+    expect(bpStops(140, 100)).toBe(true);
+    expect(bpStops(159, 99)).toBe(false);
+    expect(suggestedDecision(s(), true)).toBe("referred");
+    expect(suggestedDecision(s({ referralCriteria: ["cardiac_signs"] }), false)).toBe("referred");
   });
 
-  it("with known disease and exercising, only for vigorous (or not yet said)", () => {
-    const base = { regularExercise: true, diseases: ["cardiovascular" as const] };
-    expect(clearanceNeeded(s({ ...base, wantedIntensity: "moderate" }))).toBe(false);
-    expect(clearanceNeeded(s({ ...base, wantedIntensity: "light" }))).toBe(false);
-    expect(clearanceNeeded(s({ ...base, wantedIntensity: "vigorous" }))).toBe(true);
-    expect(clearanceNeeded(s({ ...base, wantedIntensity: null }))).toBe(true);
+  it("suggests restrictions with any yes or criterion, fit otherwise", () => {
+    expect(suggestedDecision(s({ quick: [false, true, null, null, null, null, null, null] }), false)).toBe("fit_restricted");
+    expect(suggestedDecision(s({ referralCriteria: ["nutrition"] }), false)).toBe("fit_restricted");
+    expect(suggestedDecision(s(), false)).toBe("fit");
   });
 
-  it("stops being pending once recorded", () => {
-    const needs = s({ regularExercise: false, symptoms: ["palpitations"] });
-    expect(clearancePending(needs)).toBe(true);
-    expect(clearancePending({ ...needs, clearance: { date: "2026-01-20", by: "Dr. X", restrictions: "" } })).toBe(false);
+  it("only fit decisions open the tests", () => {
+    expect(canTest(s({ decision: "fit" }))).toBe(true);
+    expect(canTest(s({ decision: "fit_restricted" }))).toBe(true);
+    expect(canTest(s({ decision: "awaiting" }))).toBe(false);
+    expect(canTest(s({ decision: "referred" }))).toBe(false);
+    expect(canTest(s())).toBe(false);
+    expect(canTest(undefined)).toBe(false);
   });
 });
 
-describe("state of the latest screening", () => {
-  it("none, incomplete, pending, expired and ok", () => {
+describe("state of the latest intake", () => {
+  it("none, open, awaiting, referred, expired and ok", () => {
     expect(screeningState(undefined, "2026-02-01")).toBe("none");
-    expect(screeningState(s(), "2026-02-01")).toBe("incomplete");
-    expect(screeningState(s({ regularExercise: false, diseases: ["renal"] }), "2026-02-01")).toBe("pending");
-    expect(screeningState(s({ regularExercise: true }), "2027-01-09")).toBe("ok");
-    expect(screeningState(s({ regularExercise: true }), "2027-01-10")).toBe("expired");
+    expect(screeningState(s(), "2026-02-01")).toBe("open");
+    expect(screeningState(s({ decision: "awaiting" }), "2026-02-01")).toBe("awaiting");
+    expect(screeningState(s({ decision: "referred" }), "2026-02-01")).toBe("referred");
+    expect(screeningState(s({ decision: "fit" }), "2027-01-09")).toBe("ok");
+    expect(screeningState(s({ decision: "fit" }), "2027-01-10")).toBe("expired");
   });
 
   it("counts whole months", () => {
@@ -62,32 +61,19 @@ describe("state of the latest screening", () => {
   });
 });
 
-it("a minor is under 18 by birth year", () => {
-  expect(isMinor({ birthYear: 2010 }, "2026-11-20")).toBe(true);
-  expect(isMinor({ birthYear: 2008 }, "2026-11-20")).toBe(false);
-  expect(isMinor({ birthYear: null }, "2026-11-20")).toBe(false);
+it("health alerts come from pressure, medication, confidence and the answers", () => {
+  const list = healthAlerts(s({ medicationFlags: ["betablocker"], medicationCount: 5, confidence: 6, quick: [true, null, null, null, null, null, null, null], restrictions: "Sem saltos" }), { sys: 165, dia: 90 });
+  expect(list).toHaveLength(6);
+  expect(list[0]).toMatch(/160\/100/);
+  expect(list.some((a) => /perceção de esforço/.test(a))).toBe(true);
+  expect(list.some((a) => /baixar a meta/.test(a))).toBe(true);
+  expect(list.at(-1)).toBe("Restrições: Sem saltos");
+  expect(healthAlerts(s(), null)).toEqual([]);
 });
 
-it("cautions come from medication, injuries still there and pregnancy", () => {
-  const list = cautions(
-    s({
-      medications: [{ name: "Bisoprolol", flags: ["betablocker"] }],
-      injuries: [
-        { id: "i1", region: "Joelho", side: "left", status: "active", since: "", pain: 4, aggravates: "", followedBy: "" },
-        { id: "i2", region: "Ombro", side: "right", status: "recovered", since: "", pain: null, aggravates: "", followedBy: "" },
-      ],
-      pregnancy: { weeks: 20, obstetricianOk: false },
-    }),
-  );
-  expect(list).toHaveLength(3);
-  expect(list[0]).toMatch(/PSE/);
-  expect(list[1]).toMatch(/obstetra/);
-  expect(list[2]).toBe("Lesão ativa: Joelho esquerdo, dor 4/10.");
-});
-
-it("a new screening keeps the answers but not the clearance", () => {
-  const last = s({ regularExercise: false, diseases: ["metabolic"], clearance: { date: "2026-01-20", by: "Dr. X", restrictions: "" }, dirty: 1 });
+it("a new intake keeps the answers but not the decision", () => {
+  const last = s({ diseases: ["diabetes"], decision: "fit_restricted", restrictions: "x", dirty: 1 });
   const next = nextScreening(last, "s2", "2026-11-20");
-  expect(next).toMatchObject({ id: "s2", date: "2026-11-20", diseases: ["metabolic"], clearance: null, updatedAt: 0 });
+  expect(next).toMatchObject({ id: "s2", date: "2026-11-20", diseases: ["diabetes"], decision: null, restrictions: "", updatedAt: 0 });
   expect("dirty" in next).toBe(false);
 });

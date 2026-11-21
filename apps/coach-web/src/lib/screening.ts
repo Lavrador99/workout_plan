@@ -1,58 +1,105 @@
-import type { Client, Disease, Intensity, MedFlag, Screening, Symptom } from "@treino/core/types";
+import type { Barrier, Client, ConsentKey, Decision, Disease, MedFlag, Referral, ReferralCriterion, Screening, Stage } from "@treino/core/types";
 
-// Preparticipation health screening: Riebe et al. (2015), Med Sci Sports Exerc
-// 47(11):2473–2479, kept in later editions of ACSM's Guidelines. The app
-// recommends; the coach decides and records the medical clearance.
+// The general intake (Ficha 1): health screening, history, lifestyle, goals
+// and behaviour. The coach decides; the app deduces what it can and warns.
 
-/** Changing the rule below means a new method: older screenings keep theirs. */
-export const METHOD = "acsm-2015";
-
-/** How long a screening holds before it should be done again. */
+/** How long a general intake holds before it should be done again. */
 export const VALID_MONTHS = 12;
 
+/** The 8 quick questions; the last one is only asked to women. */
+export const QUICK = [
+  "Algum médico disse que tem um problema cardíaco ou tensão arterial alta?",
+  "Sente dor no peito em repouso, no dia a dia ou a fazer exercício?",
+  "Perdeu o equilíbrio por tonturas ou perdeu a consciência nos últimos 12 meses?",
+  "Tem outra doença crónica diagnosticada (além de coração e tensão)?",
+  "Toma medicação para alguma doença crónica?",
+  "Tem problema de ossos, articulações ou músculos que possa piorar com exercício?",
+  "Algum médico disse que só deve fazer exercício com supervisão médica?",
+  "Está grávida ou teve um bebé nos últimos 12 meses?",
+];
+export const WOMEN_ONLY_QUICK = 7;
+
+export const REFERRAL_CRITERIA: [ReferralCriterion, string][] = [
+  ["chronic_pain", "Dor crónica (> 3 meses) ou que piora com o movimento → fisioterapeuta ou médico"],
+  ["cardiac_signs", "Dor no peito, tonturas, desmaios ou falta de ar desproporcionada → médico, avaliação suspensa"],
+  ["pregnancy_surgery_injury", "Gravidez de risco, cirurgia recente ou lesão aguda → autorização do profissional de saúde"],
+  ["nutrition", "Plano alimentar ou dúvida nutricional específica → nutricionista"],
+  ["mental_health", "Sinais de perturbação alimentar ou de saúde mental → encaminhar com cuidado, sem diagnosticar"],
+];
+
+export const DECISIONS: [Decision, string][] = [
+  ["fit", "Apto para avaliação completa"],
+  ["fit_restricted", "Apto com restrições"],
+  ["awaiting", "Aguarda autorização"],
+  ["referred", "Encaminhado"],
+];
+
 export const DISEASES: [Disease, string][] = [
-  ["cardiovascular", "Cardiovascular (cardíaca, vascular periférica, AVC)"],
-  ["metabolic", "Metabólica (diabetes tipo 1 ou 2)"],
-  ["renal", "Renal"],
-];
-
-export const SYMPTOMS: [Symptom, string][] = [
-  ["chest", "Dor ou desconforto no peito, pescoço, maxilar ou braços"],
-  ["breath", "Falta de ar em repouso ou com esforço ligeiro"],
-  ["dizziness", "Tonturas ou desmaios"],
-  ["orthopnea", "Falta de ar deitado ou a meio da noite"],
-  ["edema", "Inchaço dos tornozelos"],
-  ["palpitations", "Palpitações ou coração acelerado"],
-  ["claudication", "Dor nas pernas a andar, que passa em repouso"],
-  ["murmur", "Sopro cardíaco conhecido"],
-  ["fatigue", "Cansaço ou falta de ar invulgares no dia a dia"],
-];
-
-export const INTENSITIES: [Intensity, string, string][] = [
-  ["light", "Ligeira", "30–39% FC de reserva · PSE 9–11"],
-  ["moderate", "Moderada", "40–59% FC de reserva · PSE 12–13"],
-  ["vigorous", "Vigorosa", "≥ 60% FC de reserva · PSE ≥ 14"],
-];
-
-export const CONDITIONS = [
-  "Hipertensão",
-  "Colesterol alto",
-  "Asma",
-  "DPOC",
-  "Osteoporose",
-  "Artrose",
-  "Lombalgia crónica",
-  "Hérnia discal",
-  "Epilepsia",
-  "Cancro",
-  "Doença autoimune",
-  "Ansiedade ou depressão",
+  ["hypertension", "Hipertensão"],
+  ["heart", "Doença cardíaca"],
+  ["diabetes", "Diabetes"],
+  ["cholesterol", "Colesterol elevado"],
+  ["respiratory", "Asma / doença respiratória"],
+  ["osteoporosis", "Osteoporose / osteopenia"],
+  ["arthrosis", "Artrose / artrite"],
+  ["thyroid", "Doença da tiroide"],
+  ["epilepsy", "Epilepsia"],
+  ["anxiety_depression", "Ansiedade / depressão"],
+  ["other", "Outra"],
 ];
 
 export const MED_FLAGS: [MedFlag, string][] = [
   ["betablocker", "Betabloqueante"],
-  ["insulin", "Insulina ou hipoglicemiante"],
+  ["hypoglycemic", "Hipoglicemiante / insulina"],
+  ["antihypertensive", "Anti-hipertensor / diurético"],
   ["anticoagulant", "Anticoagulante"],
+];
+
+export const STAGES: [Stage, string][] = [
+  ["precontemplation", "Pré-contemplação — não treina e não pensa começar nos próximos 6 meses"],
+  ["contemplation", "Contemplação — não treina, pensa começar nos próximos 6 meses"],
+  ["preparation", "Preparação — treina pouco ou quer começar nos próximos 30 dias"],
+  ["action", "Ação — treina regularmente há menos de 6 meses"],
+  ["maintenance", "Manutenção — treina regularmente há mais de 6 meses"],
+];
+
+export const BARRIERS: [Barrier, string][] = [
+  ["time", "Tempo"],
+  ["money", "Dinheiro"],
+  ["pain", "Dor"],
+  ["shame", "Vergonha"],
+  ["tiredness", "Cansaço"],
+  ["support", "Falta de apoio"],
+  ["other", "Outra"],
+];
+
+export const EXPERIENCE: [NonNullable<Screening["strengthExperience"]>, string][] = [
+  ["none", "Nenhuma"],
+  ["basic", "Básica"],
+  ["intermediate", "Intermédia"],
+  ["advanced", "Avançada"],
+];
+
+export const REFERRALS: [Referral, string][] = [
+  ["social", "Redes sociais"],
+  ["referral", "Indicação"],
+  ["gym", "Ginásio"],
+  ["other", "Outro"],
+];
+
+export const CONSENTS: [ConsentKey, string][] = [
+  ["data_health", "Autorizo o tratamento dos meus dados pessoais e de saúde para avaliação, prescrição e acompanhamento do treino."],
+  ["media_internal", "Autorizo fotografias e vídeos para análise técnica (uso interno)."],
+  ["social_face", "Autorizo o uso de imagens nas redes sociais e materiais de divulgação — com rosto visível."],
+  ["social_no_face", "Autorizo o uso de imagens nas redes sociais e materiais de divulgação — só sem rosto visível."],
+  ["share_professionals", "Autorizo a partilha de informação com os profissionais indicados."],
+];
+
+export const SUMMARY_CHECKLIST = [
+  "PAR-Q+ oficial anexado",
+  "Consentimentos assinados",
+  "Ficha do módulo seguinte preparada",
+  "Relatório entregue ao cliente",
 ];
 
 export const INJURY_REGIONS = ["Pescoço", "Ombro", "Cotovelo", "Punho e mão", "Coluna dorsal", "Lombar", "Anca", "Virilha", "Coxa", "Joelho", "Perna", "Tornozelo e pé", "Outra"];
@@ -63,66 +110,35 @@ export const INJURY_STATUS: [Screening["injuries"][number]["status"], string][] 
   ["recovered", "Recuperada"],
 ];
 
-export const OCCUPATIONS: [NonNullable<Screening["occupation"]>, string][] = [
-  ["seated", "Sentado"],
-  ["standing", "De pé"],
-  ["physical", "Física"],
-];
+export const labelOf = <K,>(pairs: readonly (readonly [K, string])[], key: K | null | undefined) => pairs.find((p) => p[0] === key)?.[1];
 
-/**
- * The ACSM outcome:
- * - start: not exercising, no disease, no symptoms → no clearance, light to moderate
- * - clearance: not exercising, with disease or symptoms → clearance before starting
- * - continue: exercising, no disease, no symptoms → no clearance, moderate or vigorous
- * - vigorous: exercising, disease, no symptoms → moderate without clearance, vigorous with it
- * - stop: exercising, with symptoms → stop until cleared
- */
-export type Outcome = "start" | "clearance" | "continue" | "vigorous" | "stop";
-
-/** null until the three questions are answered (regular exercise is the only one that can be blank). */
-export function outcome(s: Pick<Screening, "regularExercise" | "diseases" | "symptoms">): Outcome | null {
-  if (s.regularExercise == null) return null;
-  const symptoms = s.symptoms.length > 0;
-  const disease = s.diseases.length > 0;
-  if (!s.regularExercise) return symptoms || disease ? "clearance" : "start";
-  if (symptoms) return "stop";
-  return disease ? "vigorous" : "continue";
-}
-
-export const OUTCOME_TEXT: Record<Outcome, string> = {
-  start: "Sem autorização médica. Começar com intensidade ligeira a moderada e progredir.",
-  clearance: "Autorização médica recomendada antes de começar. Depois, ligeira a moderada e progredir.",
-  continue: "Sem autorização médica. Pode continuar com intensidade moderada ou vigorosa e progredir.",
-  vigorous: "Moderada sem autorização médica. Para intensidade vigorosa, autorização médica recomendada.",
-  stop: "Parar o exercício e pedir autorização médica antes de voltar.",
-};
-
-/** Why: the answers that led to the outcome. */
-export function reasons(s: Pick<Screening, "regularExercise" | "diseases" | "symptoms">): string[] {
-  return [
-    s.regularExercise == null ? "" : s.regularExercise ? "Pratica exercício regular" : "Não pratica exercício regular",
-    ...DISEASES.filter(([k]) => s.diseases.includes(k)).map(([, l]) => `Doença: ${l.split(" (")[0].toLowerCase()}`),
-    ...SYMPTOMS.filter(([k]) => s.symptoms.includes(k)).map(([, l]) => `Sintoma: ${l.toLowerCase()}`),
-  ].filter(Boolean);
-}
-
-/** Whether medical clearance is recommended for what the client wants to do. Unknown intensity counts as vigorous. */
-export function clearanceNeeded(s: Pick<Screening, "regularExercise" | "diseases" | "symptoms" | "wantedIntensity">): boolean {
-  const o = outcome(s);
-  if (o === "clearance" || o === "stop") return true;
-  return o === "vigorous" && s.wantedIntensity !== "light" && s.wantedIntensity !== "moderate";
-}
-
-export const clearancePending = (s: Screening) => clearanceNeeded(s) && !s.clearance;
-
-export function ageOf(client: Pick<Client, "birthYear">, today: string): number | null {
+/** Age on a date: exact with a birth date, from the year otherwise. */
+export function ageOf(client: Pick<Client, "birthYear" | "birthDate">, today: string): number | null {
+  if (client.birthDate) {
+    const [y, m, d] = client.birthDate.split("-").map(Number);
+    const [ty, tm, td] = today.split("-").map(Number);
+    return ty - y - (tm < m || (tm === m && td < d) ? 1 : 0);
+  }
   return client.birthYear ? Number(today.slice(0, 4)) - client.birthYear : null;
 }
 
-export function isMinor(client: Pick<Client, "birthYear">, today: string): boolean {
+export function isMinor(client: Pick<Client, "birthYear" | "birthDate">, today: string): boolean {
   const age = ageOf(client, today);
   return age != null && age < 18;
 }
+
+/** Resting blood pressure that suspends the assessment. */
+export const bpStops = (sys: number | null | undefined, dia: number | null | undefined) => (sys ?? 0) >= 160 || (dia ?? 0) >= 100;
+
+/** What the answers point to; the decision is the coach's. */
+export function suggestedDecision(s: Pick<Screening, "quick" | "referralCriteria">, restingBpStops: boolean): Decision {
+  if (restingBpStops || s.referralCriteria.includes("cardiac_signs")) return "referred";
+  if (s.quick.some((q) => q === true) || s.referralCriteria.length) return "fit_restricted";
+  return "fit";
+}
+
+/** Tests only happen after a decision that lets them. */
+export const canTest = (s: Pick<Screening, "decision"> | undefined) => s?.decision === "fit" || s?.decision === "fit_restricted";
 
 /** Months from one YYYY-MM-DD to another, counting only whole months. */
 export function monthsBetween(from: string, to: string): number {
@@ -131,40 +147,47 @@ export function monthsBetween(from: string, to: string): number {
   return (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
 }
 
-export type ScreeningState = "none" | "incomplete" | "pending" | "expired" | "ok";
+export type ScreeningState = "none" | "open" | "awaiting" | "referred" | "expired" | "ok";
 
-/** The latest screening is what counts. */
+/** The latest general intake is what counts. */
 export function screeningState(latest: Screening | undefined, today: string): ScreeningState {
   if (!latest) return "none";
-  if (outcome(latest) == null) return "incomplete";
-  if (clearancePending(latest)) return "pending";
+  if (!latest.decision) return "open";
+  if (latest.decision === "awaiting") return "awaiting";
+  if (latest.decision === "referred") return "referred";
   if (monthsBetween(latest.date, today) >= VALID_MONTHS) return "expired";
   return "ok";
 }
 
 export const STATE_TEXT: Record<ScreeningState, string> = {
-  none: "Sem triagem",
-  incomplete: "Triagem por completar",
-  pending: "Autorização médica pendente",
-  expired: `Triagem com mais de ${VALID_MONTHS} meses`,
-  ok: "Triagem em dia",
+  none: "Sem ficha geral",
+  open: "Ficha geral sem decisão",
+  awaiting: "Aguarda autorização",
+  referred: "Encaminhado",
+  expired: `Ficha geral com mais de ${VALID_MONTHS} meses`,
+  ok: "Apto",
 };
 
-/** Things to keep in mind when training: from medication, injuries, pregnancy. */
-export function cautions(s: Screening): string[] {
-  const flags = new Set(s.medications.flatMap((m) => m.flags));
+/** Health alerts and restrictions for the coach (tab 10). Never shown to the client. */
+export function healthAlerts(s: Screening, restingBp: { sys: number | null; dia: number | null } | null): string[] {
+  const flags = new Set(s.medicationFlags);
   return [
-    flags.has("betablocker") ? "Betabloqueante: a FC não reflete o esforço. Usar a PSE em vez das zonas de FC." : "",
-    flags.has("insulin") ? "Insulina ou hipoglicemiante: atenção a hipoglicemias. Ter hidratos à mão." : "",
-    flags.has("anticoagulant") ? "Anticoagulante: evitar risco de impacto e queda." : "",
-    s.pregnancy ? `Grávida${s.pregnancy.weeks ? ` (${s.pregnancy.weeks} semanas)` : ""}${s.pregnancy.obstetricianOk ? "" : ": falta o acordo do obstetra"}.` : "",
-    s.postpartum?.pelvicSymptoms ? "Sintomas do pavimento pélvico no pós-parto: encaminhar para fisioterapia especializada." : "",
-    ...s.injuries.filter((i) => i.status !== "recovered").map((i) => `Lesão ${i.status === "active" ? "ativa" : "em recuperação"}: ${[i.region, i.side === "left" ? "esquerdo" : i.side === "right" ? "direito" : i.side === "both" ? "ambos os lados" : ""].filter(Boolean).join(" ")}${i.pain != null ? `, dor ${i.pain}/10` : ""}.`),
+    restingBp && bpStops(restingBp.sys, restingBp.dia) ? "Tensão em repouso ≥ 160/100: avaliação suspensa, encaminhar ao médico." : "",
+    s.quick.some((q) => q === true) ? "Triagem com respostas Sim: ver os detalhes e o PAR-Q+." : "",
+    flags.has("betablocker") ? "Betabloqueante: usar a perceção de esforço (0–10) em vez da FC." : "",
+    flags.has("hypoglycemic") ? "Hipoglicemiante: medir a glicemia antes dos testes e ter açúcar à mão." : "",
+    flags.has("antihypertensive") ? "Anti-hipertensor ou diurético: atenção a tonturas ao levantar e no retorno à calma." : "",
+    flags.has("anticoagulant") ? "Anticoagulante: evitar impacto e risco de queda." : "",
+    (s.medicationCount ?? 0) >= 5 ? "5 ou mais medicamentos diários: atenção a tonturas e quedas de tensão." : "",
+    s.confidence != null && s.confidence < 7 ? `Confiança ${s.confidence}/10: baixar a meta até chegar a 7.` : "",
+    s.familyHistory ? "Morte súbita ou doença cardíaca precoce na família." : "",
+    s.painIntensity ? `Dor atual ${s.painIntensity}/10${s.painZone ? ` (${s.painZone})` : ""}.` : "",
+    s.restrictions.trim() ? `Restrições: ${s.restrictions.trim()}` : "",
   ].filter(Boolean);
 }
 
-/** A new screening from the last one: same answers, today's date, no clearance (it was for that screening). */
+/** A new intake from the last one: same answers, today's date, no decision (it was for that day). */
 export function nextScreening(last: Screening, id: string, today: string): Screening {
   const { deleted: _deleted, dirty: _dirty, ...answers } = last;
-  return { ...answers, id, updatedAt: 0, date: today, method: METHOD, clearance: null };
+  return { ...answers, id, updatedAt: 0, date: today, decision: null, restrictions: "", clearanceRequested: "", referredTo: "", checklist: [] };
 }

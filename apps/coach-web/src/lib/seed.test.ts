@@ -6,7 +6,7 @@ import { MUSCLES, PATTERNS } from "./movement";
 import { MEASUREMENT_ERRORS, withMeasurementError } from "./references/measurementError";
 import { seedDays, seedExercises, seedProfiles, seedTests } from "./seed";
 import { demoData, fillMissing } from "./seedDemo";
-import type { Exercise, Focus, Client } from "@treino/core/types";
+import type { Exercise, Focus, Client, TestDef } from "@treino/core/types";
 import { norm } from "@treino/core/text";
 
 describe("seed library", () => {
@@ -81,8 +81,8 @@ describe("seed tests", () => {
     }
   });
 
-  it("sprints know their distance", () => {
-    expect(list.filter((t) => t.distanceM).map((t) => t.distanceM)).toEqual([5, 10, 20]);
+  it("timed distances know their length", () => {
+    expect(list.filter((t) => t.distanceM).map((t) => t.distanceM)).toEqual([5, 10, 20, 4]);
   });
 
   it("has the seven FMS patterns, five of them per side", () => {
@@ -157,7 +157,9 @@ describe("Teste shows everything the app reads", () => {
 
   it("has every base test", () => {
     const done = new Set(assessments.flatMap((a) => a.results.map((r) => r.testId)));
-    expect(tests.filter((t) => !done.has(t.id)).map((t) => t.id)).toEqual([]);
+    // Teste is a footballer: the intake's and Força e Equilíbrio's tests belong to the other made-up clients
+    const others = (t: TestDef) => t.groups.includes("Força e Equilíbrio") || t.groups.includes("Ficha geral");
+    expect(tests.filter((t) => !done.has(t.id) && !others(t)).map((t) => t.id)).toEqual([]);
     for (const a of assessments) for (const r of a.results) expect(r.sided ? finalValue(r, "left") != null && finalValue(r, "right") != null : finalValue(r) != null, r.testId).toBe(true);
   });
 

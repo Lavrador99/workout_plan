@@ -62,32 +62,35 @@ describe("report of the latest assessment", () => {
 });
 
 describe("cautions", () => {
-  const screening = (over: Partial<Screening>): Screening => ({ ...newScreening("c"), id: "s", date: "2026-01-01", regularExercise: false, ...over });
+  const screening = (over: Partial<Screening>): Screening => ({ ...newScreening("c"), id: "s", date: "2026-01-01", ...over });
 
-  it("keep injuries and clearance, never diagnoses, medication or symptoms", () => {
+  it("keep injuries and restrictions, never diagnoses, medication or answers", () => {
     const text = reportCautions(
       [
         screening({
-          diseases: ["metabolic"],
-          symptoms: ["palpitations"],
-          conditions: ["Hipertensão"],
-          medications: [{ name: "Bisoprolol", flags: ["betablocker"] }],
+          diseases: ["diabetes", "hypertension"],
+          medication: "Bisoprolol 5 mg",
+          medicationFlags: ["betablocker"],
+          quick: [true, null, null, null, null, null, null, null],
+          quickDetails: "Palpitações",
+          decision: "fit_restricted",
+          restrictions: "FC até 140.",
           injuries: [
             { id: "i", region: "Joelho", side: "left", status: "active", since: "", pain: 3, aggravates: "Saltos e agachamento profundo", followedBy: "" },
-            { id: "j", region: "Ombro", side: "right", status: "recovered", since: "", pain: null, aggravates: "", followedBy: "" },
+            { id: "j", region: "Ombro", side: "right", status: "recovered", since: "", pain: null, aggravates: "", followedBy: "Dr. X" },
           ],
-          clearance: { date: "2026-01-15", by: "Dr. X", restrictions: "FC até 140" },
         }),
       ],
       "2026-02-01",
     ).join(" ");
-    expect(text).toBe("Autorização médica de 15/01/2026. Restrições: FC até 140. Joelho esquerdo, lesão ativa: evitar saltos e agachamento profundo.");
+    expect(text).toBe("Restrições: FC até 140. Joelho esquerdo, lesão ativa: evitar saltos e agachamento profundo.");
     for (const word of ["diabetes", "Bisoprolol", "Hipertensão", "Palpita", "Dr. X", "Ombro"]) expect(text).not.toContain(word);
   });
 
-  it("say when clearance is still missing, and use only screenings up to the date", () => {
-    expect(reportCautions([screening({ diseases: ["renal"] })], "2026-02-01")).toEqual(["Aguarda autorização médica antes de aumentar a intensidade."]);
-    expect(reportCautions([screening({ diseases: ["renal"] })], "2025-12-01")).toEqual([]);
+  it("say when clearance is still missing, and use only intakes up to the date", () => {
+    expect(reportCautions([screening({ decision: "awaiting" })], "2026-02-01")).toEqual(["Aguarda autorização médica antes de aumentar a intensidade."]);
+    expect(reportCautions([screening({ decision: "awaiting" })], "2025-12-01")).toEqual([]);
+    expect(reportCautions([screening({ decision: "fit" })], "2026-02-01")).toEqual([]);
   });
 });
 

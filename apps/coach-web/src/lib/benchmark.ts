@@ -4,6 +4,8 @@
 import type { VersionSeries } from "./assessment";
 import { SCHMITZ_2018, SCHMITZ_2018_DATASETS } from "./references/schmitz2018";
 import { TOMKINSON_2025, TOMKINSON_2025_DATASETS } from "./references/tomkinson2025";
+import { FULLERTON, FULLERTON_DATASETS } from "./references/fullerton";
+import { ageOf } from "./screening";
 import { norm } from "@treino/core/text";
 import type { Client, Direction, Focus, Strength } from "@treino/core/types";
 
@@ -41,8 +43,8 @@ export interface ReferenceDataset {
   limitations: string;
 }
 
-export const SOURCES: ReferenceSource[] = [SCHMITZ_2018, TOMKINSON_2025];
-export const DATASETS: ReferenceDataset[] = [...SCHMITZ_2018_DATASETS, ...TOMKINSON_2025_DATASETS];
+export const SOURCES: ReferenceSource[] = [SCHMITZ_2018, TOMKINSON_2025, FULLERTON];
+export const DATASETS: ReferenceDataset[] = [...SCHMITZ_2018_DATASETS, ...TOMKINSON_2025_DATASETS, ...FULLERTON_DATASETS];
 
 /** Our own rating of how much a dataset can bear, not a universal scientific scale. */
 export type Evidence = "A" | "B" | "C" | "D";
@@ -63,7 +65,7 @@ export interface ClientContext {
 
 export function clientContext(client: Client, focuses: Focus[], date: string): ClientContext {
   const sports = focuses.filter((f) => f.kind === "sport" && client.focusIds?.includes(f.id)).map((f) => f.name);
-  return { sex: client.sex, age: client.birthYear ? Number(date.slice(0, 4)) - client.birthYear : null, level: client.level, sports };
+  return { sex: client.sex, age: ageOf(client, date), level: client.level, sports };
 }
 
 const LEVEL_MATCH: Record<NonNullable<Client["level"]>, ReferenceLevel> = { elite: "elite", competitivo: "sub-elite", recreativo: "amateur" };

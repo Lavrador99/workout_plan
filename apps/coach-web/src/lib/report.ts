@@ -1,13 +1,11 @@
 // The assessment report handed to the client. Only facts come from here: the
 // coach writes the findings, priorities and plan. It leaves the app, so health
-// data stays out except what matters for training (injuries, medical clearance).
+// data stays out except what matters for training (injuries, restrictions, waiting for clearance).
 
 import { asymmetry, compare, finalValue, fmtAsymmetry, SIDES, TEST_CATEGORIES, testMdc, type Change } from "./assessment";
 import { goalBalance, metricRow, type GoalRow } from "./balance";
 import { benchmark, clientContext, fmtPosition, type ReferenceSource } from "./benchmark";
 import { targetsOf } from "./progress";
-import { clearanceNeeded } from "./screening";
-import { fmtDate } from "@treino/core/text";
 import type { Assessment, AssessmentReport, Client, Focus, Goal, Screening, Side, TestCategory, TestDef, TestResult } from "@treino/core/types";
 
 export const MAX_PRIORITIES = 3;
@@ -117,12 +115,13 @@ export function reportCautions(screenings: Screening[], date: string): string[] 
   const injuries = s.injuries
     .filter((i) => i.status !== "recovered" && i.region)
     .map((i) => `${i.region}${side(i.side)}, ${i.status === "active" ? "lesão ativa" : "em recuperação"}${i.aggravates ? `: evitar ${i.aggravates.charAt(0).toLowerCase()}${i.aggravates.slice(1)}` : ""}.`);
-  const clearance = !clearanceNeeded(s)
-    ? []
-    : s.clearance
-      ? [`Autorização médica de ${fmtDate(s.clearance.date)}${s.clearance.restrictions ? `. Restrições: ${s.clearance.restrictions}` : ""}.`]
-      : ["Aguarda autorização médica antes de aumentar a intensidade."];
-  return [...clearance, ...injuries];
+  const decision =
+    s.decision === "awaiting" || s.decision === "referred"
+      ? ["Aguarda autorização médica antes de aumentar a intensidade."]
+      : s.decision === "fit_restricted" && s.restrictions.trim()
+        ? [`Restrições: ${s.restrictions.trim().replace(/\.$/, "")}.`]
+        : [];
+  return [...decision, ...injuries];
 }
 
 export function buildReport(input: ReportInput): Report {

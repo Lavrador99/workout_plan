@@ -3,7 +3,7 @@ import { askText } from "../components/Dialogs";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
 import { InstallCard } from "../components/PwaBanners";
-import { newClient, save } from "../lib/db";
+import { newClient, nextClientNumber, save } from "../lib/db";
 import { go, useClients, useSessions, useViewState } from "../lib/hooks";
 import PageHeader from "../components/PageHeader";
 import { isInactive, lastDoneByClient, matchesClient, nextTraining } from "../lib/agenda";
@@ -45,11 +45,13 @@ export default function ClientsPage() {
   const passes = (r: (typeof rows)[number]) => (filter === "all" ? true : filter === "injured" ? !!r.c.injuries : r[filter]);
   const list = rows.filter((r) => passes(r) && matchesClient(r.c, q));
 
-  const add = async () => {
+  /** Only the name, or the name and straight into the initial assessment. */
+  const add = async (onboarding = false) => {
     const name = q.trim() || (await askText("Nome do cliente"))?.trim();
     if (!name) return;
-    const c = await save("clients", newClient(name));
-    go("client", c.id);
+    const c = await save("clients", newClient(name, await nextClientNumber()));
+    if (onboarding) go("onboarding", c.id);
+    else go("client", c.id);
   };
 
   return (
@@ -58,10 +60,13 @@ export default function ClientsPage() {
     <div className="page">
       <div className="flex gap-2">
         <input className="input" data-search aria-label="Procurar ou novo cliente" placeholder="Nome, telefone, email ou novo cliente…" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && list.length === 0 && add()} />
-        <button type="button" className="btn-accent shrink-0" onClick={add}>
+        <button type="button" className="btn shrink-0" onClick={() => void add()}>
           <Plus /> Cliente
         </button>
       </div>
+      <button type="button" className="btn-accent" onClick={() => void add(true)}>
+        <Plus /> Avaliação inicial
+      </button>
       <InstallCard compact />
       {rows.length > 0 && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -75,7 +80,7 @@ export default function ClientsPage() {
       {rows.length > 0 && list.length === 0 && <p className="card p-4 text-sm text-muted">Nenhum cliente encontrado.</p>}
       {clients && clients.length === 0 && (
         <div className="card p-4 text-sm text-muted">
-          Ainda não tens clientes. Escreve um nome e carrega em <b>+ Cliente</b>. Depois podes colar o histórico de treinos dele em <b>Importar</b>.
+          Ainda não tens clientes. Escreve um nome e carrega em <b>+ Cliente</b>, ou em <b>+ Avaliação inicial</b> para fazer logo a primeira avaliação. Depois podes colar o histórico de treinos em <b>Importar</b>.
         </div>
       )}
       <ul className="flex flex-col gap-2">

@@ -29,7 +29,7 @@ function Row({ b, unit, brief }: { b: Benchmark; unit: string; brief?: boolean }
       </p>
       {!brief && <p className="text-xs text-muted">
         {d.mean != null ? `Média ${fmtNum(d.mean)} ${unit}${d.sd ? `, desvio-padrão ${fmtNum(d.sd)}` : ""} · ` : median != null ? `Mediana ${fmtNum(median)} ${unit} · ` : ""}
-        {d.subjects.toLocaleString("pt-PT")} pessoas, {d.studies} {d.studies === 1 ? "estudo" : "estudos"}
+        {d.subjects ? `${d.subjects.toLocaleString("pt-PT")} pessoas, ` : "N.º de pessoas por confirmar, "}{d.studies} {d.studies === 1 ? "estudo" : "estudos"}
       </p>}
     </li>
   );

@@ -221,6 +221,9 @@ select {
 .report-bad {
   color: #be1e1e;
 }
+.report-message {
+  @apply text-[15px] italic;
+}
 .report-note {
   @apply mt-2 text-[11px];
   color: #64645e;

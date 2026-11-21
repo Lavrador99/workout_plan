@@ -7,7 +7,7 @@
 
 import type { Table } from "dexie";
 import { applyOps } from "@treino/core/ops";
-import { db, DEFAULTS, migrateSideNotes, migrateTargets, onLocalChange } from "./db";
+import { db, DEFAULTS, migrateClients, migrateSideNotes, migrateTargets, onLocalChange } from "./db";
 import type { Session, SyncMeta, TableName } from "@treino/core/types";
 
 const CFG_KEY = "coach_api_cfg";
@@ -225,6 +225,7 @@ async function doSync() {
     }
     await migrateTargets();
     await migrateSideNotes();
+    await migrateClients();
     // ── push ──
     for (const table of TABLES) {
       const t = db[table] as unknown as Table<SyncMeta, string>;

@@ -12,7 +12,21 @@ export interface SyncMeta {
 
 export interface Client extends SyncMeta {
   name: string;
+  /** Read everywhere for the age; follows birthDate when there is one. */
   birthYear?: number | null;
+  birthDate?: string | null; // YYYY-MM-DD
+  /** Sequential, given on creation. */
+  clientNumber?: number | null;
+  address?: string;
+  profession?: string;
+  workRoutine?: string; // hours seated, standing, in physical effort
+  referral?: Referral | null; // how they reached the coach
+  referralNote?: string;
+  format?: "in_person" | "online" | null;
+  emergency?: { name: string; relation: string; phone: string } | null;
+  consents?: Consents;
+  /** Active assessment modules; unset = the suggested ones. */
+  moduleIds?: ModuleId[];
   hrMax?: number | null;
   hrRest?: number | null;
   /** Running pace at the threshold, seconds per km: the base of the pace zones. */
@@ -41,10 +55,9 @@ export interface Client extends SyncMeta {
   weights?: Weights | null;
   /** Every change of weights, oldest first. */
   weightLog?: WeightChange[];
-  consentAt?: string | null; // YYYY-MM-DD, when the client consented to their data being kept
-  /** Explicit consent for health data (RGPD art. 9), YYYY-MM-DD. */
+  /** Replaced by consents: only read to move what older versions left here. */
+  consentAt?: string | null;
   healthConsentAt?: string | null;
-  /** Consent for photos and video, social media included, YYYY-MM-DD. */
   imageConsentAt?: string | null;
   /** For a minor: who answers and consents for them. */
   guardian?: Guardian | null;
@@ -62,8 +75,26 @@ export interface Guardian {
   name: string;
   relation: string; // mãe, pai, tutor
   phone: string;
+  email?: string;
   consentAt: string | null; // YYYY-MM-DD
 }
+
+export type Referral = "social" | "referral" | "gym" | "other";
+
+export type ConsentKey = "data_health" | "media_internal" | "social_face" | "social_no_face" | "share_professionals";
+
+export interface Consents {
+  given: Partial<Record<ConsentKey, string>>; // YYYY-MM-DD each was given
+  professionals: string; // who information may be shared with
+  signature: string | null; // PNG data URL
+  guardianSignature: string | null;
+  signedAt: string | null;
+}
+
+/** Assessment modules: a focus with its own anamnesis and tests. */
+export type ModuleId = "strength_balance" | "motor_development" | "health_performance" | "women" | "clinical" | "calisthenics" | "sports_performance" | "hybrid_hyrox" | "hybrid_athx";
+
+export type Light = "green" | "yellow" | "red";
 
 export interface Absence {
   date: string; // YYYY-MM-DD
@@ -364,6 +395,42 @@ export interface Assessment extends SyncMeta {
   results: TestResult[];
   /** What the coach writes for the client's report. */
   report?: AssessmentReport | null;
+  /** Unset = a general assessment (the intake's anthropometry, or one made by hand). */
+  moduleId?: ModuleId | null;
+  /** Replaces the free text in `conditions` for new assessments. */
+  conditionsData?: AssessmentConditions | null;
+  vitals?: Vitals[];
+  /** Questionnaire answers, item by item (null = not answered). Totals are always calculated. */
+  questionnaires?: Record<string, (number | null)[]>;
+  /** The module's own answers that are not tests: anamnesis, safety checklist, observations. */
+  moduleData?: Record<string, ModuleValue>;
+}
+
+export type ModuleValue = string | number | boolean | string[] | null;
+
+export interface AssessmentConditions {
+  startTime: string; // HH:MM
+  place: string;
+  surface: string;
+  shoes: string;
+  sleep: string;
+  lastMeal: string;
+  caffeine: string;
+  lastHardSession: string;
+  soreness: number | null; // 0–10
+  wellbeing: number | null; // 1–10
+  bia: string[]; // checklist before bioimpedance
+  notes: string;
+}
+
+export type VitalsMoment = "rest" | "before" | "after_strength" | "after_aerobic" | "after_5min";
+
+export interface Vitals {
+  moment: VitalsMoment;
+  sys: number | null;
+  dia: number | null;
+  hr: number | null;
+  feeling: number | null; // 0–10, or effort with beta-blockers
 }
 
 export interface AssessmentReport {
@@ -372,6 +439,10 @@ export interface AssessmentReport {
   priorities: string[]; // up to 3
   plan: string;
   nextDate: string | null; // YYYY-MM-DD
+  /** Module assessments: the coach's own colour for an area, over the calculated one. */
+  areaOverrides?: Record<string, Light>;
+  /** Module assessments: one positive line, tied to what the client wants to do again. */
+  message?: string;
 }
 
 /** The coach, as shown on reports. One record, the same on every device. */
@@ -461,19 +532,17 @@ export interface ProgressSnapshot extends SyncMeta {
   recalculated?: boolean;
 }
 
-export type Disease = "cardiovascular" | "metabolic" | "renal";
+export type Disease = "hypertension" | "heart" | "diabetes" | "cholesterol" | "respiratory" | "osteoporosis" | "arthrosis" | "thyroid" | "epilepsy" | "anxiety_depression" | "other";
 
-/** Signs or symptoms suggestive of cardiovascular, metabolic or renal disease (ACSM). */
-export type Symptom = "chest" | "breath" | "dizziness" | "orthopnea" | "edema" | "palpitations" | "claudication" | "murmur" | "fatigue";
+export type MedFlag = "betablocker" | "hypoglycemic" | "antihypertensive" | "anticoagulant";
 
-export type Intensity = "light" | "moderate" | "vigorous";
+export type ReferralCriterion = "chronic_pain" | "cardiac_signs" | "pregnancy_surgery_injury" | "nutrition" | "mental_health";
 
-export type MedFlag = "betablocker" | "insulin" | "anticoagulant";
+export type Decision = "fit" | "fit_restricted" | "awaiting" | "referred";
 
-export interface Medication {
-  name: string;
-  flags: MedFlag[];
-}
+export type Stage = "precontemplation" | "contemplation" | "preparation" | "action" | "maintenance";
+
+export type Barrier = "time" | "money" | "pain" | "shame" | "tiredness" | "support" | "other";
 
 export interface Injury {
   id: string;
@@ -486,38 +555,86 @@ export interface Injury {
   followedBy: string; // physio, doctor, none
 }
 
-/** What the client declared on a date. A new one is a copy: the old ones stay as they were. */
+/** The general intake (Ficha 1) as declared on a date. A new one is a copy: the old ones stay as they were. */
 export interface Screening extends SyncMeta {
   clientId: string;
   date: string; // YYYY-MM-DD
-  method: string; // the decision rule (screening.ts)
-  answeredBy: "client" | "guardian";
 
-  regularExercise: boolean | null; // ≥ 30 min moderate, ≥ 3 days a week, for the last 3 months
+  quick: (boolean | null)[]; // the 8 quick questions, in order
+  quickDetails: string;
+  parq: "all_no" | "followup_done" | null;
+  referralCriteria: ReferralCriterion[];
+  decision: Decision | null;
+  restrictions: string;
+  clearanceRequested: string; // who and when
+  referredTo: string; // who, why, when
+
   diseases: Disease[];
-  symptoms: Symptom[];
-  wantedIntensity: Intensity | null;
-  clearance: { date: string; by: string; restrictions: string } | null;
-
-  conditions: string[];
-  medications: Medication[];
+  diseaseDetails: string;
+  diseaseLimits: boolean | null; // a chronic disease limits daily life
+  medication: string;
+  medicationCount: number | null;
+  medicationFlags: MedFlag[];
   surgeries: string;
-  restingBp: { sys: number | null; dia: number | null } | null;
-
   injuries: Injury[];
+  painZone: string;
+  painIntensity: number | null; // 0–10
+  painSince: string;
+  painTriggers: string;
+  familyHistory: boolean | null;
+  healthProfessionals: string;
 
+  exerciseNow: string;
+  pastSports: string;
+  bestPhase: string;
+  strengthExperience: "none" | "basic" | "intermediate" | "advanced" | null;
+  competitions: string;
+  ptBefore: string;
+  trainingInjuries: string;
   sleepHours: number | null;
-  sleepQuality: number | null; // 1–5
-  stress: number | null; // 1–5
-  occupation: "seated" | "standing" | "physical" | null;
-  activity: string;
-  history: string;
+  sleepQuality: number | null; // 1–10
+  stress: number | null; // 1–10
+  steps: number | null;
+  stressSource: string;
+  food: string;
+  water: string;
+  alcohol: string;
+  tobacco: string;
+  supplements: string;
+
+  mainGoal: string;
+  why: string;
+  secondaryGoals: string;
+  deadline: string;
+  targetEvent: string;
+  success: string;
+  availability: string;
+  sessionsPerWeek: number | null;
+  place: string;
+  homeEquipment: string;
+  budget: string;
+  likes: string;
+  dislikes: string;
+
+  stage: Stage | null;
+  confidence: number | null; // 0–10
+  reason: string;
   motivation: string;
+  barriers: Barrier[];
+  barrierDetails: string;
+  pastDropout: string;
+  support: string;
+  followUp: string;
 
-  pregnancy: { weeks: number | null; obstetricianOk: boolean } | null;
-  postpartum: { weeks: number | null; delivery: "vaginal" | "cesarean" | null; pelvicSymptoms: boolean } | null;
+  fallOrFear: boolean | null;
+  risesWithoutHands: boolean | null;
+  longInactivity: boolean | null;
 
-  notes: string;
+  impressions: string;
+  referralsMade: string;
+  package: string;
+  nextSession: string | null; // YYYY-MM-DD
+  checklist: string[];
 }
 
 export type TableName = "clients" | "exercises" | "sessions" | "templates" | "focuses" | "tests" | "assessments" | "goals" | "snapshots" | "screenings" | "profiles";

@@ -6,7 +6,9 @@ import PageHeader, { NotFound } from "../components/PageHeader";
 import { changeTone, fmtChange, SIDE_SHORT } from "../lib/assessment";
 import { save } from "../lib/db";
 import { go, useAssessment, useAssessments, useClient, useFocuses, useGoals, useProfile, useScreenings, useTests } from "../lib/hooks";
-import { addWeeks, baselines, buildReport, emptyReport, MAX_PRIORITIES, REASSESS_WEEKS, type Report, type ReportRow } from "../lib/report";
+import { addWeeks, baselines, buildReport, emptyReport, MAX_PRIORITIES, type Report, type ReportRow } from "../lib/report";
+import { evaluate, MODULES, reassessWeeks, type Evaluation, type ModuleDef } from "../lib/modules";
+import { ModuleVisual } from "../components/ModuleReport";
 import { ageOf } from "../lib/screening";
 import { fmtDate, fmtNum } from "@treino/core/text";
 import type { Assessment, AssessmentReport, Client, CoachProfile } from "@treino/core/types";
@@ -43,6 +45,8 @@ export default function ReportPage({ id }: { id: string }) {
     () => (a && client && assessments && tests && focuses && goals && screenings ? buildReport({ client, assessment: a, assessments, tests, focuses, goals, screenings }) : null),
     [a, client, assessments, tests, focuses, goals, screenings],
   );
+  const mod = a?.moduleId ? MODULES[a.moduleId] : undefined;
+  const evaluation = useMemo(() => (mod && a && client && tests && focuses ? evaluate(mod, a, { client, tests, focuses }) : null), [mod, a, client, tests, focuses]);
 
   if (stored === null || (stored?.deleted && !a)) return <NotFound title="Relatório" back={["clients"]} />;
   if (!a || !client || !report || !assessments || profile === undefined) return <PageLoading title="Relatório" back={["clients"]} />;
@@ -117,24 +121,30 @@ export default function ReportPage({ id }: { id: string }) {
             <Field label="Plano">
               <textarea className="input py-2 min-h-[120px]" value={text.plan} placeholder="O que vamos fazer nas próximas semanas" onChange={(e) => write({ plan: e.target.value })} />
             </Field>
+            {mod && (
+              <Field label="Mensagem para o cliente">
+                <textarea className="input py-2 min-h-[72px]" value={text.message ?? ""} placeholder="Uma frase curta e positiva, ligada ao que a pessoa quer voltar a fazer" onChange={(e) => write({ message: e.target.value })} />
+              </Field>
+            )}
             <Field label="Próxima reavaliação">
-              <input className="input" type="date" value={text.nextDate ?? addWeeks(a.date, REASSESS_WEEKS)} onChange={(e) => write({ nextDate: e.target.value || null })} />
+              <input className="input" type="date" value={text.nextDate ?? addWeeks(a.date, reassessWeeks(a.moduleId))} onChange={(e) => write({ nextDate: e.target.value || null })} />
             </Field>
           </section>
           <p className="text-xs text-muted">Pré-visualização. No botão PDF escolhe "Guardar como PDF" (no iPhone: Partilhar → Imprimir → Partilhar).</p>
         </div>
 
-        <ReportSheet client={client} assessment={a} text={text} report={report} profile={profile} />
+        <ReportSheet client={client} assessment={a} text={text} report={report} profile={profile} module={mod && evaluation ? { mod, evaluation } : undefined} />
       </div>
     </>
   );
 }
 
-function ReportSheet({ client, assessment, text, report, profile }: { client: Client; assessment: Assessment; text: AssessmentReport; report: Report; profile: CoachProfile | null }) {
+/** A module report shows the areas as a radar and a body map instead of the table of tests. */
+function ReportSheet({ client, assessment, text, report, profile, module }: { client: Client; assessment: Assessment; text: AssessmentReport; report: Report; profile: CoachProfile | null; module?: { mod: ModuleDef; evaluation: Evaluation } }) {
   const age = ageOf(client, assessment.date);
   const priorities = text.priorities.filter((p) => p.trim());
   const contacts = [profile?.phone, profile?.email, profile?.instagram].filter(Boolean);
-  const nextDate = text.nextDate ?? addWeeks(assessment.date, REASSESS_WEEKS);
+  const nextDate = text.nextDate ?? addWeeks(assessment.date, reassessWeeks(assessment.moduleId));
 
   return (
     <article className="report">
@@ -174,7 +184,9 @@ function ReportSheet({ client, assessment, text, report, profile }: { client: Cl
         </section>
       )}
 
-      {report.groups.length > 0 && (
+      {module && <ModuleVisual mod={module.mod} areas={module.evaluation.areas} />}
+
+      {!module && report.groups.length > 0 && (
         <section>
           <h2 className="report-h2">Resultados</h2>
           <table className="report-table">
@@ -246,6 +258,8 @@ function ReportSheet({ client, assessment, text, report, profile }: { client: Cl
           <p className="whitespace-pre-line">{text.plan}</p>
         </section>
       )}
+
+      {module && text.message?.trim() && <p className="report-block report-message">{text.message}</p>}
 
       <p className="report-block">
         <strong>Próxima reavaliação:</strong> {fmtDate(nextDate)}
